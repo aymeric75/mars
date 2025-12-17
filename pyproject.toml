@@ -27,6 +27,8 @@ exclude = [".git", ".eggs", "tmp"]
 select = ["ALL"]
 
 ignore = [
+    "D403",
+    "D415",
     "D100",    # missing docstring in public module
     "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed in
     "S301",    # pickle and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue
@@ -107,3 +109,8 @@ max-complexity = 20 # max length of function name
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+]

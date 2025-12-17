@@ -17,7 +17,7 @@ class BinConverter:
     def init(self, values: list[float], num_bins: int, num_sample_per_bin: int = 100) -> None:
         """Initialize bin converter."""
         random.shuffle(values)
-        values = values[:1000000]
+        #values = values[:1000000]
         self._create_bins(values, num_bins)
         self._create_sample_probs(values, num_sample_per_bin)
 

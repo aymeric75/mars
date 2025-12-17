@@ -41,12 +41,14 @@ ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
 # Install Miniconda and Python packages
-RUN curl -o miniconda.sh -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
-    chmod +x miniconda.sh && \
-    ./miniconda.sh -b -p /opt/conda && \
-    rm miniconda.sh && \
-    /opt/conda/bin/conda install -y python=3.12 conda-build cython && \
-    /opt/conda/bin/conda clean -ya
+RUN curl -fsSLo miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && chmod +x miniconda.sh \
+    && ./miniconda.sh -b -p /opt/conda \
+    && rm miniconda.sh \
+    && /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main \
+    && /opt/conda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r \
+    && /opt/conda/bin/conda install -y python=3.12 conda-build cython \
+    && /opt/conda/bin/conda clean -ya
 
 # Add conda to PATH
 ENV PATH=/opt/conda/bin:$PATH

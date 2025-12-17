@@ -32,7 +32,7 @@
         }
     },
     "mounts": [
-        "source=/data/,target=/data,type=bind,consistency=cached"
+        "source=/home/pst722/MarS/data,target=/data,type=bind,consistency=cached"
     ],
     "containerEnv": {},
     "runArgs": [

@@ -28,5 +28,6 @@
     "ruff.lint.args": [
         "args: [--config=pyproject.toml]",
         "--unsafe-fixes", // Aggressive fixes.
-    ]
+    ],
+    "python-envs.pythonProjects": []
 }
