@@ -234,6 +234,9 @@ class Orderbook:
                 self.bids.pop(index)
             return transactions
         if order.is_cancel_sell:
+            # print(f"order.price is {order.price}")
+            # print(f"order.volume is {order.volume}")
+            # print(f"self.asks is {self.asks}")
             index = self._find_matched_index(order.price, self.asks)
             assert index >= 0
             assert order.price != 0

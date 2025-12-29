@@ -1,10 +1,12 @@
 import numpy as np
 import pandas as pd
 import torch
-
+import re
 
 from market_simulation.utils.bin_converter import BinConverter
+from mlib.core.limit_order import LimitOrder
 
+from mlib.core.lob_snapshot import LobSnapshot
 
 """
 Building the State:
@@ -42,9 +44,9 @@ def map_order_type(row) -> int | None:
     if int(row["Message_Type"]) == 1:
         # Buy Limit order
         if int(row["Direction"]) == 1:
-            return 1
+            return "B"
         elif int(row["Direction"]) == -1:
-            return 0
+            return "S"
         else:
             print("problem ")
             # breakpoint()
@@ -52,14 +54,24 @@ def map_order_type(row) -> int | None:
 
     # total deletion of a limit order
     if int(row["Message_Type"]) == 3:
-        return 2
+        return "C"
 
     ####breakpoint()
     return None
 
 
-#
 
+def _levels(row, prefix):
+    # collect (level, value) pairs like (1, 3642300.0)
+    pairs = []
+    for k, v in row.items():
+        m = re.fullmatch(rf"{prefix}(\d+)", k)
+        if m:
+            lvl = int(m.group(1))
+            pairs.append((lvl, v))
+    # sort by level, keep only non-nan
+    pairs.sort(key=lambda x: x[0])
+    return [v for _, v in pairs if v == v]  # v==v filters out NaN
 
 def bin_index(x, edges):
     """zadd"""
@@ -98,7 +110,8 @@ def make_features_from_csv(df: pd.DataFrame) -> torch.Tensor:
     """loop over a df of limit orders and construct for each row a feature df for the Order Model"""
 
 
-
+    print(df)
+    breakpoint()
 
     # Time assumed nanoseconds since epoch (your sample looks like that)
     t = df["Time"].astype(np.int64).to_numpy()
@@ -131,6 +144,51 @@ def make_features_from_csv(df: pd.DataFrame) -> torch.Tensor:
         if pd.isna(row["mid_price"]):
             continue
 
+
+        print(row)
+        time_ = pd.to_datetime(row["Time"], unit="ns")
+        print(time_)
+
+
+        limit_order = LimitOrder(
+            time = pd.to_datetime(row["Time"], unit="ns"),
+            type = order_type,
+            price = int(row["Price"]),
+            volume = int(row["Size"]),
+            symbol = "APPL",
+            agent_id =  99999,
+            order_id = int(row["Order"]),
+            cancel_type = "None" if order_type in ["B", "S"] else order_type,
+            cancel_id = -1,
+            tag = ""
+        )
+        print(_levels(row, "Ask_Price_"))
+
+        # integer position of current row
+        pos = df.index.get_loc(i)
+        if pos == 0:
+            prev_mid = 0
+        else:
+            prev_i = df.index[pos - 1]
+            prev_row = df.loc[prev_i]
+            prev_mid = prev_row["mid_price"]
+
+        lobsnapshot = LobSnapshot(
+            time = pd.to_datetime(row["Time"], unit="ns"),
+            max_level = 10,
+            last_price = prev_mid,
+            ask_prices = _levels(row, "Ask_Price_"),
+            ask_volumes = _levels(row, "Ask_Size_"),
+            bid_prices = _levels(row, "Bid_Price_"),
+            bid_volumes = _levels(row, "Bid_Size_")
+        )
+
+        print("lobsnapshot")
+        print(lobsnapshot)
+
+        breakpoint()
+
+
         mid_price = float(row["mid_price"]) if pd.notna(row["mid_price"]) else 0.0
         price_slot = bin_index(mid_price, PRICE_EDGES)
 
@@ -152,8 +210,6 @@ def make_features_from_csv(df: pd.DataFrame) -> torch.Tensor:
 
         print("order_index")
         print(order_index)
-
-
 
         breakpoint()
 
