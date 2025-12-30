@@ -163,6 +163,7 @@ class OrderState(State):
 
         # set open price if need
         if self.open_trans_price is None and trade_info.transactions and trade_info.transactions[0].type in ["B", "S"]:
+            breakpoint("aaaaa")
             self.open_trans_price = trade_info.transactions[0].price
 
         self.cur_order_lob = self.latest_lob
@@ -204,16 +205,37 @@ class OrderState(State):
         cur_order_lob: LobSnapshot,
     ) -> int:
         """Get order index from order, interval and lob."""
+
+
+
+
         order_type = PredOrderInfo.get_index_from_type(cur_order.type)  # [0, 1, 2]
         price_slot = self.converter.price_level.get_bin_index(cur_order.price - cur_order_lob.mid_price)
         volume_slot = self.converter.order_volume.get_bin_index(cur_order.volume)
         interval_slot = self.converter.order_interval.get_bin_index(interval_seconds)
-        return (
+
+        # print("order_type")
+        # print(order_type)
+        # print("cur_order.price")
+        # print(cur_order.price)
+        # print("cur_order_lob.mid_price")
+        # print(cur_order_lob.mid_price)
+        # print("price_slot")
+        # print(price_slot)
+        # print("volume_slot")
+        # print(volume_slot)
+        # print("interval_slot")
+        # print(interval_slot)
+
+        retour = (
             order_type * (self.num_bins_price_level * self.num_bins_pred_order_volume * self.num_bins_order_interval)
             + price_slot * (self.num_bins_pred_order_volume * self.num_bins_order_interval)
             + volume_slot * self.num_bins_order_interval
             + interval_slot
         )
+
+
+        return retour
 
     def get_pred_order_info(self, order_index: int) -> PredOrderInfo:
         """Reverse function of get_order_index, need a further sampling to get real price/volume/interval."""
@@ -269,6 +291,16 @@ class OrderState(State):
             and self.prev_order_lob is not None
         )
 
+        # print("trade_info")
+        # print(trade_info)
+        # print(trade_info.order)
+        # print(trade_info.order.order_id)
+        # print(trade_info.transactions)
+        # print(trade_info)
+
+
+
+
         if is_same_cancel_order:
             assert self.prev_order_lob is not None
             # merge cancel orders, and set prev_order with merged order..
@@ -315,6 +347,25 @@ class OrderState(State):
                 self.recent_orders.popleft()
             self.prev_order = self.cur_order
             self.prev_order_lob = self.cur_order_lob
+
+
+        if trade_info.order.order_id == 9979737:
+
+            print("order_infoorder_infoorder_info")
+            print(order_info)
+            print(order_info.order_index)
+            print(order_info.price_change_to_open)
+            print("ICI")
+            #if self.open_trans_price is None and trade_info.transactions and trade_info.transactions[0].type in ["B", "S"]:
+            print(self.open_trans_price)
+            print(trade_info.transactions)
+            #print(trade_info.transactions[0].type)
+            breakpoint()
+
+
+
+
+
 
     def to_vector(self) -> npt.NDArray[np.int32]:
         """Convert order state to vector."""

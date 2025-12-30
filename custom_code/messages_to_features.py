@@ -3,6 +3,8 @@ import sys
 import argparse
 import pandas as pd
 import numpy as np
+import pickle
+
 
 from tqdm import tqdm
 from dataclasses import dataclass
@@ -16,7 +18,7 @@ from market_simulation.states.order_state import OrderState
 from market_simulation.utils.bin_converter import BinConverter
 
 
-SEQ_LEN = 1024
+SEQ_LEN = 1 # 1024
 TOKEN_DIM = 15
 NUM_BINS_PRICE_LEVEL = 32
 NUM_BINS_ORDER_VOLUME = 32
@@ -220,13 +222,13 @@ def return_values_for_bins(
     sampled = 0   # number of samples actually collected
 
 
-    # for i, r in enumerate(tqdm(messages_df.itertuples(index=False),
-    #                           total=n,
-    #                           desc="pass1: bins",
-    #                           unit="msg")):
-    for i, r in enumerate(messages_df.itertuples(index=False)):
+    # for i, r in enumerate(messages_df.itertuples(index=False)):
+    for i, r in enumerate(tqdm(messages_df.itertuples(index=False),
+                              total=n,
+                              desc="pass1: bins",
+                              unit="msg")):
 
-        print(f"i is {i}")
+
         if i >= n:
             break
 
@@ -238,22 +240,14 @@ def return_values_for_bins(
 
         # Always feed to keep book consistent
         try:
+
             ex.submit_continuous_auction_order(order)
         except AssertionError:
             raise
 
         fed += 1
 
-        snap = ex.get_lob(symbol).snapshot(level=10)
 
-
-        if i > 550000 and i < 550010:
-            print(snap)
-
-        if i == 550010:
-            breakpoint()
-
-        continue
         # Decide whether to record this event into bin-sample arrays
         if sample_every_k > 1 and (fed % sample_every_k) != 0:
             continue
@@ -340,19 +334,50 @@ def pass2_write_features(
             continue
 
         try:
+
+            # if i == 10000:
+            #     print("r.Time is ")
+            #     print(r.Time)
+
+            #     print("Row")
+            #     print(r)
+
+            #     print("Order")
+            #     print(order)
+
+
+            #     # snapshot from exchange-built orderbook
+            #     snap = ex.get_lob(symbol).snapshot(level=10)
+            #     print("snap")
+            #     print(snap)
+            #     breakpoint()
+
+
             ex.submit_continuous_auction_order(order)
         except AssertionError:
+            raise
+
+
+
+        # We want the vector from OrderInfo (not OrderState).
+        # OrderInfo objects are stored in order_state.recent_orders.
+        if len(order_state.recent_orders) == 0:
             continue
 
-        try:
-            feat = order_state.to_vector()
-        except AssertionError:
-            # state not ready (e.g., no current order set yet)
-            continue
+        feat = order_state.recent_orders[-1].to_vector()
 
         feat = np.asarray(feat, dtype=np.int32).reshape(-1)
+
+        # index  vol_ratio_slot  trans_ratio_slot   price_change_to_open    time_to_open     lob_volumes
+        # f0     f1              f2                 f3                       f4             f5  f6  f7  f8  f9  f10  f11  f12  f13  f14
+        # 10624   9              0                  0                         2147          0   0   0   0   0    0    0    0    0    0
+
+
+        #
+
         if feat.shape[0] != TOKEN_DIM:
             continue
+
 
         rows.append(
             {
@@ -394,46 +419,63 @@ def main():
     messages_df_historical_data = pd.read_parquet("../data/2025-10-09_messages_10.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
 
 
-    price_minus_mid, sizes, intervals, lob_vols = return_values_for_bins(
-        messages_df_historical_data,
-        symbol=args.symbol,
-        time_unit=args.time_unit,
-        max_events=None,
-        sample_every_k=50,
-        #=1_000_000,  # optional
-    )
-
-    df = pd.DataFrame([{
-        "price_minus_mid": price_minus_mid,
-        "sizes": sizes,
-        "intervals": intervals,
-        "lob_vols": lob_vols,
-    }])
-
-    df.to_parquet("../data/bins_samples.parquet", index=False)
-
-
-    # df = pd.read_parquet("../data/bins_samples.parquet")
-    # price_minus_mid = df.loc[0, "price_minus_mid"]
-    # sizes         = df.loc[0, "sizes"]
-    # intervals     = df.loc[0, "intervals"]
-    # lob_vols      = df.loc[0, "lob_vols"]
-
-
-
-    # converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
-
-    # messages_df = pd.read_parquet("../data/2025-10-10_messages_10.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
-
-    # out_path, n_written = pass2_write_features(
-    #     messages_df,
+    # price_minus_mid, sizes, intervals, lob_vols = return_values_for_bins(
+    #     messages_df_historical_data,
     #     symbol=args.symbol,
     #     time_unit=args.time_unit,
-    #     conv=converters,
-    #     out_path="mymessages.parquet",
-    #     max_events=args.max_events,
+    #     max_events=None,
+    #     sample_every_k=50,
+    #     #=1_000_000,  # optional
     # )
-    # print(f"Wrote {n_written} feature rows -> {out_path}")
+
+    # df = pd.DataFrame([{
+    #     "price_minus_mid": price_minus_mid,
+    #     "sizes": sizes,
+    #     "intervals": intervals,
+    #     "lob_vols": lob_vols,
+    # }])
+
+    # df.to_parquet("../data/bins_samples.parquet", index=False)
+
+    # print("finished")
+
+    df = pd.read_parquet("../data/bins_samples.parquet")
+    price_minus_mid = df.loc[0, "price_minus_mid"]
+    sizes         = df.loc[0, "sizes"]
+    intervals     = df.loc[0, "intervals"]
+    lob_vols      = df.loc[0, "lob_vols"]
+
+
+
+    converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
+
+    # print("converters.price_level.bins")
+    # print(converters.price_level.bins)
+    # print("converters.order_volume.bins")
+    # print(converters.order_volume.bins)
+    # print("converters.pred_order_volume.bins")
+    # print(converters.pred_order_volume.bins)
+    # print("converters.order_interval.bins")
+    # print(converters.order_interval.bins)
+    # print("converters.lob_volume.bins")
+    # print(converters.lob_volume.bins)
+    # breakpoint()
+
+    # print(converters.order_interval.get_bin_index(0))
+
+
+    messages_df = pd.read_parquet("../data/2025-10-10_messages_10.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
+
+
+    out_path, n_written = pass2_write_features(
+        messages_df,
+        symbol=args.symbol,
+        time_unit=args.time_unit,
+        conv=converters,
+        out_path="../data/mymessages.parquet",
+        max_events=args.max_events,
+    )
+    print(f"Wrote {n_written} feature rows -> {out_path}")
 
 
 
