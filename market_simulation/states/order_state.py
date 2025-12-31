@@ -159,11 +159,6 @@ class OrderState(State):
             self.latest_lob = trade_info.lob_snapshot
             self.prev_order = trade_info.order
             self.open_time = trade_info.order.time
-
-            print("WAS FUCKING HERE!!!!!")
-            print("self.open_timeself.open_timeself.open_time")
-            print(self.open_time)
-            breakpoint()
             return
 
         # set open price if need
