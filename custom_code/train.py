@@ -1,7 +1,9 @@
 import torch
 import pandas as pd
 import torch.nn as nn
+import numpy as np
 
+from torch.utils.data import Dataset, DataLoader
 from market_simulation.models.order_model import OrderModel
 
 
@@ -13,30 +15,26 @@ features_df = pd.read_parquet("../data/mymessages.parquet")
 
 
 
-K = 200  # must match num_max_orders
+K = 128
 
-X_seq = []
-y_seq = []
+F = features_df[[f"f{i}" for i in range(15)]].to_numpy(dtype=np.float32)  # (T,15)
+Y = features_df["f0"].to_numpy(dtype=np.int64)                            # (T,)
 
-for t in range(K, len(features_df)):
-    X_seq.append(
-        features_df[[f"f{i}" for i in range(15)]].iloc[t-K:t].values
-    )
-    y_seq.append(
-        features_df["f0"].iloc[t]
-    )
+class OrderClipDataset(Dataset):
+    def __init__(self, F, Y, K):
+        self.F, self.Y, self.K = F, Y, K
+    def __len__(self):
+        return len(self.Y) - self.K
+    def __getitem__(self, idx):
+        t = idx + self.K
+        x = torch.from_numpy(self.F[t-self.K:t]).long()    # (K,15)
+        y = torch.tensor(self.Y[t], dtype=torch.long)
+        return x, y
 
-X_in  = torch.tensor(X_seq, dtype=torch.float32)   # (B, K, 15)
-X_out = torch.tensor(y_seq, dtype=torch.long)      # (B,)
-
-
-
-
-
+ds = OrderClipDataset(F, Y, K)
+dl = DataLoader(ds, batch_size=256, shuffle=True, num_workers=2, pin_memory=True)
 
 
-# print(X_in.shape)
-# exit()
 emb_dim    = 256
 num_layers = 6
 num_heads  = 8
@@ -51,11 +49,11 @@ model = OrderModel(
 optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
 criterion = nn.CrossEntropyLoss()
 
-
 for epoch in range(10):
-    logits = model(X_in)
-    loss = criterion(logits, X_out.long())
-    loss.backward()
-    optimizer.step()
-    optimizer.zero_grad()
-    print(f"epoch {epoch}, loss {loss.item():.4f}")
+    for X_in, X_out in dl:
+        logits = model(X_in.long())               # (B, vocab)
+        loss = criterion(logits, X_out)    # X_out already long
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+    print("epoch", epoch, "loss", float(loss))

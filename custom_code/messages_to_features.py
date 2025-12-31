@@ -190,51 +190,6 @@ def row_to_order(
         )
 
 
-    #
-    # # Visible execution / cross trade: TURN INTO AGGRESSIVE ORDER (NOT CANCEL)
-    # #if msg in (4, 12):*
-    # if msg in (4,):
-    #     # direction encodes the RESTING side in your data (-1 bid, +1 ask)
-    #     # aggressor is the opposite side
-    #     if direction == -1:
-    #         aggressor_side = "S"   # sell hits resting bid
-    #     elif direction == +1:
-    #         aggressor_side = "B"   # buy lifts resting ask
-    #     else:
-    #         return None
-
-    #     # ensure we have a price (infer from book if needed)
-    #     if (price is None or price == 0) and ex is not None:
-    #         # fall back to best price on the resting side
-    #         snap = ex.get_lob(symbol).snapshot(level=1)
-    #         if aggressor_side == "S":
-    #             # selling into bids => use best bid
-    #             if not snap.bid_prices or snap.bid_prices[0] is None:
-    #                 return None
-    #             price = int(snap.bid_prices[0])
-    #         else:
-    #             # buying into asks => use best ask
-    #             if not snap.ask_prices or snap.ask_prices[0] is None:
-    #                 return None
-    #             price = int(snap.ask_prices[0])
-
-    #     # IMPORTANT:
-    #     # give it a fresh order_id (<0) so Exchange assigns one, since this is "incoming aggressor"
-    #     return LimitOrder(
-    #         time=t,
-    #         type=aggressor_side,   # "B" or "S"
-    #         price=price,
-    #         volume=size,
-    #         symbol=symbol,
-    #         agent_id=-1,
-    #         order_id=-1,
-    #         cancel_type="",
-    #         cancel_id=-1,
-    #         tag="replay_exec_as_aggressor",
-    #     )
-
-
-
     # Unknown / unsupported
     return None
 
@@ -357,6 +312,7 @@ def return_values_for_bins(
 
 def pass2_write_features(
     messages_df: pd.DataFrame,
+    meta_df: pd.DataFrame,
     *,
     symbol: str,
     time_unit: str,
@@ -370,14 +326,30 @@ def pass2_write_features(
     rows: List[dict] = []
     n = len(messages_df) if max_events is None else min(len(messages_df), max_events)
 
+
+
+    # We use the meta info to obtain when we are in MarketHours (between code 22 and 23)
+    meta = meta_df.sort_values("Time", kind="mergesort")
+    mt = meta["Time"].to_numpy()
+    mc = meta["System_Event_Code"].to_numpy()
+    msg_t = messages_df["Time"].to_numpy()
+    j = np.searchsorted(mt, msg_t)
+    j = np.clip(j, 1, len(mt) - 1)
+    left = j - 1
+    right = j
+    nearest = np.where((msg_t - mt[left]) <= (mt[right] - msg_t), left, right)
+    msg_sys_code = mc[nearest]   # aligned with messages_df rows
+
+    markethours = False
+
     for i, r in enumerate(tqdm(messages_df.itertuples(index=False),
                               total=n,
                               desc="pass2: features",
                               unit="msg")):
 
-
         if i >= n:
             break
+
 
         #order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit)
         order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit, ex=ex)
@@ -385,45 +357,34 @@ def pass2_write_features(
         if order is None:
             continue
 
-
         if order_state.open_trans_price is None and r.Price is not None:
             order_state.open_trans_price = r.Price
 
         try:
-
-            # #if int(r.Time) > 57523138517770:
-            # if i == 10000:
-
-            #     print("r.Time is ")
-            #     print(r.Time)
-
-            #     print("Row")
-            #     print(r)
-
-            #     print("Order")
-            #     print(order)
-
-            #     # snapshot from exchange-built orderbook
-            #     snap = ex.get_lob(symbol).snapshot(level=10)
-            #     print("snap")
-            #     print(snap)
-            #     breakpoint()
-
             ex.submit_continuous_auction_order(order)
 
         except:
             raise
 
-
-
-
-        # We want the vector from OrderInfo (not OrderState).
-        # OrderInfo objects are stored in order_state.recent_orders.
         if len(order_state.recent_orders) == 0:
             continue
 
-        feat = order_state.recent_orders[-1].to_vector()
+        sys_code = msg_sys_code[i]
 
+        if sys_code == 22:
+            markethours = True
+        if sys_code == 23:
+            markethours = False
+            # snap = ex.get_lob(symbol).snapshot(level=10)
+            # print(snap)
+            break
+
+        if not markethours:
+            continue
+
+        # boolean IN_BETWEN
+
+        feat = order_state.recent_orders[-1].to_vector()
         feat = np.asarray(feat, dtype=np.int32).reshape(-1)
 
         # # 100000
@@ -522,7 +483,7 @@ def main():
     intervals     = df.loc[0, "intervals"]
     lob_vols      = df.loc[0, "lob_vols"]
 
-
+    # 500 000
 
     converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
 
@@ -542,13 +503,35 @@ def main():
     # print(converters.order_interval.get_bin_index(0))
 
 
-    messages_df = pd.read_parquet("../data/2025-10-10_messages_10.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
+    #messages_df = pd.read_parquet("../data/2025-10-10_messages_10.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
+    messages_df = pd.read_parquet("../data/2025-10-09_messages_10.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
+
+    print("messages_df")
+    print(messages_df)
 
 
-    # les features ET ENSUITE ?????
+    meta_df = pd.read_parquet("../data/2025-10-10_meta_10.parquet")
+
+    print(meta_df[meta_df['System_Event_Code'] == 23])
+
+    print("meta_df")
+    print(meta_df['System_Event_Code'].unique())
+
+
+
+    time_unit = "ns"
+
+    # 34200010331091
+    # 36357192809481
+
+    # 57600003755960
+    print(pd.to_timedelta(int(57600003755960), unit=time_unit))
+
+
 
     out_path, n_written = pass2_write_features(
         messages_df,
+        meta_df,
         symbol=args.symbol,
         time_unit=args.time_unit,
         conv=converters,
