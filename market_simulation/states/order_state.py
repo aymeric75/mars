@@ -153,6 +153,7 @@ class OrderState(State):
         assert converter.pred_order_volume.num_bins == self.num_bins_pred_order_volume
         assert converter.order_interval.num_bins == self.num_bins_order_interval
 
+    # ..
     def on_trading(self, trade_info: TradeInfo) -> None:
         """Update order state with trading information."""
         if self.latest_lob is None:
