@@ -388,9 +388,6 @@ def pass2_write_features(
 
         if order_state.open_trans_price is None and r.Price is not None:
             order_state.open_trans_price = r.Price
-            # print("order_state.open_trans_price")
-            # print(order_state.open_trans_price) # 3642300
-            # breakpoint()
 
         try:
 
@@ -417,11 +414,6 @@ def pass2_write_features(
         except:
             raise
 
-        # except AssertionError:
-        #     snap = ex.get_lob(symbol).snapshot(level=10)
-        #     print(snap)
-
-        #     raise
 
 
 
@@ -459,7 +451,6 @@ def pass2_write_features(
         #     # 10624   9              0                  0                         2147          0   0   0   0   0    0    0    0    0    0
 
 
-        #     breakpoint()
 
         if feat.shape[0] != TOKEN_DIM:
             continue
@@ -547,9 +538,6 @@ def main():
     # print(converters.lob_volume.bins)
     # breakpoint()
 
-    ####### QU UN TRUC à FAIRE
-
-    ###########  LE LOB EST BON
 
     # print(converters.order_interval.get_bin_index(0))
 
@@ -557,7 +545,7 @@ def main():
     messages_df = pd.read_parquet("../data/2025-10-10_messages_10.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
 
 
-
+    # les features ET ENSUITE ?????
 
     out_path, n_written = pass2_write_features(
         messages_df,
