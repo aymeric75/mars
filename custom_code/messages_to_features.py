@@ -394,23 +394,23 @@ def pass2_write_features(
 
         try:
 
-            #if int(r.Time) > 57523138517770:
-            if i == 10000:
+            # #if int(r.Time) > 57523138517770:
+            # if i == 10000:
 
-                print("r.Time is ")
-                print(r.Time)
+            #     print("r.Time is ")
+            #     print(r.Time)
 
-                print("Row")
-                print(r)
+            #     print("Row")
+            #     print(r)
 
-                print("Order")
-                print(order)
+            #     print("Order")
+            #     print(order)
 
-                # snapshot from exchange-built orderbook
-                snap = ex.get_lob(symbol).snapshot(level=10)
-                print("snap")
-                print(snap)
-                breakpoint()
+            #     # snapshot from exchange-built orderbook
+            #     snap = ex.get_lob(symbol).snapshot(level=10)
+            #     print("snap")
+            #     print(snap)
+            #     breakpoint()
 
             ex.submit_continuous_auction_order(order)
 
@@ -434,27 +434,32 @@ def pass2_write_features(
 
         feat = np.asarray(feat, dtype=np.int32).reshape(-1)
 
-        print(r.Price)
-        snap = ex.get_lob(symbol).snapshot(level=10)
-        print(snap.mid_price) # 3087800
-        #breakpoint()
-        # ( 3087800 / 3642300 ) - 1 =  -0.15223896988
-        # X 10000 = -1522.3896988
+        # # 100000
+        # if i > 100000:
 
-        # print("order_state.open_trans_price")
-        # print(order_state.open_trans_price) # 3642300
-        # print("r.Price")
-        # print(r.Price) # 2533300
-        print("feat")
-        print(feat)
-        breakpoint()
+        #     print(r.Price)
+        #     snap = ex.get_lob(symbol).snapshot(level=10)
+        #     print("snapsnapsnapsnap")
+        #     print(snap) # 3087800
+        #     #breakpoint()
+        #     # ( 3087800 / 3642300 ) - 1 =  -0.15223896988
+        #     # X 10000 = -1522.3896988
 
-        # index  vol_ratio_slot  trans_ratio_slot   price_change_to_open    time_to_open     lob_volumes
-        # f0     f1              f2                 f3                       f4             f5  f6  f7  f8  f9  f10  f11  f12  f13  f14
-        # 10624   9              0                  0                         2147          0   0   0   0   0    0    0    0    0    0
+        #     # print("order_state.open_trans_price")
+        #     # print(order_state.open_trans_price) # 3642300
+        #     # print("r.Price")
+        #     # print(r.Price) # 2533300
+        #     print("feat")
+        #     print(feat)
+        #     # if i > 100:
+        #     #     breakpoint()
+
+        #     # index  vol_ratio_slot  trans_ratio_slot   price_change_to_open    time_to_open     lob_volumes
+        #     # f0     f1              f2                 f3                       f4             f5  f6  f7  f8  f9  f10  f11  f12  f13  f14
+        #     # 10624   9              0                  0                         2147          0   0   0   0   0    0    0    0    0    0
 
 
-        #
+        #     breakpoint()
 
         if feat.shape[0] != TOKEN_DIM:
             continue

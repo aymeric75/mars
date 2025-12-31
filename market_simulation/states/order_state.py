@@ -180,8 +180,8 @@ class OrderState(State):
         """
         assert cur_time >= open_time
         seconds = (cur_time - open_time).total_seconds()
-        if cur_time.hour >= 13:
-            seconds -= 1.5 * 3600  # empty from 11:30 to 13:00
+        # if cur_time.hour >= 13:
+        #     seconds -= 1.5 * 3600  # empty from 11:30 to 13:00
         return int(seconds)
 
     def get_order_index_from_slots(
@@ -280,6 +280,13 @@ class OrderState(State):
         price_change = 0 if self.open_trans_price is None else mid_price / self.open_trans_price - 1
         price_change = np.clip(price_change, -0.2, 0.2)
         seconds_to_open = self.get_seconds_to_open(self.cur_order.time, self.open_time)
+
+        # print("OrderInfo.NUM_LOB_VOLUMES")
+        # print(OrderInfo.NUM_LOB_VOLUMES)
+        # print("trade_info.lob_snapshot")
+        # print(trade_info.lob_snapshot)
+        # breakpoint()
+
         lob_volumes = self.get_lob_volume_slots(trade_info.lob_snapshot, total_len=OrderInfo.NUM_LOB_VOLUMES)
         # merge continous cancel orders if their prices and time are same.
         is_same_cancel_order: bool = (
