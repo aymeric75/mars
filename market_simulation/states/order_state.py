@@ -88,8 +88,8 @@ class OrderInfo:
         """Convert order info to vector."""
         values: list[int] = [
             self.order_index,
-            int(np.floor(self.volume_ratio * 0.99 * OrderInfo.NUM_RATIO_SLOTS)),  # volume ratio slot, [0, 9]
-            int(np.floor(self.trans_ratio * 0.99 * OrderInfo.NUM_RATIO_SLOTS)),  # trans ratio slot, [0, 9],
+            int(np.floor(self.volume_ratio * 0.99 * OrderInfo.NUM_RATIO_SLOTS)),  # volume ratio slot, [0, 9] (Aymeric: "How big I am compared to the queue I am joining", in their code used only for RL, i.e. We don't care for now)
+            int(np.floor(self.trans_ratio * 0.99 * OrderInfo.NUM_RATIO_SLOTS)),  # trans ratio slot, [0, 9], (Aymeric: "How much of this order has already been executed", in their code used only for RL)
             self.price_change_to_open,
             self.time_to_open,
             *self.lob_volumes,
@@ -159,11 +159,16 @@ class OrderState(State):
             self.latest_lob = trade_info.lob_snapshot
             self.prev_order = trade_info.order
             self.open_time = trade_info.order.time
+
+            print("WAS FUCKING HERE!!!!!")
+            print("self.open_timeself.open_timeself.open_time")
+            print(self.open_time)
+            breakpoint()
             return
 
         # set open price if need
         if self.open_trans_price is None and trade_info.transactions and trade_info.transactions[0].type in ["B", "S"]:
-            breakpoint("aaaaa")
+            #breakpoint()
             self.open_trans_price = trade_info.transactions[0].price
 
         self.cur_order_lob = self.latest_lob
@@ -349,18 +354,18 @@ class OrderState(State):
             self.prev_order_lob = self.cur_order_lob
 
 
-        if trade_info.order.order_id == 9979737:
+        # if trade_info.order.order_id == 9979737:
 
-            print("order_infoorder_infoorder_info")
-            print(order_info)
-            print(order_info.order_index)
-            print(order_info.price_change_to_open)
-            print("ICI")
-            #if self.open_trans_price is None and trade_info.transactions and trade_info.transactions[0].type in ["B", "S"]:
-            print(self.open_trans_price)
-            print(trade_info.transactions)
-            #print(trade_info.transactions[0].type)
-            breakpoint()
+        #     print("order_infoorder_infoorder_info")
+        #     print(order_info)
+        #     print(order_info.order_index)
+        #     print(order_info.price_change_to_open)
+        #     print("ICI")
+        #     #if self.open_trans_price is None and trade_info.transactions and trade_info.transactions[0].type in ["B", "S"]:
+        #     print(self.open_trans_price)
+        #     print(trade_info.transactions)
+        #     #print(trade_info.transactions[0].type)
+        #     breakpoint()
 
 
 

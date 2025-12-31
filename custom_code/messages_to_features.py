@@ -103,8 +103,14 @@ def row_to_order(
     """
     msg = int(r.Message_Type)
 
-    # Convert time offset to Timestamp
-    t = base_time + pd.to_timedelta(int(r.Time), unit=time_unit)
+    # Convert time offset to Timestamp*
+
+    # print("time_unit")
+    # print(time_unit)
+    # breakpoint()
+
+
+    t = pd.to_timedelta(int(r.Time), unit=time_unit)
 
     # Your convention: -1 = Bid, +1 = Ask
     direction = int(r.Direction) if not pd.isna(r.Direction) else 0
@@ -182,6 +188,52 @@ def row_to_order(
             cancel_id=order_id,
             tag="replay_exec",
         )
+
+
+    #
+    # # Visible execution / cross trade: TURN INTO AGGRESSIVE ORDER (NOT CANCEL)
+    # #if msg in (4, 12):*
+    # if msg in (4,):
+    #     # direction encodes the RESTING side in your data (-1 bid, +1 ask)
+    #     # aggressor is the opposite side
+    #     if direction == -1:
+    #         aggressor_side = "S"   # sell hits resting bid
+    #     elif direction == +1:
+    #         aggressor_side = "B"   # buy lifts resting ask
+    #     else:
+    #         return None
+
+    #     # ensure we have a price (infer from book if needed)
+    #     if (price is None or price == 0) and ex is not None:
+    #         # fall back to best price on the resting side
+    #         snap = ex.get_lob(symbol).snapshot(level=1)
+    #         if aggressor_side == "S":
+    #             # selling into bids => use best bid
+    #             if not snap.bid_prices or snap.bid_prices[0] is None:
+    #                 return None
+    #             price = int(snap.bid_prices[0])
+    #         else:
+    #             # buying into asks => use best ask
+    #             if not snap.ask_prices or snap.ask_prices[0] is None:
+    #                 return None
+    #             price = int(snap.ask_prices[0])
+
+    #     # IMPORTANT:
+    #     # give it a fresh order_id (<0) so Exchange assigns one, since this is "incoming aggressor"
+    #     return LimitOrder(
+    #         time=t,
+    #         type=aggressor_side,   # "B" or "S"
+    #         price=price,
+    #         volume=size,
+    #         symbol=symbol,
+    #         agent_id=-1,
+    #         order_id=-1,
+    #         cancel_type="",
+    #         cancel_id=-1,
+    #         tag="replay_exec_as_aggressor",
+    #     )
+
+
 
     # Unknown / unsupported
     return None
@@ -333,29 +385,43 @@ def pass2_write_features(
         if order is None:
             continue
 
+
+        if order_state.open_trans_price is None and r.Price is not None:
+            order_state.open_trans_price = r.Price
+            # print("order_state.open_trans_price")
+            # print(order_state.open_trans_price) # 3642300
+            # breakpoint()
+
         try:
 
-            # if i == 10000:
-            #     print("r.Time is ")
-            #     print(r.Time)
+            #if int(r.Time) > 57523138517770:
+            if i == 10000:
 
-            #     print("Row")
-            #     print(r)
+                print("r.Time is ")
+                print(r.Time)
 
-            #     print("Order")
-            #     print(order)
+                print("Row")
+                print(r)
 
+                print("Order")
+                print(order)
 
-            #     # snapshot from exchange-built orderbook
-            #     snap = ex.get_lob(symbol).snapshot(level=10)
-            #     print("snap")
-            #     print(snap)
-            #     breakpoint()
-
+                # snapshot from exchange-built orderbook
+                snap = ex.get_lob(symbol).snapshot(level=10)
+                print("snap")
+                print(snap)
+                breakpoint()
 
             ex.submit_continuous_auction_order(order)
-        except AssertionError:
+
+        except:
             raise
+
+        # except AssertionError:
+        #     snap = ex.get_lob(symbol).snapshot(level=10)
+        #     print(snap)
+
+        #     raise
 
 
 
@@ -367,6 +433,21 @@ def pass2_write_features(
         feat = order_state.recent_orders[-1].to_vector()
 
         feat = np.asarray(feat, dtype=np.int32).reshape(-1)
+
+        print(r.Price)
+        snap = ex.get_lob(symbol).snapshot(level=10)
+        print(snap.mid_price) # 3087800
+        #breakpoint()
+        # ( 3087800 / 3642300 ) - 1 =  -0.15223896988
+        # X 10000 = -1522.3896988
+
+        # print("order_state.open_trans_price")
+        # print(order_state.open_trans_price) # 3642300
+        # print("r.Price")
+        # print(r.Price) # 2533300
+        print("feat")
+        print(feat)
+        breakpoint()
 
         # index  vol_ratio_slot  trans_ratio_slot   price_change_to_open    time_to_open     lob_volumes
         # f0     f1              f2                 f3                       f4             f5  f6  f7  f8  f9  f10  f11  f12  f13  f14
@@ -461,10 +542,16 @@ def main():
     # print(converters.lob_volume.bins)
     # breakpoint()
 
+    ####### QU UN TRUC à FAIRE
+
+    ###########  LE LOB EST BON
+
     # print(converters.order_interval.get_bin_index(0))
 
 
     messages_df = pd.read_parquet("../data/2025-10-10_messages_10.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
+
+
 
 
     out_path, n_written = pass2_write_features(
