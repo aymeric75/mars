@@ -339,6 +339,7 @@ def pass2_write_features(
     right = j
     nearest = np.where((msg_t - mt[left]) <= (mt[right] - msg_t), left, right)
     msg_sys_code = mc[nearest]   # aligned with messages_df rows
+    del meta, mt, mc, msg_t, j, left, right, nearest
 
     markethours = False
 
