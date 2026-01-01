@@ -34,7 +34,7 @@ class OrderTokenizer(nn.Module, PyTorchModelHubMixin):
         self.emb_pred_order_volume = nn.Embedding(num_bins_pred_order_volume, self.emb_dim)
         self.emb_order_interval = nn.Embedding(num_bins_order_interval, self.emb_dim)
         self.emb_chg_to_open = nn.Embedding(self.max_chg_slots * 2 + 1, self.emb_dim)
-        self.emb_time_to_open = nn.Embedding(14400 // 5 + 1, self.emb_dim)  # group every 5 seconds..
+        self.emb_time_to_open = nn.Embedding(23400 // 5 + 1, self.emb_dim)  # group every 5 seconds..
         self.lob_tokenizer = nn.Sequential(
             nn.Linear(10, self.emb_dim),
             nn.LayerNorm(emb_dim),
