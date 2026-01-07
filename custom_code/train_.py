@@ -41,7 +41,6 @@ emb_dim    = 256
 num_layers = 6
 num_heads  = 8
 
-print("'LLLAa1111")
 
 model = OrderModel(
     emb_dim = emb_dim,
@@ -51,25 +50,58 @@ model = OrderModel(
 )
 
 
-print("'LLLAa22222")
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
 criterion = nn.CrossEntropyLoss()
 
-print("'LLLAa33333")
+
+
+
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = model.to(device)
+
+log_every = 50  # set None to disable step logging
 
 for epoch in range(10):
-    print("'LLLAa44444")
-    for X_in, X_out in dl:
-        print("'LLLAa55555")
-        logits = model(X_in.long())               # (B, vocab)
-        print("'LLLAa66666666")
-        loss = criterion(logits, X_out)    # X_out already long
-        print("'LLLAa77777777")
+    model.train()
+
+    total_loss = 0.0
+    total_correct = 0
+    total_seen = 0
+
+    for step, (X_in, X_out) in enumerate(dl, start=1):
+        X_in = X_in.to(device, non_blocking=True)
+        X_out = X_out.to(device, non_blocking=True)
+
+        optimizer.zero_grad(set_to_none=True)
+
+        logits = model(X_in)                 # (B, T, vocab)  OR (B, vocab) if you changed the model
+        # print(logits.shape) # torch.Size([256, 128, 49152])
+        if logits.dim() == 3:
+            logits = logits[:, -1, :]        # (B, vocab)
+            # #print(logits_last.shape) # torch.Size([256, 49152])
+
+
+
+        breakpoint()
+        loss = criterion(logits, X_out)
         loss.backward()
-        print("'LLLAa888888")
         optimizer.step()
-        print("'LLLAa99999999999")
-        optimizer.zero_grad()
-        print("'LLLAa11110000000000000000")
-    print("epoch", epoch, "loss", float(loss))
+
+        # stats
+        bsz = X_out.size(0)
+        total_loss += loss.item() * bsz
+
+        preds = logits.argmax(dim=-1)        # (B,)
+        total_correct += (preds == X_out).sum().item()
+        total_seen += bsz
+
+        if log_every is not None and step % log_every == 0:
+            avg_loss = total_loss / total_seen
+            acc = total_correct / total_seen
+            print(f"epoch {epoch} step {step}/{len(dl)}  loss {avg_loss:.4f}  acc {acc:.4f}")
+
+    epoch_loss = total_loss / total_seen
+    epoch_acc = total_correct / total_seen
+    print(f"epoch {epoch}  loss {epoch_loss:.4f}  train_acc {epoch_acc:.4f}")
