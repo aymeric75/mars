@@ -173,6 +173,21 @@ class OrderState(State):
         assert self.prev_order is not None
         self.update_order_info(trade_info)
 
+    # Aymeric
+    def safe_mid_price(self, lob):
+        """
+            if lob has no mid price, return the last valid one
+        """
+        try:
+            mid = lob.mid_price
+        except ValueError:
+            mid = getattr(self, "_last_mid_price", None)
+            if mid is None:
+                return None
+        self._last_mid_price = mid
+        return mid
+
+    
     def get_seconds_to_open(self, cur_time: pd.Timestamp, open_time: pd.Timestamp) -> int:
         """Get seconds to market open.
 
@@ -211,7 +226,17 @@ class OrderState(State):
 
 
         order_type = PredOrderInfo.get_index_from_type(cur_order.type)  # [0, 1, 2]
-        price_slot = self.converter.price_level.get_bin_index(cur_order.price - cur_order_lob.mid_price)
+        #price_slot = self.converter.price_level.get_bin_index(cur_order.price - cur_order_lob.mid_price)
+
+        mid_price = self.safe_mid_price(cur_order_lob)
+        if mid_price is None:
+            # no mid available -> cannot index price-minus-mid reliably
+            # choose one of these behaviors:
+            return 0  # (A) fallback to a default index
+            # or: raise/skip upstream if you prefer (see below)
+        
+        price_slot = self.converter.price_level.get_bin_index(cur_order.price - mid_price)
+        
         volume_slot = self.converter.order_volume.get_bin_index(cur_order.volume)
         interval_slot = self.converter.order_interval.get_bin_index(interval_seconds)
 
@@ -258,7 +283,13 @@ class OrderState(State):
         assert total_len % 2 == 0
         offset: int = total_len // 2
         volume_slots: list[int] = [0] * total_len
-        mid_price = lob.mid_price
+        #mid_price = lob.mid_price
+
+        # Aymeric
+        mid_price = self.safe_mid_price(lob)
+        if mid_price is None:
+            return [0] * total_len
+        
         for price, volume in zip(lob.ask_prices, lob.ask_volumes, strict=True):
             price_slot = (price - mid_price) // 100 + offset
             if 0 <= price_slot < total_len:
@@ -276,7 +307,15 @@ class OrderState(State):
         assert self.prev_order is not None
         assert self.cur_order_lob is not None
         assert self.open_time is not None
-        mid_price: int = trade_info.lob_snapshot.mid_price
+        #mid_price: int = trade_info.lob_snapshot.mid_price
+
+        # Aymeric
+        mid_price = self.safe_mid_price(trade_info.lob_snapshot)
+        if mid_price is None:
+            return  # cannot compute features yet
+        
+
+        
         price_change = 0 if self.open_trans_price is None else mid_price / self.open_trans_price - 1
         price_change = np.clip(price_change, -0.2, 0.2)
         seconds_to_open = self.get_seconds_to_open(self.cur_order.time, self.open_time)

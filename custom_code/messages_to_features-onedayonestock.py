@@ -436,7 +436,7 @@ def main():
     ap.add_argument("--max-events", type=int, default=None, help="Process at most this many rows (debug)")
     args = ap.parse_args()
 
-    messages_df_historical_data = pd.read_parquet("../data/training_messages_unordered.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
+    messages_df_historical_data = pd.read_parquet("../data/2025-10-09_messages_10.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
 
     """  """
     
@@ -464,8 +464,6 @@ def main():
     lob_vols      = df.loc[0, "lob_vols"]
 
     converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
-
-    
 
     # print("converters.price_level.bins")
     # print(converters.price_level.bins)

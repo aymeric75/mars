@@ -146,7 +146,7 @@ class OrderModel(nn.Module, PyTorchModelHubMixin):
     def forward(self, features: Tensor) -> Tensor:
         """Forward pass."""
         tokens = self.tokenize(features)
-        out = self.decoder(inputs_embeds=tokens, use_cache=False, logits_to_keep=1)  # type: ignore
+        out = self.decoder(inputs_embeds=tokens, use_cache=False)  # type: ignore
         logits = out.logits
         return logits
 
