@@ -1,0 +1,18 @@
+wandb_version: 1
+
+batch_size:
+  value: 8
+eval_every:
+  value: 50
+lr:
+  value: 0.0003
+max_steps:
+  value: 2000
+model_variant:
+  value: base
+seed:
+  value: 123
+train_fraction:
+  value: 0.5
+val_max_batches:
+  value: 200

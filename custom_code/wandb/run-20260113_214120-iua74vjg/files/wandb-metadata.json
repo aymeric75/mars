@@ -1,0 +1,81 @@
+{
+  "os":  "Linux-4.18.0-553.74.1.el8_10.x86_64-x86_64-with-glibc2.28",
+  "python":  "CPython 3.12.12",
+  "startedAt":  "2026-01-13T19:41:20.992883Z",
+  "program":  "mars_order_model_sweep",
+  "git":  {
+    "remote":  "https://github.com/TUNI-Financial-Computing/MarS.git",
+    "commit":  "26b9678e37f4deb0a3427ffaddf885e6df18f337"
+  },
+  "email":  "aymeric.barbin@gmail.com",
+  "root":  "/projappl/project_2012747/mars/MarS/custom_code",
+  "host":  "r01g03.bullx",
+  "executable":  "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/bin/python",
+  "cpu_count":  40,
+  "cpu_count_logical":  40,
+  "gpu":  "Tesla V100-SXM2-32GB",
+  "gpu_count":  1,
+  "disk":  {
+    "/":  {
+      "total":  "67108864",
+      "used":  "12288"
+    }
+  },
+  "memory":  {
+    "total":  "403794300928"
+  },
+  "gpu_nvidia":  [
+    {
+      "name":  "Tesla V100-SXM2-32GB",
+      "memoryTotal":  "34359738368",
+      "cudaCores":  5120,
+      "architecture":  "Volta",
+      "uuid":  "GPU-37d5a490-044b-e3b4-6336-cec308b199e8"
+    }
+  ],
+  "cudaVersion":  "12.2",
+  "slurm":  {
+    "cluster_name":  "puhti",
+    "conf":  "/etc/slurm/slurm.conf",
+    "cpus_on_node":  "10",
+    "cpus_per_task":  "10",
+    "export_env":  "NONE",
+    "get_user_env":  "1",
+    "gpus_on_node":  "1",
+    "gtids":  "0",
+    "hint":  "nomultithread",
+    "job_account":  "project_2012747",
+    "job_cpus_per_node":  "10",
+    "job_end_time":  "1768361905",
+    "job_gid":  "10031943",
+    "job_gpus":  "1",
+    "job_id":  "31172575",
+    "job_name":  "sys/dashboard/sys/ood-base-jupyter",
+    "job_nodelist":  "r01g03",
+    "job_num_nodes":  "1",
+    "job_partition":  "gpu",
+    "job_qos":  "normal",
+    "job_start_time":  "1768333105",
+    "job_uid":  "10031943",
+    "job_user":  "pst",
+    "jobid":  "31172575",
+    "localid":  "0",
+    "mem_per_node":  "49152",
+    "nnodes":  "1",
+    "nodeid":  "0",
+    "nodelist":  "r01g03",
+    "ood_env":  "prod",
+    "prio_process":  "0",
+    "procid":  "0",
+    "script_context":  "prolog_task",
+    "submit_dir":  "/var/www/ood/apps/sys/dashboard",
+    "submit_host":  "puhti-ood-production.csc.fi",
+    "task_pid":  "3396638",
+    "tasks_per_node":  "1",
+    "threads_per_core":  "1",
+    "topology_addr":  "r01g03",
+    "topology_addr_pattern":  "node",
+    "tres_per_task":  "cpu=10"
+  },
+  "writerId":  "7wdcmm9f2bxvf47bj7ed7zritrgjfeep"
+}
