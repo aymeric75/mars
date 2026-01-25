@@ -119,6 +119,11 @@ celerybeat.pid
 *.parquet
 *.memmap
 
+
+.config.json
+.csc_creds.json
+
+
 # Environments
 .env
 .venv

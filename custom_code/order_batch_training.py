@@ -183,19 +183,6 @@ def load_parquets_hf(folder: str | Path, pattern: str = "*.parquet"):
     return ds
 
 
-# parquet_to_memmap("../data/features",
-#     pattern="features_*.parquet",
-#     out_prefix="orders",
-#     time_col="Time",
-#     f0_col="f0",
-#     batch_size=200_000,
-# )
-
-#take one big df of features
-t  = np.memmap("../data/features/orders_t.int64.mmap")
-f0 = np.memmap("../data/features/orders_f0.int64.mmap")
-
-
 print(len(t))
 print(len(f0))
 
