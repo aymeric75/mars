@@ -66,7 +66,7 @@ s3_resource = allas_storage.get_s3_resource("project_2012747")
 # # s3_resource.Bucket("A7_LOBSTER").upload_file(Filename="local_file.txt", Key="distant_file.txt")
 
 # Downloading a file
-s3_resource.Bucket("NewNasdaq").download_file(Filename="data/2025-10-09_snapshots_10.parquet", Key="LOBSTER/AAPL/2025-10-09_snapshots_10.parquet")
+#s3_resource.Bucket("NewNasdaq").download_file(Filename="data/2025-10-09_snapshots_10.parquet", Key="LOBSTER/AAPL/2025-10-09_snapshots_10.parquet")
 
 # # getting all existing items in the bucket
 # bucket_objects = [obj.key for obj in s3_resource.Bucket("A7_LOBSTER").objects.all()]
@@ -74,3 +74,6 @@ s3_resource.Bucket("NewNasdaq").download_file(Filename="data/2025-10-09_snapshot
 # # use the allas_storage object to upload/download
 # allas_storage.upload("kanniain", "A7_LOBSTER", "local_file.txt", "distant_file.txt")
 # allas_storage.download("kanniain", "A7_LOBSTER", "local_file.txt", "distant_file.txt")
+
+
+allas_storage.upload("project_2012747", "NewNasdaq", "data/features/features_GOOGL_2025-12-16_messages_10_mmaps/image_array.uint8.mmap", "LOBSTER/GOOGL/2025-12-16.mmap")

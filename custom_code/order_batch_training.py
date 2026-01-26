@@ -157,7 +157,6 @@ def make_vq_collate(vq_for_orders, device="cuda", return_x=False):
             raise RuntimeError(f"Can't find indices in encode() info: {type(info)}")
 
         indices = indices.reshape(indices.shape[0], -1).long()  # (B, 64) typically
-
         return (indices, x) if return_x else indices
 
     return collate
@@ -172,12 +171,12 @@ def load_parquets_hf(folder: str | Path, pattern: str = "*.parquet"):
         return None
 
     # Load as Arrow dataset (memory-mapped when possible, much nicer than big pandas concat)
+
     ds = load_dataset(
         "parquet",
         data_files=[str(p) for p in paths],
         split="train",
     )
-
     #ds = ds.sort("Time")
 
     return ds
@@ -187,9 +186,6 @@ print(len(t))
 print(len(f0))
 
 # from features files to mmap (only filtering what's useful),
-
-
-########## nan mais sérieux, bordel de merde, METS TOUT EN putain de
 
 
 
@@ -206,8 +202,3 @@ print(len(f0))
 # for codes in dl:
 #     # codes: (B, 64) discrete token indices (typically)
 #     pass
-
-
-######### I am going to give you the code to do a training:
-#     1) separate into train/eval/test
-#     2)

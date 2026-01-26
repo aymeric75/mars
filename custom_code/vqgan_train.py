@@ -58,19 +58,22 @@ class VQForOrders(pl.LightningModule):
 
 # ---------- Train ----------
 def train():
+
+
     REPO = Path.cwd().resolve().parent
+
+    # access the VQGAN official code
     sys.path.insert(0, str(REPO / "third_party" / "latent-diffusion"))
     sys.path.insert(0, str(REPO / "third_party" / "taming-transformers"))
 
     from ldm.util import instantiate_from_config
 
+
+    # Load the order images (here in a npy file)
     data = np.load(REPO / "data" / "order_images.npy")  # (4142,3,32,32) # 9 days worth data
 
-    #
-
-
+    # create the dataloader (for train and val)
     ds = OrderArray(data)
-
     n = len(ds)
     n_train, n_val = int(0.8 * n), int(0.1 * n)
     n_test = n - n_train - n_val
@@ -80,6 +83,8 @@ def train():
     train_dl = DataLoader(train_ds, batch_size=64, shuffle=True, num_workers=4, drop_last=True)
     val_dl   = DataLoader(val_ds,   batch_size=64, shuffle=False, num_workers=4)
 
+
+    # load VQGan model with config and weights as in MarS paper
     cfg = OmegaConf.load(str(REPO / "third_party/latent-diffusion/models/first_stage_models/vq-f4/config.yaml"))
     vq = instantiate_from_config(cfg.model)
 
@@ -109,7 +114,7 @@ def train():
     trainer.fit(model, train_dl, val_dl)
     print("Best checkpoint:", ckpt_cb.best_model_path)
 
-    # ---------- Test 1 sample using BEST weights + save gt/pred ----------
+    # Post training, test one sample using BEST weights + save gt/pred
     best = VQForOrders.load_from_checkpoint(ckpt_cb.best_model_path, vqmodel=vq, lr=1e-4)
     best.eval()
     best.to("cuda" if torch.cuda.is_available() else "cpu")

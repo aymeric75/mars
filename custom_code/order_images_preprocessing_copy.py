@@ -44,6 +44,20 @@ for f in base_dir.glob("features_*.parquet"):
 
 # 4) FROM decoded AND time arrays create mmap IMAGE ORDER
 
+
+
+
+flat = read_mmap( base_dir / "features_AAPL_2025-12-17_messages_10_mmaps" / "image_array.uint8.mmap", cols=3)
+
+pix =  32*32*3
+
+N = flat.size // pix
+
+print(N)
+imgs = flat.reshape(N, 32, 32, 3)  #  N is given in the filename
+print(imgs.shape)
+exit()
+
 for f in base_dir.glob("features_*.parquet"):
     if f.name in exclude:
         continue
@@ -58,14 +72,17 @@ for f in base_dir.glob("features_*.parquet"):
     # exit()
     idx_60s_int = past_index_around_60s_ns(t, seconds=60, none_value=-1, return_object=False)
 
-    image_mmap = build_image_mmap_from_lookback(
-        idx_60s_int=idx_60s_int,
-        decoded=decoded,                 # or f0 if already int64 array/memmap
-        out_path= Path (mmaps  / "image_array.mmap"),
-        out_dtype=np.uint8,                # adjust as needed
-    )
+    print(f.name)
+    print(len(idx_60s_int))
+    continue
+    # image_mmap = build_image_mmap_from_lookback(
+    #     idx_60s_int=idx_60s_int,
+    #     decoded=decoded,                 # or f0 if already int64 array/memmap
+    #     out_path= Path (mmaps  / "image_array.mmap"),
+    #     out_dtype=np.uint8,                # adjust as needed
+    # )
 
-    print("image_mmap")
+    # print("image_mmap")
 
 
 

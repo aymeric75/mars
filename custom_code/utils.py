@@ -104,6 +104,7 @@ _DTYPES = {
 
 def read_mmap(path, cols=None):
     path = Path(path)
+
     dt = next(v for k, v in _DTYPES.items() if k in path.name)
     size = os.path.getsize(path) // np.dtype(dt).itemsize
     if cols:
