@@ -9,9 +9,10 @@ from omegaconf import OmegaConf
 
 from torchvision.utils import save_image
 
-#qs
+
 # ---------- Dataset ----------
 class OrderArray(Dataset):
+    """ Dataset class for Order images (talles order image as input and returns a normalized version (between 0 and 1)) """
     def __init__(self, x):  # x: (N,3,32,32)
         assert x.ndim == 4 and x.shape[1:] == (3, 32, 32)
         x = x.astype(np.float32)
@@ -29,6 +30,7 @@ class OrderArray(Dataset):
 
 
 class VQForOrders(pl.LightningModule):
+    """ VQGAN model class, adapted for Orders """
     def __init__(self, vqmodel, lr=1e-4):
         super().__init__()
         self.m = vqmodel
