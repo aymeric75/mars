@@ -181,3 +181,18 @@ logs/
 
 
 dl_allas.py
+
+.github/
+.vscode/
+
+
+# training outputs
+lightning_logs/
+**/lightning_logs/
+checkpoints/
+*.ckpt
+
+# lpips / model caches
+taming/modules/autoencoder/lpips/
+**/lpips/
+.cache/

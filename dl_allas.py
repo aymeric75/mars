@@ -76,4 +76,4 @@ s3_resource = allas_storage.get_s3_resource("project_2012747")
 # allas_storage.download("kanniain", "A7_LOBSTER", "local_file.txt", "distant_file.txt")
 
 
-allas_storage.upload("project_2012747", "NewNasdaq", "data/features/features_GOOGL_2025-12-16_messages_10_mmaps/image_array.uint8.mmap", "LOBSTER/GOOGL/2025-12-16.mmap")
+allas_storage.upload("project_2012747", "NewNasdaq", "data/features/features_TSLA_2025-12-17_messages_10_mmaps/image_array.uint8.mmap", "LOBSTER/TSLA/2025-12-17_order_images.uint8.mmap")

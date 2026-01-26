@@ -61,7 +61,9 @@ class VQForOrders(pl.LightningModule):
 def train():
 
 
-    REPO = Path.cwd().resolve().parent
+    THIS_DIR = Path(__file__).resolve().parent          # custom_code/training
+    REPO = THIS_DIR.parents[2]                     # repo root (MarS-main)
+
 
     # access the VQGAN official code
     sys.path.insert(0, str(REPO / "third_party" / "latent-diffusion"))
@@ -97,6 +99,7 @@ def train():
     model = VQForOrders(vq, lr=1e-4)
 
     ckpt_cb = ModelCheckpoint(
+        dirpath=THIS_DIR / "checkpoints",
         monitor="val_loss",
         mode="min",
         save_top_k=1,
@@ -104,6 +107,7 @@ def train():
     )
 
     trainer = pl.Trainer(
+        default_root_dir=str(THIS_DIR),
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices=1,
         max_epochs=20,
@@ -127,8 +131,8 @@ def train():
     # Save as images (map [-1,1] -> [0,1])
     gt = (x[0].cpu() + 1) / 2
     pr = (x_rec[0].cpu() + 1) / 2
-    save_image(gt, REPO / "custom_code" / "gt.png")
-    save_image(pr, REPO / "custom_code" / "pred.png")
-    print("Saved:", REPO / "custom_code" / "gt.png", "and", REPO / "custom_code" / "pred.png")
+    save_image(gt, OUT_DIR / "gt.png")
+    save_image(pr, OUT_DIR / "pred.png")
+    print("Saved:", OUT_DIR / "gt.png", "and", OUT_DIR / "pred.png")
 
 train()
