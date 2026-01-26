@@ -1,9 +1,13 @@
 import os
 import pandas as pd
 import numpy as np
+import zarr
+from zarr.storage import ZipStore
+from typing import Union, Optional, Tuple
 from datasets import load_dataset
 from pathlib import Path
 from tqdm import tqdm
+from numcodecs import Blosc
 
 
 # ---------- constants ----------
@@ -226,3 +230,54 @@ def build_image_mmap_from_lookback(
 
     image_array.flush()
     return image_array
+
+
+
+
+
+def from_mmap_to_zarr(
+    input_mmap: str,
+    mmap_shape: tuple[int, ...],
+    mmap_type: Union[np.dtype, str],
+    output_zarr: str,
+    *,
+    chunk_rows: int = 1024,
+    clevel: int = 5,
+    use_zipstore: bool = False,   # True => single .zip file, far fewer files
+) -> None:
+    dtype = np.dtype(mmap_type)
+
+    # Memory-map the source (no big RAM use)
+    mm = np.memmap(input_mmap, mode="r", dtype=dtype, shape=mmap_shape)
+
+    # Choose store to control file explosion
+    if use_zipstore:
+        # output_zarr should end with .zip ideally
+        store = ZipStore(output_zarr, mode="w")
+    else:
+        # output_zarr is a directory (many chunk files)
+        store = output_zarr
+
+    # Build chunks: chunk along axis 0, keep full remaining dims
+    # Works for 1D, 2D, 4D images, etc.
+    chunks = (min(chunk_rows, mmap_shape[0]),) + tuple(mmap_shape[1:])
+
+    z = zarr.open(
+        store,
+        mode="w",
+        shape=mmap_shape,
+        chunks=chunks,
+        dtype=dtype,
+        compressor=Blosc(cname="zstd", clevel=clevel, shuffle=Blosc.SHUFFLE),
+        zarr_format=2,
+    )
+
+    step = z.chunks[0]
+    n = mmap_shape[0]
+
+    for i in tqdm(range(0, n, step), desc="Converting mmap -> zarr", unit="chunk"):
+        z[i:i + step] = mm[i:i + step]
+
+    # Close ZipStore explicitly
+    if use_zipstore:
+        store.close()
