@@ -177,7 +177,9 @@ mlruns
 logs/
 .cursor/
 
-
+*.zarr
+*.zarr.*
+*.zip
 
 
 dl_allas.py

@@ -1,31 +1,76 @@
 import sys
-from pathlib import Path
+import zarr
 import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader, random_split
 import pytorch_lightning as pl
+from pathlib import Path
+from torch.utils.data import Dataset, DataLoader, random_split
 from pytorch_lightning.callbacks import ModelCheckpoint
 from omegaconf import OmegaConf
-
+from zarr.storage import ZipStore
 from torchvision.utils import save_image
 
 
 # ---------- Dataset ----------
+# class OrderArray(Dataset):
+#     """ Dataset class for Order images (takes order image as input and returns a normalized version (between 0 and 1)) """
+#     def __init__(self, x):  # x: (N,3,32,32)
+#         assert x.ndim == 4 and x.shape[1:] == (3, 32, 32)
+#         x = x.astype(np.float32)
+
+#         mx = float(x.max())
+#         if mx > 1.0:
+#             x /= (100.0 if mx <= 100.0 else 255.0)  # [0,1]
+#         x = x * 2.0 - 1.0  # [-1,1]
+
+#         self.x = torch.from_numpy(x)
+
+#     def __len__(self): return self.x.shape[0]
+#     def __getitem__(self, i): return self.x[i]
+
+
+
 class OrderArray(Dataset):
-    """ Dataset class for Order images (talles order image as input and returns a normalized version (between 0 and 1)) """
-    def __init__(self, x):  # x: (N,3,32,32)
-        assert x.ndim == 4 and x.shape[1:] == (3, 32, 32)
-        x = x.astype(np.float32)
+    def __init__(self, zarr_zip_path, zarr_path="images"):
+        self.zarr_zip_path = str(zarr_zip_path)
+        self.zarr_path = zarr_path
+        self._data = None  # will be opened lazily in the worker
 
-        mx = float(x.max())
+    def _ensure_open(self):
+        if self._data is None:
+            # keep store open for the lifetime of the worker
+            self._store = ZipStore(self.zarr_zip_path, mode="r")
+            self._data = zarr.open(store=self._store, path=self.zarr_path, mode="r")
+
+            # determine layout once
+            shp = self._data.shape
+            if shp[1:] == (32, 32, 3):
+                self.layout = "NHWC"
+            elif shp[1:] == (3, 32, 32):
+                self.layout = "NCHW"
+            else:
+                raise ValueError(f"Unexpected shape {shp}")
+
+    def __len__(self):
+        self._ensure_open()
+        return self._data.shape[0]
+
+    def __getitem__(self, i):
+        self._ensure_open()
+        arr = np.asarray(self._data[i], dtype=np.float32)  # one sample
+
+        # NHWC -> CHW
+        if self.layout == "NHWC":
+            arr = np.transpose(arr, (2, 0, 1))
+
+        # normalize to [-1, 1] (adapt if your data is 0..255 / 0..100)
+        mx = arr.max()
         if mx > 1.0:
-            x /= (100.0 if mx <= 100.0 else 255.0)  # [0,1]
-        x = x * 2.0 - 1.0  # [-1,1]
+            arr /= (100.0 if mx <= 100.0 else 255.0)
+        arr = arr * 2.0 - 1.0
 
-        self.x = torch.from_numpy(x)
+        return torch.from_numpy(arr)
 
-    def __len__(self): return self.x.shape[0]
-    def __getitem__(self, i): return self.x[i]
 
 
 
@@ -64,7 +109,8 @@ def train():
 
 
     THIS_DIR = Path(__file__).resolve().parent          # custom_code/training
-    REPO = THIS_DIR.parents[2]                     # repo root (MarS-main)
+    REPO = THIS_DIR.parents[1]                     # repo root (MarS-main)
+
 
 
     # access the VQGAN official code
@@ -75,10 +121,23 @@ def train():
 
 
     # Load the order images (here in a npy file)
-    data = np.load(REPO / "data" / "order_images.npy")  # (4142,3,32,32) # 9 days worth data
+
+    ####
+
+    #data = np.load(REPO / "data" / "order_images.npy")  # (4142,3,32,32) # 9 days worth data
+
+    # with ZipStore(REPO / "data" / "features" / "features_AAPL_2025-12-17_messages_10_mmaps" / "order_images.zarr.zip", mode="r") as store:
+    #     data = zarr.open(store=store, path="images", mode="r")
+
+    # print(data.shape)
+    # print(type(data))
+    # <class 'zarr.core.Array'>
+
+
 
     # create the dataloader (for train and val)
-    ds = OrderArray(data)
+    ds = OrderArray(REPO / "data" / "features" / "features_AAPL_2025-12-17_messages_10_mmaps" / "order_images.zarr.zip")
+
     n = len(ds)
     n_train, n_val = int(0.8 * n), int(0.1 * n)
     n_test = n - n_train - n_val

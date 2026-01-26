@@ -3,11 +3,13 @@ import pandas as pd
 import numpy as np
 import zarr
 from zarr.storage import ZipStore
+from zarr.storage import SQLiteStore
 from typing import Union, Optional, Tuple
 from datasets import load_dataset
 from pathlib import Path
 from tqdm import tqdm
 from numcodecs import Blosc
+
 
 
 # ---------- constants ----------
@@ -230,6 +232,142 @@ def build_image_mmap_from_lookback(
 
     image_array.flush()
     return image_array
+
+
+
+
+def build_image_zarr_chunked_from_lookback(
+    idx_60s_int: np.ndarray,
+    decoded: np.ndarray,
+    image_array,                 # a zarr array already created
+    image_shape=(32, 32, 3),
+    out_dtype=np.uint8,
+):
+    idx_60s_int = np.asarray(idx_60s_int)
+    decoded = np.asarray(decoded)
+
+    N = idx_60s_int.shape[0]
+    H, W, C = image_shape
+
+    # assume chunks like (chunkN, H, W, C)
+    chunkN = image_array.chunks[0]
+
+    # we'll iterate over chunk blocks [s, e)
+    nblocks = (N + chunkN - 1) // chunkN
+
+    for b in tqdm(range(nblocks), desc="Building order images (chunked)", unit="chunk"):
+        s = b * chunkN
+        e = min(N, s + chunkN)
+
+        # build a full chunk buffer (default fill_value=0 semantics)
+        buf = np.zeros((e - s, H, W, C), dtype=out_dtype)
+
+        # indices within this block that are valid and in-range
+        block_idx = np.arange(s, e, dtype=np.int64)
+        mask = (idx_60s_int[s:e] != -1)
+        valid_local = np.flatnonzero(mask)
+
+        for j in valid_local:
+            i = s + int(j)
+            back = int(idx_60s_int[i])
+            if back < 0 or back >= i:
+                continue
+
+            window = decoded[back:i]
+            img = build_order_image(window)
+
+            img = np.asarray(img)
+            if img.shape != (H, W, C):
+                raise ValueError(f"build_order_image returned {img.shape}, expected {(H, W, C)}")
+            if img.dtype != out_dtype:
+                img = img.astype(out_dtype, copy=False)
+
+            buf[j] = img
+
+        # ONE write per block instead of (e-s) writes
+        image_array[s:e] = buf
+
+# def build_image_zipzarr_from_lookback(
+#     idx_60s_int: np.ndarray,
+#     decoded: np.ndarray,              # can still be np.memmap
+#     out_path: str,                    # e.g. "images.zarr.zip" (one file)
+#     image_shape=(32, 32, 3),
+#     out_dtype=np.uint8,
+#     chunks=None,                      # e.g. (256, 32, 32, 3)
+#     compressor=None,                  # e.g. Blosc(...)
+#     overwrite=True,
+#     dataset_name="images",            # name inside the zip
+# ):
+#     idx_60s_int = np.asarray(idx_60s_int)
+#     decoded = np.asarray(decoded)
+
+#     if idx_60s_int.shape[0] != decoded.shape[0]:
+#         raise ValueError("idx_60s_int and decoded must have the same length.")
+#     if idx_60s_int.dtype.kind != "i":
+#         idx_60s_int = idx_60s_int.astype(np.int64, copy=False)
+
+#     N = idx_60s_int.shape[0]
+#     H, W, C = image_shape
+
+#     if chunks is None:
+#         chunks = (min(1024, N), H, W, C)
+
+#     if compressor is None:
+#         compressor = Blosc(cname="zstd", clevel=3, shuffle=Blosc.SHUFFLE)
+
+#     # One single file store (zip)
+#     # mode:
+#     # - "w" creates/overwrites the zip
+#     # - "a" appends/updates existing zip
+#     mode = "w" if overwrite else "a"
+
+#     with ZipStore(out_path, mode=mode) as store:
+#         # Create/open a group in Zarr v2 format inside the zip
+#         root = zarr.group(store=store, overwrite=overwrite, zarr_format=2)
+
+#         # Create the dataset; fill_value=0 avoids writing a full zero array up front
+#         image_array = root.create_dataset(
+#             name=dataset_name,
+#             shape=(N, H, W, C),
+#             chunks=chunks,
+#             dtype=out_dtype,
+#             compressor=compressor,
+#             fill_value=0,
+#             overwrite=overwrite,
+#         )
+
+#         valid_i = np.flatnonzero(idx_60s_int != -1)
+
+#         for i in tqdm(valid_i, desc="Building order images", unit="img"):
+#             back = int(idx_60s_int[i])
+#             if back < 0 or back >= i:
+#                 continue
+
+#             window = decoded[back:i]   # present index excluded
+#             img = build_order_image(window)
+
+#             img = np.asarray(img)
+#             if img.shape != (H, W, C):
+#                 raise ValueError(
+#                     f"build_order_image returned shape {img.shape}, expected {(H, W, C)}"
+#                 )
+#             if img.dtype != out_dtype:
+#                 img = img.astype(out_dtype, copy=False)
+
+#             image_array[i] = img  # persisted into the zip store
+
+#         # Optional: ensure the zip central directory is updated now
+#         store.flush()
+
+#         return out_path, dataset_name
+
+
+
+
+
+
+
+
 
 
 
