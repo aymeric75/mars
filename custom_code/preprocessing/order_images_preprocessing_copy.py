@@ -1,3 +1,11 @@
+import zipfile
+import sys
+from pathlib import Path
+
+custom_folder = Path(__file__).resolve().parents[1]
+sys.path.append(str(custom_folder))
+
+
 from utils import *
 
 """ from features .parquets files into Time/f0 mmap files (loaded as 'numpy.memmap' ), then into order images files (mmap) and finally  into discrete tokens (VQGAN learned representation) """
@@ -5,7 +13,7 @@ from utils import *
 
 
 
-base_dir = Path("../data/features")
+base_dir = Path("../../data/features")
 
 exclude = {
     "features_all.parquet",
@@ -44,8 +52,16 @@ for f in base_dir.glob("features_*.parquet"):
 
 # 4) FROM decoded AND time arrays create mmap IMAGE ORDER
 
+decoded = read_mmap( base_dir / "features_AAPL_2025-12-17_messages_10_mmaps" / "decoded.int32.mmap", cols=3)
+
+print(decoded[0])
+
+order_image = build_order_image(decoded)
+
+# print(order_image)
 
 
+exit()
 
 flat = read_mmap( base_dir / "features_AAPL_2025-12-17_messages_10_mmaps" / "image_array.uint8.mmap", cols=3)
 

@@ -1,3 +1,4 @@
+import zipfile
 import sys
 from pathlib import Path
 
@@ -32,7 +33,7 @@ for f in base_dir.glob("features_*.parquet"):
 #         parquet_to_memmap(f)
 
 
-# 3) From Time/f0 mmap files create decoded (N, 3) ARRAY
+# 3) From Time/f0 mmap files create decoded (N, 3) array (the 3 dims are for type/price/volume)
 # for f in base_dir.glob("features_*.parquet"):
 #     if f.name in exclude:
 #         continue
@@ -65,39 +66,32 @@ for f in base_dir.glob("features_*.parquet"):
     t = read_mmap( mmaps / "t.int64.mmap", cols=None)
 
 
+
+
     idx_60s_int = past_index_around_60s_ns(t, seconds=60, none_value=-1, return_object=False)
-
-
-    # build_image_sqlitezarr_from_lookback(
-    #     idx_60s_int=idx_60s_int,
-    #     decoded=decoded,
-    #     out_path = Path(mmaps  / "order_images.zarr.zip"),                   # e.g. "images.zarr.zip" (one file)
-    #     image_shape=(32, 32, 3),
-    #     out_dtype=np.uint8,
-    #     chunks=None,                      # e.g. (256, 32, 32, 3)
-    #     compressor=None,                  # e.g. Blosc(...)
-    #     overwrite=True,
-    #     dataset_name="images",            # name inside the zip
-    # )
 
     H = 32
     W = 32
     C = 3
 
 
-    with ZipStore(Path(mmaps  / "order_images.zarr.zip"), mode="w") as store:
+    with ZipStore(Path(mmaps  / "order_images.zarr.zip"), mode="w", compression=zipfile.ZIP_DEFLATED) as store:
         root = zarr.group(store=store, overwrite=True)
+
+        compressor = Blosc(cname="zstd", clevel=3, shuffle=Blosc.BITSHUFFLE)
+
         arr = root.create_dataset(
             "images",
-            shape=(len(decoded), H, W, C),
-            chunks=(1024, H, W, C),
-            dtype=np.uint8,
-            compressor=None,  # lossless ok
+            shape=(len(decoded), C, H, W),
+            chunks=(1024, C, H, W),
+            dtype="u1",
+            compressor=compressor,  # <-- turn on chunk compression
             fill_value=0,
             overwrite=True,
         )
 
-        build_image_zarr_chunked_from_lookback(idx_60s_int, decoded, arr, image_shape=(H,W,C))
+
+        build_image_zarr_chunked_from_lookback(idx_60s_int, decoded, arr, image_shape=(C,H,W))
         store.flush()
 
 

@@ -26,12 +26,24 @@ def decode_order_index_to_mmap(
     chunk: int = 5_000_000,
     out_dtype=np.int32,   # int32 usually plenty for slots/types
 ):
+
+    """
+    Inputs:
+        in_mmap: mmap file containing the order_index of all orders
+    Output:
+        creates a (N, 3) np mmap array giving for N order their type/price/volume
+        type: is an integer in (0,1,2)
+        price in [0, 32) indexes the slot of the price (previously discretized)
+        volume in [0, 32) indexes the slot of the volume (previously discretized)
+    """
+
     n = in_mmap.shape[0]
 
     out = np.memmap(out_path, mode="w+", dtype=out_dtype, shape=(n, 3))
 
     for s in range(0, n, chunk):
-        e = min(s + chunk, n)
+
+        e = min(s + chunk, n) # ending index of the current chunk
 
         # Read a chunk into RAM (small) so we can do in-place math safely
         tmp = np.array(in_mmap[s:e], dtype=np.int64, copy=True)
@@ -51,21 +63,35 @@ def decode_order_index_to_mmap(
 
 
 def build_order_image(arr3: np.ndarray) -> np.ndarray:
-    img = np.zeros((H, W, C), dtype=np.uint8)
+    """
+    arr3: (N, 3) with columns [order_type, price_slot, volume_slot]
+    returns: uint8 image (C, H, W)
+      - C = order_type
+      - H = volume_slot
+      - W = price_slot
+    """
+    img = np.zeros((C, H, W), dtype=np.uint8)
+
     if arr3.size == 0:
         return img
+
     t = arr3[:, 0].astype(np.int64, copy=False)
     p = arr3[:, 1].astype(np.int64, copy=False)
     v = arr3[:, 2].astype(np.int64, copy=False)
+
+    # keep only valid slots
     m = (t >= 0) & (t < C) & (p >= 0) & (p < W) & (v >= 0) & (v < H)
     t, p, v = t[m], p[m], v[m]
+
     key = (t * (H * W) + v * W + p)
     uniq, cnt = np.unique(key, return_counts=True)
+
     tt = uniq // (H * W)
     rem = uniq % (H * W)
     vv = rem // W
     pp = rem % W
-    img[vv, pp, tt] = np.minimum(cnt, V_MAX).astype(np.uint8)
+
+    img[tt, vv, pp] = np.minimum(cnt, V_MAX).astype(np.uint8)
     return img
 
 
@@ -220,9 +246,9 @@ def build_image_mmap_from_lookback(
         img = build_order_image(window)
 
         img = np.asarray(img)
-        if img.shape != (H, W, C):
+        if img.shape != (C, H, W):
             raise ValueError(
-                f"build_order_image returned shape {img.shape}, expected {(H, W, C)}"
+                f"build_order_image returned shape {img.shape}, expected {(C, H, W)}"
             )
 
         if img.dtype != out_dtype:
@@ -240,16 +266,16 @@ def build_image_zarr_chunked_from_lookback(
     idx_60s_int: np.ndarray,
     decoded: np.ndarray,
     image_array,                 # a zarr array already created
-    image_shape=(32, 32, 3),
+    image_shape=(3, 32, 32),
     out_dtype=np.uint8,
 ):
     idx_60s_int = np.asarray(idx_60s_int)
     decoded = np.asarray(decoded)
 
     N = idx_60s_int.shape[0]
-    H, W, C = image_shape
+    C, H, W = image_shape
 
-    # assume chunks like (chunkN, H, W, C)
+    # assume chunks like (chunkN, C, H, W)
     chunkN = image_array.chunks[0]
 
     # we'll iterate over chunk blocks [s, e)
@@ -260,7 +286,7 @@ def build_image_zarr_chunked_from_lookback(
         e = min(N, s + chunkN)
 
         # build a full chunk buffer (default fill_value=0 semantics)
-        buf = np.zeros((e - s, H, W, C), dtype=out_dtype)
+        buf = np.zeros((e - s, C, H, W), dtype=out_dtype)
 
         # indices within this block that are valid and in-range
         block_idx = np.arange(s, e, dtype=np.int64)
@@ -269,23 +295,37 @@ def build_image_zarr_chunked_from_lookback(
 
         for j in valid_local:
             i = s + int(j)
-            back = int(idx_60s_int[i])
+            back = int(idx_60s_int[i])  # starting index for image of order at index i
             if back < 0 or back >= i:
                 continue
 
             window = decoded[back:i]
-            img = build_order_image(window)
 
+            img = build_order_image(window)
             img = np.asarray(img)
-            if img.shape != (H, W, C):
-                raise ValueError(f"build_order_image returned {img.shape}, expected {(H, W, C)}")
+
+            if img.shape != (C, H, W):
+                raise ValueError(
+                    f"build_order_image returned {img.shape}, expected {(C, H, W)}"
+                )
+
+            # HWC -> CHW
+            #img = np.transpose(img, (2, 0, 1))
+
             if img.dtype != out_dtype:
                 img = img.astype(out_dtype, copy=False)
 
             buf[j] = img
 
+
+
         # ONE write per block instead of (e-s) writes
         image_array[s:e] = buf
+
+
+
+
+
 
 # def build_image_zipzarr_from_lookback(
 #     idx_60s_int: np.ndarray,

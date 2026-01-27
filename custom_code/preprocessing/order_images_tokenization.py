@@ -1,6 +1,7 @@
 # --- Example where we create a random "order image" and encode -> tokens -> decode ---
 import numpy as np
 
+
 # Random "order image" in [0, 100] like MarS mentions pixel V in [0,100].
 # We'll normalize to [-1, 1] because LDM expects that.
 x_np = np.random.randint(0, 101, size=(3, 32, 32), dtype=np.uint8)
@@ -40,3 +41,16 @@ else:
     tokens_8x8 = indices
 
 print("Tokens (8x8) min/max:", int(tokens_8x8.min()), int(tokens_8x8.max()))
+
+
+
+###################   READING THE ZARR.ZIP FILES  (version 2 of zarr should be used) ###################
+
+import zarr
+from zarr.storage import ZipStore
+
+with ZipStore("order_images.zarr.zip", mode="r") as store:
+    arr = zarr.open(store=store, path="images", mode="r")
+
+img = arr[123]        # single image
+batch = arr[100:132] # batch
