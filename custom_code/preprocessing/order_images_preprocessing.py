@@ -27,6 +27,19 @@ for f in base_dir.glob("features_*.parquet"):
         (base_dir / f"{f.stem}_mmaps").mkdir(exist_ok=True)
 
 
+
+# 1bis) create a zarr.zip file for each feature_*parquet
+for f in base_dir.glob("features_*.parquet"):
+    if f.name not in exclude:
+        mmaps = f.parent / f"{f.stem}_mmaps"
+        date_str = str(f.name.split("_")[2])
+        parquet_to_zarr_zip(
+            f,
+            mmaps / (date_str + "_features.zarr.zip"),
+        )
+
+exit()
+
 # 2) From features parquets files create f0 and t (Time) .mmap
 # for f in base_dir.glob("features_*.parquet"):
 #     if f.name not in exclude:

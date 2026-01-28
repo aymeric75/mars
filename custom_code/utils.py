@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 import zarr
 import zipfile
+import pyarrow.parquet as pq
+
 from zarr.storage import ZipStore
 from zarr.storage import SQLiteStore
 from typing import Union, Optional, Tuple
@@ -471,6 +473,7 @@ def save_images_tail_zip(
     start_idx,
     dataset_name="images",
 ):
+    """ cut the zarr_zip from src_zip_path from index start_idx and save the results in the zarr  zip dst_zip_path """
     # open source
     with ZipStore(src_zip_path, mode="r") as src_store:
         src_root = zarr.open_group(store=src_store, mode="r")
@@ -506,3 +509,62 @@ def save_images_tail_zip(
                 dst_arr[i - start_idx : j - start_idx] = src_arr[i:j]
 
             dst_store.flush()
+
+
+
+
+
+FEATS = [f"f{i}" for i in range(15)]  # f0..f14
+
+def parquet_to_zarr_zip(
+    parquet_path: str | Path,
+    zarr_zip_path: str | Path,
+    *,
+    dataset_name: str = "X",
+    chunk_len: int = 65536,
+    clevel: int = 3,
+):
+    parquet_path = Path(parquet_path)
+    zarr_zip_path = Path(zarr_zip_path)
+
+    pf = pq.ParquetFile(parquet_path)
+    # total rows (fast, from metadata)
+    N = pf.metadata.num_rows
+    F = len(FEATS)
+
+    compressor = Blosc(cname="zstd", clevel=clevel, shuffle=Blosc.BITSHUFFLE)
+
+    with ZipStore(zarr_zip_path, mode="w", compression=zipfile.ZIP_DEFLATED) as store:
+        root = zarr.group(store=store, overwrite=True)
+
+        root.attrs.update({
+            "N": int(N),
+            "F": int(F),
+            "source_parquet": str(parquet_path),
+        })
+
+
+        arr = root.create_dataset(
+            dataset_name,
+            shape=(N, F),
+            chunks=(min(chunk_len, N), F),
+            dtype=np.int32,          # choose what you need
+            compressor=compressor,
+            overwrite=True,
+        )
+
+        # Stream parquet row-groups to zarr chunks (memory-friendly)
+        write_pos = 0
+        for rg in range(pf.num_row_groups):
+            table = pf.read_row_group(rg, columns=FEATS)
+            # Convert row-group to (rows, F) numpy array
+            block = np.stack(
+                [table[c].to_numpy(zero_copy_only=False) for c in FEATS],
+                axis=1,
+            ).astype(np.int32, copy=False)
+
+            n = block.shape[0]
+            arr[write_pos : write_pos + n, :] = block
+            write_pos += n
+
+        store.flush()
