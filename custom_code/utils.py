@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import zarr
+import zipfile
 from zarr.storage import ZipStore
 from zarr.storage import SQLiteStore
 from typing import Union, Optional, Tuple
@@ -459,3 +460,49 @@ def from_mmap_to_zarr(
     # Close ZipStore explicitly
     if use_zipstore:
         store.close()
+
+
+
+
+
+def save_images_tail_zip(
+    src_zip_path,
+    dst_zip_path,
+    start_idx,
+    dataset_name="images",
+):
+    # open source
+    with ZipStore(src_zip_path, mode="r") as src_store:
+        src_root = zarr.open_group(store=src_store, mode="r")
+        src_arr = src_root[dataset_name]
+
+        if not (0 <= start_idx <= src_arr.shape[0]):
+            raise ValueError(f"start_idx {start_idx} out of range for length {src_arr.shape[0]}")
+
+        out_shape = (src_arr.shape[0] - start_idx, *src_arr.shape[1:])
+
+        # create destination with same group/dataset layout
+        with ZipStore(dst_zip_path, mode="w", compression=zipfile.ZIP_DEFLATED) as dst_store:
+            dst_root = zarr.group(store=dst_store, overwrite=True)
+
+            dst_arr = dst_root.create_dataset(
+                dataset_name,
+                shape=out_shape,
+                chunks=src_arr.chunks,
+                dtype=src_arr.dtype,
+                compressor=src_arr.compressor,
+                fill_value=getattr(src_arr, "fill_value", 0),
+                overwrite=True,
+            )
+
+            # (optional) copy attrs
+            dst_arr.attrs.update(src_arr.attrs.asdict())
+            dst_root.attrs.update(src_root.attrs.asdict())
+
+            # copy data (chunk-friendly)
+            chunk0 = src_arr.chunks[0]
+            for i in range(start_idx, src_arr.shape[0], chunk0):
+                j = min(i + chunk0, src_arr.shape[0])
+                dst_arr[i - start_idx : j - start_idx] = src_arr[i:j]
+
+            dst_store.flush()

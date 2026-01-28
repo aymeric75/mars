@@ -50,7 +50,11 @@ for f in base_dir.glob("features_*.parquet"):
 # 4) FROM decoded AND time arrays create mmap IMAGE ORDER
 
 include = {
-    "features_NVDA_2025-12-22_messages_10.parquet"
+    #"features_NVDA_2025-12-22_messages_10.parquet",
+    #"features_AMZN_2025-12-11_messages_10.parquet",
+    "features_NVDA_2025-12-22_messages_10.parquet",
+    #"features_TSLA_2025-12-17_messages_10.parquet",
+    #"features_TSLA_2025-12-12_messages_10.parquet"
 }
 
 for f in base_dir.glob("features_*.parquet"):
@@ -66,14 +70,32 @@ for f in base_dir.glob("features_*.parquet"):
     t = read_mmap( mmaps / "t.int64.mmap", cols=None)
 
 
-
-
     idx_60s_int = past_index_around_60s_ns(t, seconds=60, none_value=-1, return_object=False)
+
+    # print(type(idx_60s_int))
+    # print(len(idx_60s_int[idx_60s_int == -1]))
+    # print(len(idx_60s_int[idx_60s_int != -1]))
+
+
+    idx = np.where(idx_60s_int != -1)[0][0]
+
+
+    date_str = str(f.name.split("_")[2])  # '2025-12-09'
+    #date = datetime.strptime(date_str, "%Y-%m-%d").date()
 
     H = 32
     W = 32
     C = 3
 
+
+    save_images_tail_zip(
+        Path(mmaps  / (date_str+"_order_images.zarr.zip")),
+        Path(mmaps  / (date_str+"_order_images_pruned.zarr.zip")),
+        start_idx=idx,
+    )
+
+
+    continue
 
     with ZipStore(Path(mmaps  / "order_images.zarr.zip"), mode="w", compression=zipfile.ZIP_DEFLATED) as store:
         root = zarr.group(store=store, overwrite=True)
@@ -93,9 +115,6 @@ for f in base_dir.glob("features_*.parquet"):
 
         build_image_zarr_chunked_from_lookback(idx_60s_int, decoded, arr, image_shape=(C,H,W))
         store.flush()
-
-
-
 
 
     # image_mmap = build_image_mmap_from_lookback(
