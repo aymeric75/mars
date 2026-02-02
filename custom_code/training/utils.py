@@ -37,3 +37,28 @@ def measure_peak_memory(model, batch, loss_fn, device):
 
     peak = torch.cuda.max_memory_allocated(device)
     return peak
+
+
+
+
+def build_model_from_variant(model_variant: str):
+    """
+    base ~ your current config (emb=64, layers=2, heads=4)
+    small = fewer params (emb=48, layers=1, heads=4) -> significantly smaller
+    """
+    if model_variant == "base":
+        EMB_DIM, NUM_LAYERS, NUM_HEADS = 64, 2, 4
+    elif model_variant == "small":
+        # smaller than base; keep heads dividing emb_dim nicely
+        EMB_DIM, NUM_LAYERS, NUM_HEADS = 48, 1, 4
+    else:
+        raise ValueError(f"Unknown model_variant={model_variant}")
+
+    model = OrderModel(
+        emb_dim=EMB_DIM,
+        num_layers=NUM_LAYERS,
+        num_heads=NUM_HEADS,
+        num_max_orders=K,
+    ).to(device)
+
+    return model, {"emb_dim": EMB_DIM, "num_layers": NUM_LAYERS, "num_heads": NUM_HEADS}

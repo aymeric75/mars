@@ -127,6 +127,7 @@ class OrderModel(nn.Module, PyTorchModelHubMixin):
             use_cache=False,
             vocab_size=self.output_dim,
         )
+        #llama_config._attn_implementation = "flash_attention_2"
         self.decoder = LlamaForCausalLM(llama_config)
         self.linear_head = nn.Sequential(
             nn.LayerNorm(emb_dim),
