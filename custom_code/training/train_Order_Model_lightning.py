@@ -91,7 +91,7 @@ class OrderLightningModule(pl.LightningModule):
         X = batch
         logits = self(X)
         loss = lm_loss_all_positions(logits, X)
-        self.log("train_loss", loss, prog_bar=True, on_step=True, on_epoch=True, sync_dist=True)
+        self.log("train_loss", loss, prog_bar=False, logger=True, on_step=True, on_epoch=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -132,16 +132,17 @@ def main():
     )
 
     model = OrderLightningModule(model_variant=args.model_variant, K=args.K, lr=args.lr)
-
+    
+    
     trainer = pl.Trainer(
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices="auto" if torch.cuda.is_available() else 1,
-        strategy="ddp_find_unused_parameters_true" if torch.cuda.is_available() else "auto",
+        strategy="ddp" if torch.cuda.is_available() else "auto",
         max_steps=args.max_steps,
         precision=args.precision,
-        log_every_n_steps=50,
+        log_every_n_steps=1,
         enable_checkpointing=True,
-        enable_progress_bar=True,
+        enable_progress_bar=False,
     )
 
     trainer.fit(model, dm)

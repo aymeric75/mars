@@ -129,10 +129,10 @@ class OrderModel(nn.Module, PyTorchModelHubMixin):
         )
         #llama_config._attn_implementation = "flash_attention_2"
         self.decoder = LlamaForCausalLM(llama_config)
-        self.linear_head = nn.Sequential(
-            nn.LayerNorm(emb_dim),
-            nn.Linear(emb_dim, self.output_dim),
-        )
+        #self.linear_head = nn.Sequential( # Aymeric: sequential head already in LLAMA
+        #    nn.LayerNorm(emb_dim),
+        #    nn.Linear(emb_dim, self.output_dim),
+        #)
 
     def tokenize(self, features: Tensor) -> Tensor:
         """Tokenize inputs."""
