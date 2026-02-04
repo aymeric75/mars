@@ -1,9 +1,10 @@
 import argparse
 import os
-
 import lightning.pytorch as pl
 import torch
+
 from torch.utils.data import DataLoader, Subset
+from lightning.pytorch.loggers import TensorBoardLogger
 
 from utils_order_model_lightning import (
     MultiDirZarrOrderDataset,
@@ -91,14 +92,37 @@ class OrderLightningModule(pl.LightningModule):
         X = batch
         logits = self(X)
         loss = lm_loss_all_positions(logits, X)
-        self.log("train_loss", loss, prog_bar=False, logger=True, on_step=True, on_epoch=True, sync_dist=True)
+        self.log(
+            "train_loss",
+            loss,
+            on_step=True,
+            sync_dist=True
+        )
         return loss
 
     def validation_step(self, batch, batch_idx):
         X = batch
         logits = self(X)
         loss = lm_loss_all_positions(logits, X)
-        self.log("val_loss", loss, prog_bar=True, on_step=False, on_epoch=True, sync_dist=True)
+        self.log(
+            "val_loss",
+            loss,
+            on_step=True,
+            sync_dist=True
+        )
+        
+        if self.trainer.is_global_zero and batch_idx == 0:
+            pred = logits[0, 0, :].argmax().item() #logits[0].argmax(dim=-1)[0].item()
+            gt = X[0,1,0].item()
+        
+            self.logger.experiment.add_text(
+                "sample_prediction",
+                f"gt={gt} | pred={pred}",
+                global_step=self.global_step
+            )
+
+
+        
 
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters(), lr=self.lr)
@@ -115,7 +139,7 @@ def main():
     p.add_argument("--max_steps", type=int, default=20000)
     p.add_argument("--val_frac", type=float, default=0.01)
     p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--num_workers", type=int, default=10)
+    p.add_argument("--num_workers", type=int, default=0)
     p.add_argument("--precision", default="bf16-mixed", choices=["32-true", "16-mixed", "bf16-mixed"])
     args = p.parse_args()
 
@@ -134,13 +158,21 @@ def main():
     model = OrderLightningModule(model_variant=args.model_variant, K=args.K, lr=args.lr)
     
     
+    logger = TensorBoardLogger(
+        save_dir="logs",
+        name="order_model"
+    )
+
+    
     trainer = pl.Trainer(
+        logger=logger,
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices="auto" if torch.cuda.is_available() else 1,
         strategy="ddp" if torch.cuda.is_available() else "auto",
         max_steps=args.max_steps,
         precision=args.precision,
-        log_every_n_steps=1,
+        log_every_n_steps=4,
+        val_check_interval=8,
         enable_checkpointing=True,
         enable_progress_bar=False,
     )

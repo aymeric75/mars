@@ -29,7 +29,8 @@ srun --kill-on-bad-exit=1 $PYTHON -u train_Order_Model_lightning.py \
   --pattern "*_features.zarr.zip" \
   --model_variant base \
   --K 1024 \
-  --batch_size 32 \
+  --batch_size 4 \
   --lr 3e-4 \
   --max_steps 20000 \
+  --num_workers 0 \
   --precision bf16-mixed
