@@ -1,12 +1,13 @@
 import argparse
 import os
+import glob
 import lightning.pytorch as pl
 import torch
 
 from torch.utils.data import DataLoader, Subset
 from lightning.pytorch.loggers import TensorBoardLogger
 
-from utils_order_model_lightning import (
+from market_simulation.models.utils_order_model import (
     MultiDirZarrOrderDataset,
     build_model_from_variant,
     lm_loss_all_positions,
@@ -42,7 +43,13 @@ class OrderDataModule(pl.LightningDataModule):
         unzip_zarr_zips(self.train_dir, self.pattern)
 
     def setup(self, stage: str | None = None):
-        zarr_dirs = unzip_zarr_zips(self.train_dir, self.pattern)
+
+        
+    
+        # list already-extracted dirs (no unzip here)
+        zarr_dirs = [p[:-4] for p in glob.glob(os.path.join(self.train_dir, self.pattern))]
+        zarr_dirs = [d for d in zarr_dirs if os.path.isdir(d)]
+
         ds = MultiDirZarrOrderDataset(zarr_dirs, seq_len=self.K)
 
         n = len(ds)
@@ -64,6 +71,7 @@ class OrderDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=True,
             drop_last=True,
+            persistent_workers=(self.num_workers > 0),
         )
 
     def val_dataloader(self):
@@ -74,6 +82,7 @@ class OrderDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=True,
             drop_last=False,
+            persistent_workers=(self.num_workers > 0),
         )
 
 
@@ -98,30 +107,16 @@ class OrderLightningModule(pl.LightningModule):
             on_step=True,
             sync_dist=True
         )
+        
+        
         return loss
 
     def validation_step(self, batch, batch_idx):
         X = batch
         logits = self(X)
         loss = lm_loss_all_positions(logits, X)
-        self.log(
-            "val_loss",
-            loss,
-            on_step=True,
-            sync_dist=True
-        )
-        
-        if self.trainer.is_global_zero and batch_idx == 0:
-            pred = logits[0, 0, :].argmax().item() #logits[0].argmax(dim=-1)[0].item()
-            gt = X[0,1,0].item()
-        
-            self.logger.experiment.add_text(
-                "sample_prediction",
-                f"gt={gt} | pred={pred}",
-                global_step=self.global_step
-            )
-
-
+        self.log("val_loss", loss, on_step=False, sync_dist=False, prog_bar=False)
+        return loss
         
 
     def configure_optimizers(self):
@@ -172,7 +167,8 @@ def main():
         max_steps=args.max_steps,
         precision=args.precision,
         log_every_n_steps=4,
-        val_check_interval=8,
+        val_check_interval=120,
+        limit_val_batches=10,
         enable_checkpointing=True,
         enable_progress_bar=False,
     )

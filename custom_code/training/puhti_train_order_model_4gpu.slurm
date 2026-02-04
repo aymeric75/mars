@@ -6,7 +6,7 @@
 #SBATCH --ntasks-per-node=4
 #SBATCH --cpus-per-task=10
 #SBATCH --mem-per-cpu=8000
-#SBATCH --time=24:00:00
+#SBATCH --time=02:00:00
 #SBATCH --gres=gpu:v100:4
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
@@ -24,13 +24,13 @@ $PYTHON -c "import sys; print('python:', sys.executable)"
 $PYTHON -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.cuda.is_available())"
 $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 
-srun --kill-on-bad-exit=1 $PYTHON -u train_Order_Model_lightning.py \
+srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u train_Order_Model_lightning.py \
   --train_dir ../../data/order_model/train \
   --pattern "*_features.zarr.zip" \
   --model_variant base \
   --K 1024 \
-  --batch_size 4 \
+  --batch_size 32 \
   --lr 3e-4 \
-  --max_steps 20000 \
-  --num_workers 0 \
-  --precision bf16-mixed
+  --max_steps 2000 \
+  --num_workers 4 \
+  --precision bf16-mixed"
