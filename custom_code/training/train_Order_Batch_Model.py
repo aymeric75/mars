@@ -13,12 +13,10 @@ print(type(ds))
 print(type(ds[0]))
 print(ds[0].shape)
 
-
 dl = DataLoader(ds, batch_size=8, shuffle=True, num_workers=0)
 
 # 2) model
 model = OrderBatchModel(emb_dim=768, num_layers=12, num_heads=12, vocab_size=8192)
-
 
 # 3) train step
 for input_ids in dl:
