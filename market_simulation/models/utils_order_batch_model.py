@@ -43,16 +43,20 @@ class MultiDirZarrTokenDataset(Dataset):
     @lru_cache(maxsize=16)
     def _open_array(dir_path: str, array_path: str):
         return zarr.open(DirectoryStore(dir_path), path=array_path, mode="r")
-
+    
     def __getitem__(self, idx: int) -> torch.Tensor:
         fi = bisect.bisect_right(self.cum, idx)
         prev = 0 if fi == 0 else self.cum[fi - 1]
         j = idx - prev
-
+    
         A = self._open_array(self.paths[fi], self.array_path)
-        x = A[j : j + self.seq_len]  # (seq_len,) or (seq_len,1)
-        x = x.squeeze(-1) if getattr(x, "ndim", 1) == 2 and x.shape[1] == 1 else x
+        x = A[j : j + self.seq_len]          # (16, 64)
+        x = x.reshape(-1)                    # (1024,)
         return torch.from_numpy(x).long()
+        
+
+
+
 
 
 def lm_loss_next_token(logits: torch.Tensor, input_ids: torch.Tensor) -> torch.Tensor:
@@ -63,3 +67,4 @@ def lm_loss_next_token(logits: torch.Tensor, input_ids: torch.Tensor) -> torch.T
         logits.view(-1, logits.size(-1)),
         targets.view(-1),
     )
+
