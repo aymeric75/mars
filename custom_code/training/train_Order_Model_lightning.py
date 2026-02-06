@@ -6,6 +6,7 @@ import torch
 
 from torch.utils.data import DataLoader, Subset
 from lightning.pytorch.loggers import TensorBoardLogger
+from lightning.pytorch.callbacks import ModelCheckpoint
 
 from market_simulation.models.utils_order_model import (
     MultiDirZarrOrderDataset,
@@ -152,15 +153,28 @@ def main():
 
     model = OrderLightningModule(model_variant=args.model_variant, K=args.K, lr=args.lr)
     
+        
+    run_dir = "checkpoints_order_model"
+    os.makedirs(run_dir, exist_ok=True)
     
     logger = TensorBoardLogger(
-        save_dir="logs",
-        name="order_model"
+        save_dir=run_dir,          # <--- logs go under checkpoints_order_model/...
+        name="tensorboard"         # .../tensorboard/version_0/
     )
-
+    
+    ckpt_cb = ModelCheckpoint(
+        dirpath=run_dir,                          # <--- checkpoints saved HERE
+        filename="step={step}-val={val_loss:.4f}",
+        monitor="val_loss",
+        mode="min",
+        save_top_k=3,
+        save_last=True,
+    )
     
     trainer = pl.Trainer(
+        default_root_dir=run_dir,
         logger=logger,
+        callbacks=[ckpt_cb],
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices="auto" if torch.cuda.is_available() else 1,
         strategy="ddp" if torch.cuda.is_available() else "auto",
@@ -172,6 +186,7 @@ def main():
         enable_checkpointing=True,
         enable_progress_bar=False,
     )
+    
 
     trainer.fit(model, dm)
 

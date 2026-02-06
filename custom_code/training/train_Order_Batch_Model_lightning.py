@@ -6,6 +6,8 @@ import os
 import lightning.pytorch as pl
 import torch
 from lightning.pytorch.loggers import TensorBoardLogger
+from lightning.pytorch.callbacks import ModelCheckpoint
+
 from torch.utils.data import DataLoader, Subset
 
 from market_simulation.models.order_batch_model import OrderBatchModel
@@ -114,7 +116,7 @@ class OrderBatchLightningModule(pl.LightningModule):
         input_ids = batch
         logits = self(input_ids)
         loss = lm_loss_next_token(logits, input_ids)
-        self.log("val_loss", loss, on_step=False, on_epoch=True, sync_dist=True, prog_bar=False)
+        self.log("val_loss", loss, on_step=False, sync_dist=False, prog_bar=False)
         return loss
 
     def configure_optimizers(self):
@@ -162,11 +164,28 @@ def main():
         vocab_size=args.vocab_size,
         lr=args.lr,
     )
-
-    logger = TensorBoardLogger(save_dir="logs", name="order_batch_model")
-
+    
+    run_dir = "checkpoints_batch_order_model"
+    os.makedirs(run_dir, exist_ok=True)
+    
+    logger = TensorBoardLogger(
+        save_dir=run_dir,
+        name="tensorboard"
+    )
+    
+    ckpt_cb = ModelCheckpoint(
+        dirpath=run_dir,
+        filename="step={step}-val={val_loss:.4f}",
+        monitor="val_loss",
+        mode="min",
+        save_top_k=3,
+        save_last=True,
+    )
+    
     trainer = pl.Trainer(
+        default_root_dir=run_dir,
         logger=logger,
+        callbacks=[ckpt_cb],
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices="auto" if torch.cuda.is_available() else 1,
         strategy="ddp" if torch.cuda.is_available() else "auto",
