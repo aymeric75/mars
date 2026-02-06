@@ -26,7 +26,7 @@ $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 
 srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u train_Order_Batch_Model_lightning.py \
   --train_dir ../../data/order_batch_model \
-  --pattern "*tokens_v2.zarr.zip" \
+  --pattern "*.zarr.zip" \
   --seq_len_batches 16 \
   --batch_size 8 \
   --precision bf16-mixed"

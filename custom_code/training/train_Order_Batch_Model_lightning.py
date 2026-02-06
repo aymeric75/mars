@@ -5,9 +5,8 @@ import os
 
 import lightning.pytorch as pl
 import torch
-from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
-
+from lightning.pytorch.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader, Subset
 
 from market_simulation.models.order_batch_model import OrderBatchModel
@@ -21,7 +20,6 @@ class OrderBatchDataModule(pl.LightningDataModule):
         train_dir: str,
         pattern: str,
         array_path: str,
-        seq_len_batches: int,
         batch_size: int,
         val_frac: float,
         seed: int,
@@ -31,7 +29,6 @@ class OrderBatchDataModule(pl.LightningDataModule):
         self.train_dir = train_dir
         self.pattern = pattern
         self.array_path = array_path
-        self.seq_len_batches = int(seq_len_batches)
         self.batch_size = int(batch_size)
         self.val_frac = float(val_frac)
         self.seed = int(seed)
@@ -45,26 +42,19 @@ class OrderBatchDataModule(pl.LightningDataModule):
         unzip_zarr_zips(self.train_dir, self.pattern)
 
     def setup(self, stage: str | None = None):
-        # list extracted dirs (no unzip here)
+        # use extracted dirs only
         zarr_dirs = [p[:-4] for p in glob.glob(os.path.join(self.train_dir, self.pattern))]
         zarr_dirs = [d for d in zarr_dirs if os.path.isdir(d)]
 
-        ds = MultiDirZarrTokenDataset(
-            zarr_dirs=zarr_dirs,
-            seq_len=self.seq_len_batches,   # e.g. 16 "minutes"
-            array_path=self.array_path,     # often "" or "tokens"
-        )
+        ds = MultiDirZarrTokenDataset(zarr_dirs=zarr_dirs, array_path=self.array_path)
 
         n = len(ds)
         n_val = max(1, int(n * self.val_frac))
         g = torch.Generator().manual_seed(self.seed)
         perm = torch.randperm(n, generator=g).tolist()
 
-        val_idx = perm[:n_val]
-        train_idx = perm[n_val:]
-
-        self._train = Subset(ds, train_idx)
-        self._val = Subset(ds, val_idx)
+        self._val = Subset(ds, perm[:n_val])
+        self._train = Subset(ds, perm[n_val:])
 
     def train_dataloader(self):
         return DataLoader(
@@ -106,7 +96,7 @@ class OrderBatchLightningModule(pl.LightningModule):
         return self.model(input_ids)  # (B,T,V)
 
     def training_step(self, batch, batch_idx):
-        input_ids = batch  # (B,T)
+        input_ids = batch  # (B,1024)
         logits = self(input_ids)
         loss = lm_loss_next_token(logits, input_ids)
         self.log("train_loss", loss, on_step=True, on_epoch=False, sync_dist=True)
@@ -125,10 +115,9 @@ class OrderBatchLightningModule(pl.LightningModule):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--train_dir", default="../../data/order_batch_model")
-    p.add_argument("--pattern", default="*tokens_v2.zarr.zip")
-    p.add_argument("--array_path", default="")  # keep "" if your array is stored at root
-    p.add_argument("--seq_len_batches", type=int, default=16)  # 16 batches * 64 tokens = 1024 tokens
+    p.add_argument("--train_dir", default="../../data/order_batch_model/past16s")
+    p.add_argument("--pattern", default="past16_tokens_*.zarr.zip")
+    p.add_argument("--array_path", default="arr_0")
     p.add_argument("--batch_size", type=int, default=8)
 
     p.add_argument("--emb_dim", type=int, default=768)
@@ -150,7 +139,6 @@ def main():
         train_dir=args.train_dir,
         pattern=args.pattern,
         array_path=args.array_path,
-        seq_len_batches=args.seq_len_batches,
         batch_size=args.batch_size,
         val_frac=args.val_frac,
         seed=args.seed,
@@ -164,15 +152,12 @@ def main():
         vocab_size=args.vocab_size,
         lr=args.lr,
     )
-    
+
     run_dir = "checkpoints_batch_order_model"
     os.makedirs(run_dir, exist_ok=True)
-    
-    logger = TensorBoardLogger(
-        save_dir=run_dir,
-        name="tensorboard"
-    )
-    
+
+    logger = TensorBoardLogger(save_dir=run_dir, name="tensorboard")
+
     ckpt_cb = ModelCheckpoint(
         dirpath=run_dir,
         filename="step={step}-val={val_loss:.4f}",
@@ -181,7 +166,7 @@ def main():
         save_top_k=3,
         save_last=True,
     )
-    
+
     trainer = pl.Trainer(
         default_root_dir=run_dir,
         logger=logger,

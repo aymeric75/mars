@@ -1,5 +1,0 @@
-emb_dim: 768
-lr: 0.0003
-num_heads: 12
-num_layers: 12
-vocab_size: 8192
