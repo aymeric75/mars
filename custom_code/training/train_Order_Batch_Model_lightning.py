@@ -14,6 +14,17 @@ from market_simulation.models.utils_order_batch_model import MultiDirZarrTokenDa
 from market_simulation.models.utils_order_model import unzip_zarr_zips
 
 
+import fsspec.implementations.local as local
+
+_orig_write = local.LocalFileOpener.write
+
+def debug_write(self, *args, **kwargs):
+    print("📂 WRITING TO:", self.path)
+    return _orig_write(self, *args, **kwargs)
+
+local.LocalFileOpener.write = debug_write
+
+
 class OrderBatchDataModule(pl.LightningDataModule):
     def __init__(
         self,
@@ -106,32 +117,57 @@ class OrderBatchLightningModule(pl.LightningModule):
         input_ids = batch
         logits = self(input_ids)
         loss = lm_loss_next_token(logits, input_ids)
-        self.log("val_loss", loss, on_step=False, sync_dist=False, prog_bar=False)
+        self.log("val_loss", loss, on_step=False, sync_dist=True, prog_bar=False)
         return loss
 
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters(), lr=self.lr)
 
 
+
+
+
+class PrintCkptFilename(pl.Callback):
+    def on_validation_end(self, trainer, pl_module):
+        for cb in trainer.callbacks:
+            if isinstance(cb, ModelCheckpoint):
+                fp = cb.format_checkpoint_name(
+                    metrics=trainer.callback_metrics,
+                    filename=cb.filename,
+                )
+                # fp may already be absolute depending on Lightning version/config
+                full = fp if os.path.isabs(fp) else os.path.join(cb.dirpath, fp)
+                print(">> checkpoint dirpath:", cb.dirpath)
+                print(">> checkpoint full path:", full)
+
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--train_dir", default="../../data/order_batch_model/past16s")
     p.add_argument("--pattern", default="past16_tokens_*.zarr.zip")
-    p.add_argument("--array_path", default="arr_0")
-    p.add_argument("--batch_size", type=int, default=8)
+    p.add_argument("--array_path", default="")
+    p.add_argument("--batch_size", type=int, default=16)
 
-    p.add_argument("--emb_dim", type=int, default=768)
-    p.add_argument("--num_layers", type=int, default=12)
-    p.add_argument("--num_heads", type=int, default=12)
+    p.add_argument("--emb_dim", type=int, default=128) #default=768)
+    p.add_argument("--num_layers", type=int, default=4) #default=12)
+    p.add_argument("--num_heads", type=int, default=4) #default=12)
     p.add_argument("--vocab_size", type=int, default=8192)
 
     p.add_argument("--lr", type=float, default=3e-4)
-    p.add_argument("--max_steps", type=int, default=20000)
+    p.add_argument("--max_steps", type=int, default=1000)
     p.add_argument("--val_frac", type=float, default=0.01)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--num_workers", type=int, default=0)
     p.add_argument("--precision", default="bf16-mixed", choices=["32-true", "16-mixed", "bf16-mixed"])
+    p.add_argument("--default_root_dir", default="")
     args = p.parse_args()
+    
+    print("PWD =", os.getcwd())
+    print("args.default_root_dir =", repr(args.default_root_dir))
+    run_dir = args.default_root_dir or "checkpoints_batch_order_model"
+    print("run_dir(abspath) =", os.path.abspath(run_dir))
+
 
     pl.seed_everything(args.seed, workers=True)
 
@@ -153,35 +189,41 @@ def main():
         lr=args.lr,
     )
 
-    run_dir = "checkpoints_batch_order_model"
+        
+    run_dir = args.default_root_dir or "checkpoints_batch_order_model"
     os.makedirs(run_dir, exist_ok=True)
+
 
     logger = TensorBoardLogger(save_dir=run_dir, name="tensorboard")
 
     ckpt_cb = ModelCheckpoint(
         dirpath=run_dir,
-        filename="step={step}-val={val_loss:.4f}",
+        filename="val={val_loss:.4f}",
         monitor="val_loss",
         mode="min",
-        save_top_k=3,
-        save_last=True,
+        save_top_k=1,
+        save_last=False,
+        verbose=True,
+        #save_weights_only=True,
     )
 
     trainer = pl.Trainer(
         default_root_dir=run_dir,
         logger=logger,
-        callbacks=[ckpt_cb],
+        callbacks=[ckpt_cb, PrintCkptFilename()],
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices="auto" if torch.cuda.is_available() else 1,
         strategy="ddp" if torch.cuda.is_available() else "auto",
         max_steps=args.max_steps,
         precision=args.precision,
         log_every_n_steps=10,
-        val_check_interval=200,
+        val_check_interval=50,
         limit_val_batches=10,
         enable_checkpointing=True,
         enable_progress_bar=False,
     )
+    
+
 
     trainer.fit(model, dm)
 

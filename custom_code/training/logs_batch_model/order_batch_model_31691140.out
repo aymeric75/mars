@@ -1,0 +1,2 @@
+python: /projappl/project_2012747/mars/mars_env/bin/python
+torch: 2.6.0+cu124 cuda: True

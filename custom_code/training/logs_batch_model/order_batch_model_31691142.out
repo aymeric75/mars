@@ -1,0 +1,128 @@
+python: /projappl/project_2012747/mars/mars_env/bin/python
+torch: 2.6.0+cu124 cuda: True
+lightning: 2.6.1
+2026-02-07 13:00:51,745 - /projappl/project_2012747/mars/MarS/market_simulation/__init__.py:15 - INFO - init logging
+2026-02-07 13:00:51,863 - /projappl/project_2012747/mars/MarS/market_simulation/__init__.py:15 - INFO - init logging
+PWD = /projappl/project_2012747/mars/MarS/custom_code/training
+args.default_root_dir = '/scratch/project_2012747/mars_runs/order_batch_model/31691142'
+run_dir(abspath) = /scratch/project_2012747/mars_runs/order_batch_model/31691142
+PWD = /projappl/project_2012747/mars/MarS/custom_code/training
+args.default_root_dir = '/scratch/project_2012747/mars_runs/order_batch_model/31691142'
+run_dir(abspath) = /scratch/project_2012747/mars_runs/order_batch_model/31691142
+┏━━━┳━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━┳━━━━━━━┓
+┃   ┃ Name  ┃ Type            ┃ Params ┃ Mode  ┃ FLOPs ┃
+┡━━━╇━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━╇━━━━━━━┩
+│ 0 │ model │ OrderBatchModel │  2.1 M │ train │     0 │
+└───┴───────┴─────────────────┴────────┴───────┴───────┘
+Trainable params: 2.1 M                                                         
+Non-trainable params: 0                                                         
+Total params: 2.1 M                                                             
+Total estimated model params size (MB): 8                                       
+Modules in train mode: 60                                                       
+Modules in eval mode: 0                                                         
+Total FLOPs: 0                                                                  
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/tensorboard/version_0/hparams.yaml
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=8.9766.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=8.9766.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=4.7187.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=4.7187.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=4.7187.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=2.3846.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=2.3846.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=2.3846.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=2.0646.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=2.0646.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=2.0646.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.9691.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.9691.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.9691.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.9002.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.9002.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.9002.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.8269.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.8269.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.8269.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.7737.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.7737.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.7737.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.7317.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.7317.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.7317.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6970.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6970.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6970.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6686.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6686.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6686.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6497.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6497.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6497.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6313.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6313.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6313.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6158.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6158.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6158.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6013.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6013.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.6013.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5876.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5876.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5876.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5698.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5698.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5698.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5581.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5581.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5581.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5401.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5401.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5401.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5393.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5393.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5393.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5248.ckpt
+>> checkpoint dirpath: /scratch/project_2012747/mars_runs/order_batch_model/31691142
+>> checkpoint full path: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5248.ckpt
+📂 WRITING TO: /scratch/project_2012747/mars_runs/order_batch_model/31691142/val=val_loss=1.5248.ckpt

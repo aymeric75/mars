@@ -1,0 +1,5 @@
+The following modules were not unloaded:
+  (Use "module --force purge" to unload all):
+
+  1) csc-tools
+slurmstepd: error: *** JOB 31691140 ON r01g01 CANCELLED AT 2026-02-07T12:58:50 ***

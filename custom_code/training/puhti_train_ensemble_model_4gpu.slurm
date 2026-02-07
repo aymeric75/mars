@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH --job-name=ensemble_model
 #SBATCH --account=project_2012747
-#SBATCH --partition=gpu
+#SBATCH --partition=gputest
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=4
+#SBATCH --ntasks-per-node=2
 #SBATCH --cpus-per-task=10
 #SBATCH --mem-per-cpu=8000
-#SBATCH --time=02:00:00
-#SBATCH --gres=gpu:v100:4
+#SBATCH --time=00:15:00
+#SBATCH --gres=gpu:v100:2
 #SBATCH --output=logs_ensemble_model/%x_%j.out
 #SBATCH --error=logs_ensemble_model/%x_%j.err
 
@@ -24,9 +24,8 @@ $PYTHON -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.cuda
 $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 
 srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u train_Ensemble_Model_lightning.py \
-  --parquets_dir ../../data/ensemble/parquets \
-  --next1s_dir ../../data/ensemble/next1s \
-  --array_path arr_0 \
+  --parquets_dir ../../data/ensemble_model/features \
+  --next1s_dir ../../data/ensemble_model/next1s \
   --batch_size 64 \
   --order_vocab_size 49152 \
   --batch_vocab_size 8192 \

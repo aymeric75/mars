@@ -19,7 +19,6 @@ class EnsembleDataModule(pl.LightningDataModule):
         self,
         parquets_dir: str,
         next1s_dir: str,
-        array_path: str,
         batch_size: int,
         val_frac: float,
         seed: int,
@@ -28,7 +27,6 @@ class EnsembleDataModule(pl.LightningDataModule):
         super().__init__()
         self.parquets_dir = parquets_dir
         self.next1s_dir = next1s_dir
-        self.array_path = array_path
         self.batch_size = int(batch_size)
         self.val_frac = float(val_frac)
         self.seed = int(seed)
@@ -41,7 +39,7 @@ class EnsembleDataModule(pl.LightningDataModule):
         ds = MultiFileEnsembleDataset(
             parquets_dir=self.parquets_dir,
             next1s_dir=self.next1s_dir,
-            array_path=self.array_path,
+            array_path="",
         )
 
         n = len(ds)
@@ -178,7 +176,6 @@ def main():
     # data
     p.add_argument("--parquets_dir", default="../../data/ensemble/parquets")
     p.add_argument("--next1s_dir", default="../../data/ensemble/next1s")
-    p.add_argument("--array_path", default="arr_0")
     p.add_argument("--batch_size", type=int, default=64)
     p.add_argument("--val_frac", type=float, default=0.01)
     p.add_argument("--seed", type=int, default=42)
@@ -203,7 +200,6 @@ def main():
     dm = EnsembleDataModule(
         parquets_dir=args.parquets_dir,
         next1s_dir=args.next1s_dir,
-        array_path=args.array_path,
         batch_size=args.batch_size,
         val_frac=args.val_frac,
         seed=args.seed,
