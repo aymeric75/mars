@@ -1,76 +1,123 @@
 # custom_code/training/train_Ensemble_Model_lightning.py
+from __future__ import annotations
 
 import argparse
 import os
-
 import lightning.pytorch as pl
 import torch
 import torch.nn.functional as F
+import zipfile
+import lightning as L
+
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
-from torch.utils.data import DataLoader, Subset
-
+from torch.utils.data import DataLoader, Subset, random_split
 from market_simulation.models.ensemble_model import EnsembleModel
 from market_simulation.models.utils_ensemble_model import MultiFileEnsembleDataset
+from pathlib import Path
+from typing import Optional
 
 
-class EnsembleDataModule(pl.LightningDataModule):
+from lightning.pytorch.utilities import rank_zero_only
+
+
+
+def _ensure_unzipped_zarrs(next1s_dir: Path, unzip_dirname: str = "_unzipped") -> Path:
+    """
+    Unzips all `next1_tokens_*.zarr.zip` into `next1s_dir/_unzipped/` (idempotent),
+    and returns the directory that contains extracted `.zarr/` folders.
+    """
+    next1s_dir = Path(next1s_dir)
+    out_dir = next1s_dir / unzip_dirname
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    for z in sorted(next1s_dir.glob("next1_tokens_*.zarr.zip")):
+        with zipfile.ZipFile(z, "r") as zf:
+            # assume zip contains one top-level ".zarr/" folder
+            top = zf.namelist()[0].split("/")[0]
+            target = out_dir / top
+            if target.exists():
+                continue
+            zf.extractall(out_dir)
+
+    return out_dir
+
+
+class EnsembleDataModule(L.LightningDataModule):
     def __init__(
         self,
-        parquets_dir: str,
-        next1s_dir: str,
-        batch_size: int,
-        val_frac: float,
-        seed: int,
-        num_workers: int,
+        parquets_dir: str | Path,
+        next1s_dir: str | Path,
+        batch_size: int = 64,
+        num_workers: int = 4,
+        val_split: float = 0.01,
+        seed: int = 42,
+        pin_memory: bool = True,
+        persistent_workers: bool = True,
     ):
         super().__init__()
-        self.parquets_dir = parquets_dir
-        self.next1s_dir = next1s_dir
-        self.batch_size = int(batch_size)
-        self.val_frac = float(val_frac)
-        self.seed = int(seed)
-        self.num_workers = int(num_workers)
+        self.parquets_dir = Path(parquets_dir)
+        self.next1s_dir = Path(next1s_dir)
 
-        self._train = None
-        self._val = None
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.val_split = val_split
+        self.seed = seed
+        self.pin_memory = pin_memory
+        self.persistent_workers = persistent_workers
 
-    def setup(self, stage: str | None = None):
+        self._effective_next1s_dir: Optional[Path] = None
+        self.ds_train = None
+        self.ds_val = None
+
+    @rank_zero_only
+    def prepare_data(self):
+        # unzip once (only on rank 0), other ranks will see extracted folders in setup()
+        self._effective_next1s_dir = _ensure_unzipped_zarrs(self.next1s_dir)
+
+    def setup(self, stage: Optional[str] = None):
+        # In case prepare_data wasn't called (or for safety), ensure path is set
+        if self._effective_next1s_dir is None:
+            # If already unzipped, this is cheap (just checks existence)
+            self._effective_next1s_dir = _ensure_unzipped_zarrs(self.next1s_dir)
+
         ds = MultiFileEnsembleDataset(
             parquets_dir=self.parquets_dir,
-            next1s_dir=self.next1s_dir,
-            array_path="",
+            next1s_dir=self._effective_next1s_dir,          # <- use extracted .zarr folders
+            parquet_pattern="features_*_cut.parquet",
+            next1_pattern="next1_tokens_*.zarr",
         )
 
-        n = len(ds)
-        n_val = max(1, int(n * self.val_frac))
-        g = torch.Generator().manual_seed(self.seed)
-        perm = torch.randperm(n, generator=g).tolist()
-
-        self._val = Subset(ds, perm[:n_val])
-        self._train = Subset(ds, perm[n_val:])
+        n_total = len(ds)
+        n_val = max(1, int(n_total * self.val_split))
+        n_train = n_total - n_val
+        self.ds_train, self.ds_val = random_split(
+            ds, [n_train, n_val], generator=None
+        )
 
     def train_dataloader(self):
         return DataLoader(
-            self._train,
+            self.ds_train,
             batch_size=self.batch_size,
             shuffle=True,
             num_workers=self.num_workers,
-            pin_memory=True,
-            drop_last=True,
-            persistent_workers=(self.num_workers > 0),
+            pin_memory=self.pin_memory,
+            persistent_workers=self.persistent_workers and self.num_workers > 0,
         )
 
     def val_dataloader(self):
         return DataLoader(
-            self._val,
+            self.ds_val,
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
-            pin_memory=True,
-            drop_last=False,
-            persistent_workers=(self.num_workers > 0),
+            pin_memory=self.pin_memory,
+            persistent_workers=self.persistent_workers and self.num_workers > 0,
         )
+
+
+
+
 
 
 def _ce_64tokens(logits_bt_v: torch.Tensor, target_bt: torch.Tensor) -> torch.Tensor:
@@ -201,7 +248,6 @@ def main():
         parquets_dir=args.parquets_dir,
         next1s_dir=args.next1s_dir,
         batch_size=args.batch_size,
-        val_frac=args.val_frac,
         seed=args.seed,
         num_workers=args.num_workers,
     )

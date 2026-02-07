@@ -14,15 +14,11 @@ from market_simulation.models.utils_order_batch_model import MultiDirZarrTokenDa
 from market_simulation.models.utils_order_model import unzip_zarr_zips
 
 
-import fsspec.implementations.local as local
 
-_orig_write = local.LocalFileOpener.write
 
-def debug_write(self, *args, **kwargs):
-    print("📂 WRITING TO:", self.path)
-    return _orig_write(self, *args, **kwargs)
 
-local.LocalFileOpener.write = debug_write
+
+
 
 
 class OrderBatchDataModule(pl.LightningDataModule):

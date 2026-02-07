@@ -1,0 +1,5 @@
+python: /projappl/project_2012747/mars/mars_env/bin/python
+torch: 2.6.0+cu124 cuda: True
+lightning: 2.6.1
+2026-02-07 19:08:39,874 - /projappl/project_2012747/mars/MarS/market_simulation/__init__.py:15 - INFO - init logging
+2026-02-07 19:08:39,874 - /projappl/project_2012747/mars/MarS/market_simulation/__init__.py:15 - INFO - init logging
