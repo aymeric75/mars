@@ -1,13 +1,13 @@
 #!/bin/bash
-#SBATCH --job-name=order_model
+#SBATCH --job-name=order_batch_model
 #SBATCH --account=project_2012747
 #SBATCH --partition=gpu
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=2
-#SBATCH --cpus-per-task=10
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=5
 #SBATCH --mem-per-cpu=8000
-#SBATCH --time=00:30:00
-#SBATCH --gres=gpu:v100:2
+#SBATCH --time=00:03:00
+#SBATCH --gres=gpu:v100:1
 #SBATCH --output=logs_batch_model/%x_%j.out
 #SBATCH --error=logs_batch_model/%x_%j.err
 
