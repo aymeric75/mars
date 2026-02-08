@@ -3,21 +3,35 @@
 #SBATCH --account=project_2012747
 #SBATCH --partition=gpu
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=4
+#SBATCH --ntasks-per-node=2
 #SBATCH --cpus-per-task=10
 #SBATCH --mem-per-cpu=8000
-#SBATCH --time=02:00:00
-#SBATCH --gres=gpu:v100:4
-#SBATCH --output=logs/%x_%j.out
-#SBATCH --error=logs/%x_%j.err
+#SBATCH --time=00:30:00
+#SBATCH --gres=gpu:v100:2
+#SBATCH --output=logs_order_model/%x_%j.out
+#SBATCH --error=logs_order_model/%x_%j.err
 
 set -euo pipefail
-mkdir -p logs
 
 module purge
 
 PYTHON=/projappl/project_2012747/mars/mars_env/bin/python
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+
+
+
+SCRATCH=/scratch/project_2012747 
+
+# Put *everything* write-heavy on SCRATCH
+export RUN_ROOT="$SCRATCH/mars_runs/order_model/${SLURM_JOB_ID}"
+export TORCH_HOME="$RUN_ROOT/torch_cache"
+export HF_HOME="$RUN_ROOT/hf_cache"
+export XDG_CACHE_HOME="$RUN_ROOT/xdg_cache"
+export TMPDIR="$RUN_ROOT/tmp"
+
+
+mkdir -p "$RUN_ROOT" "$TORCH_HOME" "$HF_HOME" "$XDG_CACHE_HOME" "$TMPDIR"
+
 
 # fail fast if env is wrong
 $PYTHON -c "import sys; print('python:', sys.executable)"

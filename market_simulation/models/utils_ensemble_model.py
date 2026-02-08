@@ -1,144 +1,136 @@
-# market_simulation/models/utils_ensemble_model.py
-
 from __future__ import annotations
 
-import bisect
-import glob
-import os
-from functools import lru_cache
-
 import numpy as np
-import pandas as pd
 import torch
+from torch import Tensor
+from torch.utils.data import Dataset, DataLoader
 import zarr
-from torch.utils.data import Dataset
-from zarr.storage import DirectoryStore
 
 
-def _key_from_features(path: str) -> str:
-    base = os.path.basename(path)
-    if not (base.startswith("features_") and base.endswith("_cut.parquet")):
-        raise ValueError(f"Unexpected features filename: {base}")
-    return base[len("features_") : -len("_cut.parquet")]
+# -------------------------
+# Dataset + DataLoader
+# -------------------------
 
-
-def _key_from_next1(path: str) -> str:
-    base = os.path.basename(path)
-    if not (base.startswith("next1_tokens_") and base.endswith(".zarr")):
-        raise ValueError(f"Unexpected next1 filename: {base}")
-    return base[len("next1_tokens_") : -len(".zarr")]
-
-
-class MultiFileEnsembleDataset(Dataset):
+class EnsembleTrainDataset(Dataset):
     """
-    - parquets/features_<KEY>_cut.parquet   columns: i, Time, f0..f14 (ints)
-    - next1s/next1_tokens_<KEY>.zarr        shape: (N, 64) ints
-
-    Returns:
-      features: torch.int64 (15,)     # f0..f14
-      next1_tokens: torch.int64 (64,)
+    Returns dict with:
+      next64      : (64,) int64
+      topk_idx    : (64,) int64
+      topk_logit  : (64,) float32
+      target      : ()   int64
     """
 
     def __init__(
         self,
-        parquets_dir: str,
-        next1s_dir: str,
         *,
-        parquet_pattern: str = "features_*_cut.parquet",
-        next1_pattern: str = "next1_tokens_*.zarr",
-        array_path: str = "arr_0",
-    ):
-        self.parquets_dir = str(parquets_dir)
-        self.next1s_dir = str(next1s_dir)
-        self.array_path = str(array_path)
+        next64_path: str,
+        topk_idx_path: str,
+        topk_logit_path: str,
+        targets_path: str,
+    ) -> None:
+        self.next64 = zarr.open(next64_path, mode="r")         # (N, 64) int32
+        self.topk_idx = zarr.open(topk_idx_path, mode="r")     # (N, 64) int32
+        self.topk_logit = zarr.open(topk_logit_path, mode="r") # (N, 64) float16/float32
+        self.targets = zarr.open(targets_path, mode="r")       # (N,) int32
 
-        self.feature_cols = [f"f{k}" for k in range(15)]
-
-        feat_paths = sorted(glob.glob(os.path.join(self.parquets_dir, parquet_pattern)))
-        next_paths = sorted(glob.glob(os.path.join(self.next1s_dir, next1_pattern)))
-
-        feat_by_key = {_key_from_features(p): p for p in feat_paths}
-        next_by_key = {_key_from_next1(p): p for p in next_paths}
-
-        keys = sorted(set(feat_by_key).intersection(next_by_key))
-        if not keys:
-            raise FileNotFoundError(
-                "No matching (parquet, zarr) pairs found.\n"
-                f"parquets_dir={self.parquets_dir} pattern={parquet_pattern}\n"
-                f"next1s_dir={self.next1s_dir} pattern={next1_pattern}"
+        n = int(self.next64.shape[0])
+        if int(self.topk_idx.shape[0]) != n or int(self.topk_logit.shape[0]) != n or int(self.targets.shape[0]) != n:
+            raise ValueError(
+                f"Length mismatch: next64={self.next64.shape[0]}, topk_idx={self.topk_idx.shape[0]}, "
+                f"topk_logit={self.topk_logit.shape[0]}, targets={self.targets.shape[0]}"
             )
 
-        self.pairs = []
-        self.lens = []
-
-        for k in keys:
-            parquet_path = feat_by_key[k]
-            zarr_dir = next_by_key[k]
-
-            if zarr_dir.endswith(".zarr.zip"):
-                raise ValueError(
-                    f"Found .zarr.zip but expected extracted .zarr dir: {zarr_dir}"
-                )
-
-            df = pd.read_parquet(parquet_path, engine="pyarrow")
-
-            missing = [c for c in self.feature_cols if c not in df.columns]
-            if missing:
-                raise ValueError(
-                    f"Missing feature columns in {parquet_path}: {missing}\n"
-                    f"Columns present: {list(df.columns)}"
-                )
-
-            n_feat = int(df.shape[0])
-
-            A = zarr.open(DirectoryStore(zarr_dir), path=self.array_path, mode="r")
-            n_tok = int(A.shape[0])
-
-            if n_feat != n_tok:
-                raise ValueError(
-                    f"Length mismatch for key={k}: parquet={n_feat}, zarr={n_tok}\n"
-                    f"  {parquet_path}\n"
-                    f"  {zarr_dir} (array_path={self.array_path})"
-                )
-
-            self.pairs.append((parquet_path, zarr_dir))
-            self.lens.append(n_feat)
-
-        self.cum = []
-        s = 0
-        for L in self.lens:
-            s += L
-            self.cum.append(s)
-
     def __len__(self) -> int:
-        return self.cum[-1] if self.cum else 0
+        return int(self.next64.shape[0])
 
-    @staticmethod
-    @lru_cache(maxsize=8)
-    def _open_parquet(parquet_path: str) -> pd.DataFrame:
-        return pd.read_parquet(parquet_path, engine="pyarrow")
+    def __getitem__(self, i: int) -> dict[str, torch.Tensor]:
+        next64 = np.asarray(self.next64[i], dtype=np.int64)                 # (64,)
+        topk_idx = np.asarray(self.topk_idx[i], dtype=np.int64)             # (64,)
+        topk_logit = np.asarray(self.topk_logit[i], dtype=np.float32)       # (64,)
+        target = np.int64(self.targets[i])                                  # ()
 
-    @staticmethod
-    @lru_cache(maxsize=32)
-    def _open_zarr(zarr_dir: str, array_path: str):
-        return zarr.open(DirectoryStore(zarr_dir), path=array_path, mode="r")
+        return {
+            "next64": torch.from_numpy(next64),
+            "topk_idx": torch.from_numpy(topk_idx),
+            "topk_logit": torch.from_numpy(topk_logit),
+            "target": torch.tensor(target, dtype=torch.long),
+        }
 
-    def __getitem__(self, idx: int):
-        fi = bisect.bisect_right(self.cum, idx)
-        prev = 0 if fi == 0 else self.cum[fi - 1]
-        j = idx - prev
 
-        parquet_path, zarr_dir = self.pairs[fi]
+def make_ensemble_train_loader(
+    *,
+    next64_path: str,
+    topk_idx_path: str,
+    topk_logit_path: str,
+    targets_path: str,
+    batch_size: int,
+    shuffle: bool = True,
+    num_workers: int = 0,
+    pin_memory: bool = True,
+    drop_last: bool = True,
+) -> DataLoader:
+    ds = EnsembleTrainDataset(
+        next64_path=next64_path,
+        topk_idx_path=topk_idx_path,
+        topk_logit_path=topk_logit_path,
+        targets_path=targets_path,
+    )
+    return DataLoader(
+        ds,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        drop_last=drop_last,
+    )
 
-        df = self._open_parquet(parquet_path)
 
-        # Select f0..f14 only, keep ints
-        feats = df.loc[df.index[j], self.feature_cols].to_numpy(copy=False)
-        feats = np.asarray(feats, dtype=np.int64)  # ensure consistent dtype
+# -------------------------
+# Top-k -> dense logits
+# -------------------------
 
-        A = self._open_zarr(zarr_dir, self.array_path)
-        toks = np.asarray(A[j].reshape(-1), dtype=np.int64)
-        if toks.shape[0] != 64:
-            raise ValueError(f"Expected 64 next1 tokens, got {toks.shape} in {zarr_dir}")
+def topk_to_dense_logits(
+    topk_idx: Tensor,        # (B, K) long
+    topk_logit: Tensor,      # (B, K) float
+    vocab_size: int,         # e.g. 49152
+    *,
+    fill_value: float = -1e9
+) -> Tensor:
+    """
+    Builds dense base_logits (B, V) from top-k representation.
+    Missing logits are set to fill_value (so they are effectively impossible).
+    """
+    if topk_idx.dim() != 2 or topk_logit.dim() != 2:
+        raise ValueError("topk_idx and topk_logit must be (B, K)")
+    if topk_idx.shape != topk_logit.shape:
+        raise ValueError(f"shape mismatch: {tuple(topk_idx.shape)} vs {tuple(topk_logit.shape)}")
 
-        return torch.from_numpy(feats).long(), torch.from_numpy(toks).long()
+    B, _K = topk_idx.shape
+    base = torch.full((B, vocab_size), fill_value, device=topk_idx.device, dtype=topk_logit.dtype)
+    base.scatter_(dim=1, index=topk_idx, src=topk_logit)
+    return base
+
+
+# -------------------------
+# One training step
+# -------------------------
+
+def ensemble_training_step(
+    *,
+    model,                    # EnsembleModel
+    batch: dict[str, Tensor],
+    vocab_size: int,           # 49152
+) -> Tensor:
+    """
+    Minimal single training step:
+      loss = CE(refined_logits, target)
+    """
+    next64 = batch["next64"]                  # (B, 64) long
+    topk_idx = batch["topk_idx"]              # (B, 64) long
+    topk_logit = batch["topk_logit"]          # (B, 64) float
+    target = batch["target"]                  # (B,) long
+
+    base_logits = topk_to_dense_logits(topk_idx, topk_logit, vocab_size=vocab_size)  # (B, V)
+    refined_logits = model(base_logits=base_logits, batch_tokens=next64)             # (B, V)
+
+    return torch.nn.functional.cross_entropy(refined_logits, target)
