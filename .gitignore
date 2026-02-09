@@ -169,7 +169,6 @@ typings/
 fuse_connection.cfg
 outputs/
 git-diff
-results/
 data_pool/
 tags
 .mypy_cache
