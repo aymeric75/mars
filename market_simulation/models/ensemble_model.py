@@ -47,9 +47,9 @@ class EnsembleModel(nn.Module):
         *,
         batch_vocab_size: int = 8192,
         batch_tokens_len: int = 64,
-        d_model: int = 256,
-        num_layers: int = 4,
-        num_heads: int = 8,
+        d_model: int = 256, #128, #256,192
+        num_layers: int = 4, #2, #4,3
+        num_heads: int = 8, #4, #6,
         dropout: float = 0.1,
     ) -> None:
         super().__init__()

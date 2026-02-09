@@ -1,0 +1,16 @@
+python: /projappl/project_2012747/mars/mars_env/bin/python
+torch: 2.6.0+cu124 cuda: True
+lightning: 2.6.1
+2026-02-09 10:43:32,044 - /projappl/project_2012747/mars/MarS/market_simulation/__init__.py:15 - INFO - init logging
+┏━━━┳━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━┳━━━━━━━┓
+┃   ┃ Name  ┃ Type          ┃ Params ┃ Mode  ┃ FLOPs ┃
+┡━━━╇━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━╇━━━━━━━┩
+│ 0 │ model │ EnsembleModel │ 30.4 M │ train │     0 │
+└───┴───────┴───────────────┴────────┴───────┴───────┘
+Trainable params: 30.4 M                                                        
+Non-trainable params: 0                                                         
+Total params: 30.4 M                                                            
+Total estimated model params size (MB): 121                                     
+Modules in train mode: 54                                                       
+Modules in eval mode: 0                                                         
+Total FLOPs: 0                                                                  

@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=preprocessing_ensemble
 #SBATCH --account=project_2012747
-#SBATCH --partition=gpu
+#SBATCH --partition=gputest
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
 #SBATCH --mem-per-cpu=8000
-#SBATCH --time=04:00:00
+#SBATCH --time=00:15:00
 #SBATCH --gres=gpu:v100:1
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err

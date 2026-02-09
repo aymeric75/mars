@@ -1,6 +1,0 @@
-python: /projappl/project_2012747/mars/mars_env/bin/python
-torch: 2.6.0+cu124 cuda: True
-lightning: 2.6.1
-2026-02-08 14:23:57,060 - /projappl/project_2012747/mars/MarS/market_simulation/__init__.py:15 - INFO - init logging
-saved: /scratch/project_2012747/mars_data/output_order_model_for_ensemble_topk/logitss_AMZN_2025-12-09_cut_tenth_top64.zarr.zip
-saved: /scratch/project_2012747/mars_data/output_order_model_for_ensemble_topk/order_idxs_AMZN_2025-12-09_cut_tenth_targets.zarr.zip

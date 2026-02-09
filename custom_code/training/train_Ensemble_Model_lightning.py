@@ -1,194 +1,209 @@
-from __future__ import annotations
-
 import argparse
-from pathlib import Path
-from typing import Optional
+import os
+import shutil
+import io
 
+import lightning.pytorch as pl
 import torch
-import torch.nn.functional as F
-from torch.utils.data import DataLoader, random_split
-
-import lightning as L
-from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
+#from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
-from lightning.pytorch.utilities import rank_zero_only
+from torch.utils.data import DataLoader, Subset
+from pathlib import Path
 
 from market_simulation.models.ensemble_model import EnsembleModel
 from market_simulation.models.utils_ensemble_model import (
-    MultiFileEnsembleDataset,
-    unzip_zarr_zips_inplace,
+    EnsembleTrainDataset,
+    ensemble_training_step,
 )
 
 
-class EnsembleDataModule(L.LightningDataModule):
+
+
+def save_checkpoint(model, optimizer, step: int, run_dir: str):
+    """
+    Manual checkpoint save (non-atomic, local).
+    """
+    ckpt = {
+        "model_state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "global_step": step,
+        "model_class": model.__class__.__name__,
+    }
+
+    ckpt_path = Path(run_dir) / f"ckpt_step={step}.pt"
+    torch.save(ckpt, ckpt_path)
+
+
+
+
+
+
+class EnsembleDataModule(pl.LightningDataModule):
     def __init__(
         self,
-        parquets_dir: str | Path,
-        next1s_dir: str | Path,
-        batch_size: int = 8,
-        num_workers: int = 4,
-        val_split: float = 0.01,
-        seed: int = 42,
+        *,
+        next64_path: str,
+        logits_path: str,
+        targets_path: str,
+        batch_size: int,
+        val_frac: float,
+        seed: int,
+        num_workers: int,
     ):
         super().__init__()
-        self.parquets_dir = Path(parquets_dir)
-        self.next1s_dir = Path(next1s_dir)
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.val_split = val_split
-        self.seed = seed
+        self.next64_path = next64_path
+        self.logits_path = logits_path
+        self.targets_path = targets_path
 
-        self.ds_train = None
-        self.ds_val = None
+        self.batch_size = int(batch_size)
+        self.val_frac = float(val_frac)
+        self.seed = int(seed)
+        self.num_workers = int(num_workers)
 
-    @rank_zero_only
-    def prepare_data(self):
-        unzip_zarr_zips_inplace(self.next1s_dir)
-
-    def setup(self, stage: Optional[str] = None):
-        ds = MultiFileEnsembleDataset(
-            parquets_dir=self.parquets_dir,
-            next1s_dir=self.next1s_dir,
-            parquet_pattern="features_*_cut.parquet",
-            next1_pattern="next1_tokens_*.zarr",
+    def setup(self, stage: str | None = None):
+        ds = EnsembleTrainDataset(
+            next64_path=self.next64_path,
+            logits_path=self.logits_path,
+            targets_path=self.targets_path,
         )
 
-        n_total = len(ds)
-        n_val = max(1, int(n_total * self.val_split))
-        n_train = n_total - n_val
-
+        n = len(ds)
+        n_val = max(1, int(n * self.val_frac))
         g = torch.Generator().manual_seed(self.seed)
-        self.ds_train, self.ds_val = random_split(ds, [n_train, n_val], generator=g)
+        perm = torch.randperm(n, generator=g).tolist()
+
+        self.train_ds = Subset(ds, perm[n_val:])
+        self.val_ds = Subset(ds, perm[:n_val])
 
     def train_dataloader(self):
         return DataLoader(
-            self.ds_train,
+            self.train_ds,
             batch_size=self.batch_size,
             shuffle=True,
             num_workers=self.num_workers,
             pin_memory=True,
-            persistent_workers=self.num_workers > 0,
+            drop_last=True,
         )
 
     def val_dataloader(self):
         return DataLoader(
-            self.ds_val,
+            self.val_ds,
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
             pin_memory=True,
-            persistent_workers=self.num_workers > 0,
+            drop_last=False,
         )
 
 
-class EnsembleLightningModule(L.LightningModule):
-    # wrapper like OrderBatchLightningModule
-    def __init__(self, order_vocab_size: int, lr: float = 3e-4):
+
+
+
+
+class EnsembleLightningModule(pl.LightningModule):
+    def __init__(self, order_vocab_size: int, lr: float):
         super().__init__()
         self.save_hyperparameters()
-        self.model = EnsembleModel(order_vocab_size=order_vocab_size)
-
-    def forward(self, features, batch_tokens):
-        return self.model(features, batch_tokens)
-        
-        
-    @staticmethod
-    def _loss_from_logits(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-        # expects logits (B, 64, V) and targets (B, 64)
-        if logits.ndim != 3:
-            raise RuntimeError(f"Expected logits (B, 64, V), got {tuple(logits.shape)}")
-        if targets.ndim != 2:
-            raise RuntimeError(f"Expected targets (B, 64), got {tuple(targets.shape)}")
-        B, T, V = logits.shape
-        return F.cross_entropy(logits.reshape(B * T, V), targets.reshape(B * T))
+        self.model = EnsembleModel(order_vocab_size=int(order_vocab_size))
+        self.lr = float(lr)
 
     def training_step(self, batch, batch_idx):
-        features, batch_tokens = batch
-        features = torch.as_tensor(features, device=self.device)
-        batch_tokens = torch.as_tensor(batch_tokens, device=self.device, dtype=torch.long)
-    
-        logits = self(features, batch_tokens)
-        loss = self._loss_from_logits(logits, batch_tokens)
-        self.log("train_loss", loss, prog_bar=True, on_step=True, on_epoch=True, sync_dist=True)
+        loss = ensemble_training_step(model=self.model, batch=batch)
+        self.log("train_loss", loss, on_step=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        features, batch_tokens = batch
-        features = torch.as_tensor(features, device=self.device)
-        batch_tokens = torch.as_tensor(batch_tokens, device=self.device, dtype=torch.long)
-    
-        logits = self(features, batch_tokens)
-        loss = self._loss_from_logits(logits, batch_tokens)
-
-        self.log("val_loss", loss, prog_bar=True, on_step=False, on_epoch=True, sync_dist=True)
+        loss = ensemble_training_step(model=self.model, batch=batch)
+        self.log("val_loss", loss, sync_dist=True)
+        return loss
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(self.parameters(), lr=self.hparams.lr)
+        return torch.optim.AdamW(self.parameters(), lr=self.lr)
 
+    def on_validation_end(self):
+        if not self.trainer.is_global_zero:
+            return
 
-def parse_args():
-    p = argparse.ArgumentParser()
-    p.add_argument("--parquets_dir", type=str, required=True)
-    p.add_argument("--next1s_dir", type=str, required=True)
+        save_checkpoint(
+            model=self.model,
+            optimizer=self.optimizers(),
+            step=self.trainer.global_step,
+            run_dir=self.trainer.default_root_dir,
+        )
 
-    p.add_argument("--batch_size", type=int, default=8)
-    p.add_argument("--num_workers", type=int, default=4)
-    p.add_argument("--val_split", type=float, default=0.01)
-    p.add_argument("--seed", type=int, default=42)
-
-    p.add_argument("--max_epochs", type=int, default=10)
-    p.add_argument("--lr", type=float, default=3e-4)
-    p.add_argument("--precision", type=str, default="bf16-mixed")
-
-    # REQUIRED by your EnsembleModel ctor
-    p.add_argument("--order_vocab_size", type=int, required=True)
-
-    # Batch-order style: everything under this
-    p.add_argument("--default_root_dir", type=str, required=True)
-    return p.parse_args()
 
 
 def main():
-    args = parse_args()
-    L.seed_everything(args.seed, workers=True)
+    p = argparse.ArgumentParser()
 
-    run_root = Path(args.default_root_dir)
-    logger = TensorBoardLogger(save_dir=str(run_root), name="lightning_logs")
+    # data
+    p.add_argument("--next64_path", type=str, required=True)
+    p.add_argument("--logits_path", type=str, required=True)
+    p.add_argument("--targets_path", type=str, required=True)
 
-    ckpt_cb = ModelCheckpoint(
-        dirpath=str(run_root / "checkpoints"),
-        filename="epoch{epoch:03d}-val{val_loss:.4f}",
-        monitor="val_loss",
-        mode="min",
-        save_top_k=3,
-        save_last=True,
-    )
+    # hparams
+    p.add_argument("--order_vocab_size", type=int, default=49152)
+    p.add_argument("--lr", type=float, default=1e-4)
+    p.add_argument("--batch_size", type=int, default=64)
+    p.add_argument("--max_steps", type=int, default=10_000)
+    p.add_argument("--val_frac", type=float, default=0.01)
+    p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--num_workers", type=int, default=0)
+    p.add_argument("--precision", default="bf16-mixed")
+    p.add_argument("--default_root_dir", default="")
+    args = p.parse_args()
+
+    run_dir = args.default_root_dir or "checkpoints_ensemble_model"
+    os.makedirs(run_dir, exist_ok=True)
+
+    pl.seed_everything(args.seed, workers=True)
 
     dm = EnsembleDataModule(
-        parquets_dir=args.parquets_dir,
-        next1s_dir=args.next1s_dir,
+        next64_path=args.next64_path,
+        logits_path=args.logits_path,
+        targets_path=args.targets_path,
         batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        val_split=args.val_split,
+        val_frac=args.val_frac,
         seed=args.seed,
+        num_workers=args.num_workers,
     )
 
-    model = EnsembleLightningModule(order_vocab_size=args.order_vocab_size, lr=args.lr)
+    model = EnsembleLightningModule(
+        order_vocab_size=args.order_vocab_size,
+        lr=args.lr,
+    )
 
-    trainer = L.Trainer(
-        accelerator="gpu",
-        devices="auto",
-        strategy="ddp",
-        max_epochs=args.max_epochs,
-        precision=args.precision,
-        default_root_dir=str(run_root),
+    logger = TensorBoardLogger(save_dir=run_dir, name="tensorboard")
+
+    """
+    ckpt_cb = ModelCheckpoint(
+        dirpath=run_dir,
+        filename="val={val_loss:.4f}",
+        monitor="val_loss",
+        mode="min",
+        save_top_k=1,
+    )
+    """
+    
+    trainer = pl.Trainer(
+        default_root_dir=run_dir,
         logger=logger,
-        callbacks=[ckpt_cb, LearningRateMonitor(logging_interval="step")],
-        log_every_n_steps=50,
+        callbacks=[], #[ckpt_cb]
+        enable_checkpointing=False,
+        accelerator="gpu" if torch.cuda.is_available() else "cpu",
+        devices="auto" if torch.cuda.is_available() else 1,
+        strategy="ddp" if torch.cuda.is_available() else "auto",
+        max_steps=args.max_steps,
+        precision=args.precision,
+        log_every_n_steps=10,
+        val_check_interval=10, #50,
+        limit_val_batches=10,
+        enable_progress_bar=False,
     )
 
     trainer.fit(model, dm)
 
 
 if __name__ == "__main__":
+    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
     main()
