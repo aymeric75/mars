@@ -1,7 +1,7 @@
 python: /projappl/project_2012747/mars/mars_env/bin/python
 torch: 2.6.0+cu124 cuda: True
 lightning: 2.6.1
-2026-02-09 10:43:32,044 - /projappl/project_2012747/mars/MarS/market_simulation/__init__.py:15 - INFO - init logging
+2026-02-10 03:07:03,909 - /projappl/project_2012747/mars/MarS/market_simulation/__init__.py:15 - INFO - init logging
 ┏━━━┳━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━┳━━━━━━━┓
 ┃   ┃ Name  ┃ Type          ┃ Params ┃ Mode  ┃ FLOPs ┃
 ┡━━━╇━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━╇━━━━━━━┩
