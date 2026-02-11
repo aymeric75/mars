@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=order_batch_model
 #SBATCH --account=project_2012747
-#SBATCH --partition=gputest
+#SBATCH --partition=gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=2
 #SBATCH --cpus-per-task=10
@@ -43,7 +43,7 @@ $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u train_Order_Batch_Model_lightning.py \
   --train_dir ../../data/order_batch_model \
   --pattern \"*.zarr.zip\" \
-  --batch_size 8 \
+  --batch_size 32 \
   --precision bf16-mixed \
   --default_root_dir \"$RUN_ROOT\""
 

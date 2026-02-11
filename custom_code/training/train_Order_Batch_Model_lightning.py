@@ -150,7 +150,7 @@ def main():
     p.add_argument("--num_heads", type=int, default=4) #default=12)
     p.add_argument("--vocab_size", type=int, default=8192)
 
-    p.add_argument("--lr", type=float, default=3e-4)
+    p.add_argument("--lr", type=float, default=1e-4)
     p.add_argument("--max_steps", type=int, default=1000)
     p.add_argument("--val_frac", type=float, default=0.01)
     p.add_argument("--seed", type=int, default=42)
