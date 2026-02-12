@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import pickle
 
-
+from pathlib import Path
 from tqdm import tqdm
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
@@ -16,6 +16,7 @@ from mlib.core.limit_order import LimitOrder
 from market_simulation.conf import C
 from market_simulation.states.order_state import OrderState
 from market_simulation.utils.bin_converter import BinConverter
+
 
 
 SEQ_LEN = 1 # 1024
@@ -80,6 +81,18 @@ def make_exchange_and_orderstate(
 def unit_scale_to_seconds(time_unit: str) -> float:
     # messages_df["Time"] is assumed to be an integer offset; pick the right unit
     return {"ns": 1e-9, "us": 1e-6, "ms": 1e-3, "s": 1.0}[time_unit]
+
+
+
+
+
+
+def sample_parquets(input_dir, output_file, n=200):
+    dfs = []
+    for f in Path(input_dir).glob("*.parquet"):
+        df = pd.read_parquet(f)
+        dfs.append(df.sample(min(n, len(df))))
+    pd.concat(dfs, ignore_index=True).to_parquet(output_file, index=False)
 
 
 
@@ -241,7 +254,10 @@ def return_values_for_bins(
 
         #order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit)
         order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit, ex=ex)
-
+        print("order")
+        print(order)
+        print("rrr")
+        print(r)
         if order is None:
             continue
 
@@ -428,35 +444,43 @@ def make_exchange(symbol: str, date_str: str = "2025-10-10") -> Tuple[Exchange, 
 
 
 def main():
+    
+    data_folder = "/scratch/project_2012747/mars_data/order_model/train/"
+    
+    #sample_parquets("/scratch/project_2012747/mars_data/order_model/train/raw", "/scratch/project_2012747/mars_data/order_model/train/sampled_from_all.parquet", n=200)
 
+    messages_df_historical_data = pd.read_parquet( data_folder + "sampled_from_all.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
+
+    
+    """
     ap = argparse.ArgumentParser()
     ap.add_argument("--messages", required=True, help="Path to *_messages_*.parquet (messages only)")
     ap.add_argument("--symbol", default="APPL", help="Exchange symbol name (any string)")
     ap.add_argument("--time-unit", default="ns", choices=["ns", "us", "ms", "s"], help="Unit of messages_df['Time']")
     ap.add_argument("--max-events", type=int, default=None, help="Process at most this many rows (debug)")
     args = ap.parse_args()
-
-    messages_df_historical_data = pd.read_parquet("../data/training_messages_unordered.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
-
-    """  """
+    """
     
-    # price_minus_mid, sizes, intervals, lob_vols = return_values_for_bins(
-    #     messages_df_historical_data,
-    #     symbol=args.symbol,
-    #     time_unit=args.time_unit,
-    #     max_events=None,
-    #     sample_every_k=50,
-    #     #=1_000_000,  # optional
-    # )
-    # df = pd.DataFrame([{
-    #     "price_minus_mid": price_minus_mid,
-    #     "sizes": sizes,
-    #     "intervals": intervals,
-    #     "lob_vols": lob_vols,
-    # }])
-    # df.to_parquet("../data/bins_samples.parquet", index=False)
-    # print("finished")
+    
+    price_minus_mid, sizes, intervals, lob_vols = return_values_for_bins(
+        messages_df_historical_data,
+        symbol="Whatever",
+        time_unit="ns",
+        max_events=None,
+        sample_every_k=50,
+        #=1_000_000,  # optional
+    )
+    df = pd.DataFrame([{
+        "price_minus_mid": price_minus_mid,
+        "sizes": sizes,
+        "intervals": intervals,
+        "lob_vols": lob_vols,
+    }])
+    df.to_parquet(data_folder + "bins_samples.parquet", index=False)
+    print("finished")
 
+
+    """
     df = pd.read_parquet("../data/bins_samples.parquet")
     price_minus_mid = df.loc[0, "price_minus_mid"]
     sizes         = df.loc[0, "sizes"]
@@ -507,7 +531,7 @@ def main():
         max_events=args.max_events,
     )
     print(f"Wrote {n_written} feature rows -> {out_path}")
-
+    """
 
 
 if __name__ == "__main__":

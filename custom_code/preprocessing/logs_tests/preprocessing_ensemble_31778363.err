@@ -1,0 +1,29 @@
+The following modules were not unloaded:
+  (Use "module --force purge" to unload all):
+
+  1) csc-tools
+pass1: bins:   0%|          | 0/54000 [00:00<?, ?msg/s]pass1: bins:   0%|          | 3/54000 [00:00<00:32, 1671.26msg/s]
+Traceback (most recent call last):
+  File "/projappl/project_2012747/mars/MarS/custom_code/preprocessing/messages_to_features.py", line 538, in <module>
+    main()
+  File "/projappl/project_2012747/mars/MarS/custom_code/preprocessing/messages_to_features.py", line 465, in main
+    price_minus_mid, sizes, intervals, lob_vols = return_values_for_bins(
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/projappl/project_2012747/mars/MarS/custom_code/preprocessing/messages_to_features.py", line 267, in return_values_for_bins
+    ex.submit_continuous_auction_order(order)
+  File "/projappl/project_2012747/mars/MarS/mlib/core/exchange.py", line 102, in submit_continuous_auction_order
+    trade_info = self._orderbooks[order.symbol].update(order)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/projappl/project_2012747/mars/MarS/mlib/core/orderbook.py", line 43, in update
+    trans = self._update_with_normal_order(order.clone())
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/projappl/project_2012747/mars/MarS/mlib/core/orderbook.py", line 241, in _update_with_normal_order
+    assert index >= 0
+           ^^^^^^^^^^
+AssertionError
+
+real	0m5.090s
+user	0m3.604s
+sys	0m0.542s
+srun: error: r01g01: task 0: Exited with exit code 1
+srun: Terminating StepId=31778363.0

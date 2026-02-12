@@ -40,6 +40,6 @@ $PYTHON -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.cuda
 $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 
 
-srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u ensemble_preprocessing.py"
+srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u messages_to_features.py"
 
 
