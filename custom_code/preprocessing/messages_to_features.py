@@ -6,6 +6,7 @@ import numpy as np
 import pickle
 import random
 
+from multiprocessing import Pool
 from collections import defaultdict
 from pathlib import Path
 from tqdm import tqdm
@@ -448,6 +449,50 @@ def make_exchange(symbol: str, date_str: str = "2025-10-10") -> Tuple[Exchange, 
 
 
 
+def process_one_file(args):
+
+        msg_path, converters, data_folder = args
+
+        # Build corresponding meta filename
+        meta_path = msg_path.with_name(
+            msg_path.name.replace("_messages.parquet", "_meta.parquet")
+        )
+        
+        if meta_path.exists():
+            print("Processing pair:")
+            print("  Messages:", msg_path.name)
+            print("  Meta:    ", meta_path.name)
+            
+            messages_df = pd.read_parquet(msg_path)
+            meta_df = pd.read_parquet(meta_path)
+            
+            output_file_name = msg_path.name.replace("_messages", "_features")
+            
+            symbol = msg_path.name.split("_")[0]
+        
+            time_unit = "ns"
+        
+        
+            # 57600003755960
+            #print(pd.to_timedelta(int(57600003755960), unit=time_unit))
+        
+            out_path, n_written = pass2_write_features(
+                messages_df,
+                meta_df,
+                symbol=symbol,
+                time_unit=time_unit,
+                conv=converters,
+                out_path=data_folder+"final/"+output_file_name,
+                max_events=None,
+            )
+            print(f"Wrote {n_written} feature rows -> {out_path}")
+        
+                
+        else:
+            print(f"⚠ No meta file found for {msg_path.name}")
+
+
+
 def main():
     
     data_folder = "/scratch/project_2012747/mars_data/order_model/train/"
@@ -530,6 +575,7 @@ def main():
         pickle.dump(converters, f)
 
     
+    """
     
     # load converters
     with open(data_folder + "intermediate/converters.pkl", "rb") as f:
@@ -549,16 +595,12 @@ def main():
     print(converters.lob_volume.bins)
     # breakpoint()
 
-    # 
-
-    """
+    
     
     # Get all message files
     message_files = sorted(Path(data_folder+"raw").glob("*_messages.parquet"))
     
-    print("message_files")
-    print(len(message_files))
-        
+  
     feature_files = ["AAPL_2025-11-03_features.parquet", "AAPL_2025-11-04_features.parquet", "AAPL_2025-11-05_features.parquet",  "AAPL_2025-11-06_features.parquet", "AAPL_2025-11-07_features.parquet", "AAPL_2025-11-10_features.parquet"]
     # Convert feature filenames to the corresponding "messages" filenames
     feature_as_messages = {
@@ -573,54 +615,16 @@ def main():
     ]
     
     message_files = filtered_paths
+
+    n_workers = int(os.environ.get("SLURM_CPUS_PER_TASK", 4))
     
-
+    args = [(msg_path, converters, data_folder) for msg_path in message_files]
     
-    
-    for msg_path in message_files:
-        # Build corresponding meta filename
-        meta_path = msg_path.with_name(
-            msg_path.name.replace("_messages.parquet", "_meta.parquet")
-        )
+    with Pool(processes=n_workers) as pool:
         
-        if meta_path.exists():
-            print("Processing pair:")
-            print("  Messages:", msg_path.name)
-            print("  Meta:    ", meta_path.name)
-            
-            messages_df = pd.read_parquet(msg_path)
-            meta_df = pd.read_parquet(meta_path)
-            
-            output_file_name = msg_path.name.replace("_messages", "_features")
-            
-            symbol = msg_path.name.split("_")[0]
-        
-            time_unit = "ns"
-        
+        for _ in pool.imap_unordered(process_one_file, args):
+            pass
 
-        
-            # 57600003755960
-            #print(pd.to_timedelta(int(57600003755960), unit=time_unit))
-        
-            out_path, n_written = pass2_write_features(
-                messages_df,
-                meta_df,
-                symbol=symbol,
-                time_unit=time_unit,
-                conv=converters,
-                out_path=data_folder+"final/"+output_file_name,
-                max_events=None,
-            )
-            print(f"Wrote {n_written} feature rows -> {out_path}")
-        
-                
-
-                
-        else:
-            print(f"⚠ No meta file found for {msg_path.name}")
-
-
-    
 
 
 
