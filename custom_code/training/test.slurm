@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=order_batch_model
 #SBATCH --account=project_2012747
-#SBATCH --partition=gputest
+#SBATCH --partition=gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=5
 #SBATCH --mem-per-cpu=8000
-#SBATCH --time=00:15:00
+#SBATCH --time=02:15:00
 #SBATCH --gres=gpu:v100:1
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err

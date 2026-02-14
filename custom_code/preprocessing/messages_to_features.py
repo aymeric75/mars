@@ -4,7 +4,9 @@ import argparse
 import pandas as pd
 import numpy as np
 import pickle
+import random
 
+from collections import defaultdict
 from pathlib import Path
 from tqdm import tqdm
 from dataclasses import dataclass
@@ -16,6 +18,7 @@ from mlib.core.limit_order import LimitOrder
 from market_simulation.conf import C
 from market_simulation.states.order_state import OrderState
 from market_simulation.utils.bin_converter import BinConverter
+
 
 
 
@@ -240,7 +243,7 @@ def return_values_for_bins(
 
     fed = 0       # number of events successfully fed to exchange
     sampled = 0   # number of samples actually collected
-
+    dt_sec = 0
 
     # for i, r in enumerate(messages_df.itertuples(index=False)):
     for i, r in enumerate(tqdm(messages_df.itertuples(index=False),
@@ -249,15 +252,21 @@ def return_values_for_bins(
                               unit="msg")):
 
 
+
+        # interval samples (based on *sampled* events)
+        cur_time = int(r.Time)
+        if prev_sample_time is not None:
+            dt_sec = (cur_time - prev_sample_time) * scale
+
+        prev_sample_time = cur_time
+
+
         if i >= n:
             break
 
         #order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit)
         order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit, ex=ex)
-        print("order")
-        print(order)
-        print("rrr")
-        print(r)
+
         if order is None:
             continue
 
@@ -284,14 +293,10 @@ def return_values_for_bins(
         # sizes for volume bins (only new orders)
         if order.type in ("B", "S"):
             sizes.append(float(order.volume))
+        
+        if dt_sec > 0:
+            intervals.append(float(dt_sec))
 
-        # interval samples (based on *sampled* events)
-        cur_time = int(r.Time)
-        if prev_sample_time is not None:
-            dt_sec = (cur_time - prev_sample_time) * scale
-            if dt_sec > 0:
-                intervals.append(float(dt_sec))
-        prev_sample_time = cur_time
 
         # snapshot from exchange-built orderbook
         snap = ex.get_lob(symbol).snapshot(level=10)
@@ -447,91 +452,176 @@ def main():
     
     data_folder = "/scratch/project_2012747/mars_data/order_model/train/"
     
-    #sample_parquets("/scratch/project_2012747/mars_data/order_model/train/raw", "/scratch/project_2012747/mars_data/order_model/train/sampled_from_all.parquet", n=200)
-
-    messages_df_historical_data = pd.read_parquet( data_folder + "sampled_from_all.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
-
     
     """
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--messages", required=True, help="Path to *_messages_*.parquet (messages only)")
-    ap.add_argument("--symbol", default="APPL", help="Exchange symbol name (any string)")
-    ap.add_argument("--time-unit", default="ns", choices=["ns", "us", "ms", "s"], help="Unit of messages_df['Time']")
-    ap.add_argument("--max-events", type=int, default=None, help="Process at most this many rows (debug)")
-    args = ap.parse_args()
-    """
     
+    # I. CREATING BINs VALUES
     
-    price_minus_mid, sizes, intervals, lob_vols = return_values_for_bins(
-        messages_df_historical_data,
-        symbol="Whatever",
-        time_unit="ns",
-        max_events=None,
-        sample_every_k=50,
-        #=1_000_000,  # optional
-    )
-    df = pd.DataFrame([{
-        "price_minus_mid": price_minus_mid,
-        "sizes": sizes,
-        "intervals": intervals,
-        "lob_vols": lob_vols,
-    }])
-    df.to_parquet(data_folder + "bins_samples.parquet", index=False)
-    print("finished")
+    # Randomly select 3 files of each stock
+    print(Path(data_folder + "raw").glob("*_messages.parquet"))
 
+    
+    raw_path = Path(data_folder) / "raw"
+    files_by_ticker = defaultdict(list)
+    for f in raw_path.glob("*_messages.parquet"):
+        files_by_ticker[f.name.split("_")[0]].append(f)
+    selected_files = [
+        f
+        for files in files_by_ticker.values()
+        for f in random.sample(files, min(1, len(files)))
+    ]
 
-    """
-    df = pd.read_parquet("../data/bins_samples.parquet")
+    print("selected_files")
+    print(selected_files)
+
+    all_dfs = []  # collect results here
+    for f in selected_files:
+
+        print(f.name)
+        
+        df_historical_data = pd.read_parquet(f, columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
+        
+        price_minus_mid, sizes, intervals, lob_vols = return_values_for_bins(
+            df_historical_data,
+            symbol="Whatever",
+            time_unit="ns",
+            max_events=10000, # None,
+            sample_every_k= 50 #100000,
+            #=1_000_000,  # optional
+        )
+        
+    
+        df = pd.DataFrame([{
+            "price_minus_mid": price_minus_mid,
+            "sizes": sizes,
+            "intervals": intervals,
+            "lob_vols": lob_vols,
+        }])
+        
+        all_dfs.append(df)
+
+            
+    
+    # 🔹 Concatenate everything after the loop
+    final_df = pd.concat(all_dfs, ignore_index=True)
+    
+    # 🔹 Save once
+    final_df.to_parquet(data_folder + "/intermediate/bins_samples_better.parquet", index=False)
+
+    
+    # II. Creating Converters
+    
+    df = pd.read_parquet(data_folder + "intermediate/bins_samples.parquet")
+    print("df.shape")
+    print(df.shape)
     price_minus_mid = df.loc[0, "price_minus_mid"]
     sizes         = df.loc[0, "sizes"]
     intervals     = df.loc[0, "intervals"]
     lob_vols      = df.loc[0, "lob_vols"]
+    
+    
+    print("price_minus_mid")
+    print(price_minus_mid)
 
     converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
 
-    
+    # save converters
+    with open(data_folder + "intermediate/converters.pkl", "wb") as f:
+        pickle.dump(converters, f)
 
-    # print("converters.price_level.bins")
-    # print(converters.price_level.bins)
-    # print("converters.order_volume.bins")
-    # print(converters.order_volume.bins)
-    # print("converters.pred_order_volume.bins")
-    # print(converters.pred_order_volume.bins)
-    # print("converters.order_interval.bins")
-    # print(converters.order_interval.bins)
-    # print("converters.lob_volume.bins")
-    # print(converters.lob_volume.bins)
+    
+    
+    # load converters
+    with open(data_folder + "intermediate/converters.pkl", "rb") as f:
+        converters = pickle.load(f)
+
+    print(type(converters))
+    
+    print("converters.price_level.bins")
+    print(converters.price_level.bins)
+    print("converters.order_volume.bins")
+    print(converters.order_volume.bins)
+    print("converters.pred_order_volume.bins")
+    print(converters.pred_order_volume.bins)
+    print("converters.order_interval.bins")
+    print(converters.order_interval.bins)
+    print("converters.lob_volume.bins")
+    print(converters.lob_volume.bins)
     # breakpoint()
 
-    #messages_df = pd.read_parquet("../data/2025-10-10_messages_10.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
-    messages_df = pd.read_parquet("../data/2025-10-09_messages_10.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
+    # 
 
-    print("messages_df")
-    print(messages_df)
-
-    meta_df = pd.read_parquet("../data/2025-10-10_meta_10.parquet")
-
-    print(meta_df[meta_df['System_Event_Code'] == 23])
-
-    print("meta_df")
-    print(meta_df['System_Event_Code'].unique())
-
-    time_unit = "ns"
-
-    # 57600003755960
-    print(pd.to_timedelta(int(57600003755960), unit=time_unit))
-
-    out_path, n_written = pass2_write_features(
-        messages_df,
-        meta_df,
-        symbol=args.symbol,
-        time_unit=args.time_unit,
-        conv=converters,
-        out_path="../data/mymessages.parquet",
-        max_events=args.max_events,
-    )
-    print(f"Wrote {n_written} feature rows -> {out_path}")
     """
+    
+    # Get all message files
+    message_files = sorted(Path(data_folder+"raw").glob("*_messages.parquet"))
+    
+    print("message_files")
+    print(len(message_files))
+        
+    feature_files = ["AAPL_2025-11-03_features.parquet", "AAPL_2025-11-04_features.parquet", "AAPL_2025-11-05_features.parquet",  "AAPL_2025-11-06_features.parquet", "AAPL_2025-11-07_features.parquet", "AAPL_2025-11-10_features.parquet"]
+    # Convert feature filenames to the corresponding "messages" filenames
+    feature_as_messages = {
+        f.replace("_features.parquet", "_messages.parquet")
+        for f in feature_files
+    }
+    
+    # Filter paths
+    filtered_paths = [
+        p for p in message_files
+        if p.name not in feature_as_messages
+    ]
+    
+    message_files = filtered_paths
+    
+
+    
+    
+    for msg_path in message_files:
+        # Build corresponding meta filename
+        meta_path = msg_path.with_name(
+            msg_path.name.replace("_messages.parquet", "_meta.parquet")
+        )
+        
+        if meta_path.exists():
+            print("Processing pair:")
+            print("  Messages:", msg_path.name)
+            print("  Meta:    ", meta_path.name)
+            
+            messages_df = pd.read_parquet(msg_path)
+            meta_df = pd.read_parquet(meta_path)
+            
+            output_file_name = msg_path.name.replace("_messages", "_features")
+            
+            symbol = msg_path.name.split("_")[0]
+        
+            time_unit = "ns"
+        
+
+        
+            # 57600003755960
+            #print(pd.to_timedelta(int(57600003755960), unit=time_unit))
+        
+            out_path, n_written = pass2_write_features(
+                messages_df,
+                meta_df,
+                symbol=symbol,
+                time_unit=time_unit,
+                conv=converters,
+                out_path=data_folder+"final/"+output_file_name,
+                max_events=None,
+            )
+            print(f"Wrote {n_written} feature rows -> {out_path}")
+        
+                
+
+                
+        else:
+            print(f"⚠ No meta file found for {msg_path.name}")
+
+
+    
+
 
 
 if __name__ == "__main__":

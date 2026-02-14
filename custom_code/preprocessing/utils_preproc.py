@@ -23,6 +23,40 @@ V_MAX = 256  # clip count to [0, 255] (uint8)
 
 
 
+
+
+
+
+def decode_order_index_df(df: pd.DataFrame, col: str = "f0", out_dtype=np.int32) -> pd.DataFrame:
+    """
+    Decode packed order_index integers into (order_type, price_slot, volume_slot).
+
+    Assumes the same packing as your mmap version:
+      - ignore lowest 4 bits (// 16)
+      - next 5 bits: volume_slot  (0..31)
+      - next 5 bits: price_slot   (0..31)
+      - remaining: order_type     (0,1,2,...)
+    """
+    x = df[col].to_numpy(dtype=np.int64)
+
+    x = x // 16
+    volume_slot = (x & 31).astype(out_dtype)
+
+    x = x // 32
+    price_slot = (x & 31).astype(out_dtype)
+
+    x = x // 32
+    order_type = x.astype(out_dtype)
+
+    return pd.DataFrame(
+        {"order_type": order_type, "price_slot": price_slot, "volume_slot": volume_slot},
+        index=df.index,
+    )
+
+
+
+
+
 def decode_order_index_to_mmap(
     in_mmap: np.ndarray,
     out_path: str,
@@ -535,6 +569,7 @@ def parquet_to_zarr_zip(
     compressor = Blosc(cname="zstd", clevel=clevel, shuffle=Blosc.BITSHUFFLE)
 
     with ZipStore(zarr_zip_path, mode="w", compression=zipfile.ZIP_DEFLATED) as store:
+        
         root = zarr.group(store=store, overwrite=True)
 
         root.attrs.update({
@@ -542,7 +577,6 @@ def parquet_to_zarr_zip(
             "F": int(F),
             "source_parquet": str(parquet_path),
         })
-
 
         arr = root.create_dataset(
             dataset_name,

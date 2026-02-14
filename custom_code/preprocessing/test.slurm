@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=preprocessing_ensemble
+#SBATCH --job-name=preprocessing_features_testing
 #SBATCH --account=project_2012747
 #SBATCH --partition=gputest
 #SBATCH --nodes=1
