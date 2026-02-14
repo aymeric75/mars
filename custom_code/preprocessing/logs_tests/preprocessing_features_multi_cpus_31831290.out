@@ -52,3 +52,7 @@ Processing pair:
 Processing pair:
   Messages: AAPL_2025-11-20_messages.parquet
   Meta:     AAPL_2025-11-20_meta.parquet
+Wrote 4265865 feature rows -> /scratch/project_2012747/mars_data/order_model/train/final/AAPL_2025-11-12_features.parquet
+Processing pair:
+  Messages: AAPL_2025-11-21_messages.parquet
+  Meta:     AAPL_2025-11-21_meta.parquet
