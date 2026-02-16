@@ -197,3 +197,4 @@ checkpoints/
 taming/modules/autoencoder/lpips/
 **/lpips/
 .cache/
+third_party/.DS_Store
