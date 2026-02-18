@@ -1,8 +1,0 @@
-The following modules were not unloaded:
-  (Use "module --force purge" to unload all):
-
-  1) csc-tools
-
-real	95m27.698s
-user	621m36.259s
-sys	0m27.307s
