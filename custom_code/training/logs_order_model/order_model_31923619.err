@@ -1,0 +1,83 @@
+The following modules were not unloaded:
+  (Use "module --force purge" to unload all):
+
+  1) csc-tools
+[rank: 0] Seed set to 7
+[rank: 1] Seed set to 7
+Using bfloat16 Automatic Mixed Precision (AMP)
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/2
+[W217 21:52:56.979958310 socket.cpp:759] [c10d] The client socket cannot be initialized to connect to [r02g02.bullx]:18619 (errno: 97 - Address family not supported by protocol).
+Initializing distributed: GLOBAL_RANK: 1, MEMBER: 2/2
+[W217 21:52:56.060716129 socket.cpp:759] [c10d] The client socket cannot be initialized to connect to [r02g02.bullx]:18619 (errno: 97 - Address family not supported by protocol).
+----------------------------------------------------------------------------------------------------
+distributed_backend=nccl
+All distributed processes registered. Starting with 2 processes
+----------------------------------------------------------------------------------------------------
+
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 186, in <module>
+[rank0]:     main()
+[rank0]:   File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 180, in main
+[rank0]:     trainer.fit(model, dm)
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 584, in fit
+[rank0]:     call._call_and_handle_interrupt(
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/call.py", line 48, in _call_and_handle_interrupt
+[rank0]:     return trainer.strategy.launcher.launch(trainer_fn, *args, trainer=trainer, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/strategies/launchers/subprocess_script.py", line 105, in launch
+[rank0]:     return function(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 630, in _fit_impl
+[rank0]:     self._run(model, ckpt_path=ckpt_path, weights_only=weights_only)
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 1039, in _run
+[rank0]:     call._call_setup_hook(self)  # allow user to set up LightningModule in accelerator environment
+[rank0]:     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/call.py", line 108, in _call_setup_hook
+[rank0]:     _call_lightning_datamodule_hook(trainer, "setup", stage=fn)
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/call.py", line 199, in _call_lightning_datamodule_hook
+[rank0]:     return fn(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 44, in setup
+[rank0]:     self._train = ParquetFeaturesTokenDataset(
+[rank0]:                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]: NameError: name 'ParquetFeaturesTokenDataset' is not defined
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 186, in <module>
+[rank1]:     main()
+[rank1]:   File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 180, in main
+[rank1]:     trainer.fit(model, dm)
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 584, in fit
+[rank1]:     call._call_and_handle_interrupt(
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/call.py", line 48, in _call_and_handle_interrupt
+[rank1]:     return trainer.strategy.launcher.launch(trainer_fn, *args, trainer=trainer, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/strategies/launchers/subprocess_script.py", line 105, in launch
+[rank1]:     return function(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 630, in _fit_impl
+[rank1]:     self._run(model, ckpt_path=ckpt_path, weights_only=weights_only)
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 1039, in _run
+[rank1]:     call._call_setup_hook(self)  # allow user to set up LightningModule in accelerator environment
+[rank1]:     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/call.py", line 108, in _call_setup_hook
+[rank1]:     _call_lightning_datamodule_hook(trainer, "setup", stage=fn)
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/call.py", line 199, in _call_lightning_datamodule_hook
+[rank1]:     return fn(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 44, in setup
+[rank1]:     self._train = ParquetFeaturesTokenDataset(
+[rank1]:                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]: NameError: name 'ParquetFeaturesTokenDataset' is not defined
+
+real	0m11.835s
+user	0m11.229s
+sys	0m1.632s
+
+real	0m11.870s
+user	0m11.334s
+sys	0m1.811s
+srun: error: r02g02: tasks 0-1: Exited with exit code 1
+srun: Terminating StepId=31923619.0

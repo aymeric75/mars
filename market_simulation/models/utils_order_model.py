@@ -3,11 +3,12 @@ import glob
 import os
 import random
 import zipfile
-from functools import lru_cache
-
+import numpy as np
 import torch
 import torch.nn.functional as F
 import zarr
+
+from functools import lru_cache
 from torch.utils.data import DataLoader, Dataset, Subset
 from zarr.storage import DirectoryStore
 
@@ -36,6 +37,81 @@ def unzip_zarr_zips(train_dir="train", pattern="*.zarr.zip"):
         with zipfile.ZipFile(zpath) as zf:
             zf.extractall(out_dir)
     return sorted(glob.glob(os.path.join(train_dir, pattern.replace(".zip", ""))))  # *.zarr dirs
+
+
+
+
+
+
+class ParquetFeaturesTokenDataset(Dataset):
+    """
+    Folder of parquet files, each contains columns f0..f14 (and maybe extra columns like Time, i).
+    Returns one sample as torch.long of shape (15,).
+    """
+
+    def __init__(self, parquet_dir: str, pattern: str = "*_features.parquet", feature_cols: int = 15):
+        self.parquet_dir = str(parquet_dir)
+        self.pattern = str(pattern)
+        self.feature_cols = int(feature_cols)
+
+        self.paths = sorted(glob.glob(os.path.join(self.parquet_dir, self.pattern)))
+        if len(self.paths) == 0:
+            raise FileNotFoundError(f"No parquet files found in {self.parquet_dir} with pattern {self.pattern}")
+
+        # Determine lengths per file (requires a parquet engine: pyarrow or fastparquet)
+        self.lens = []
+        for p in self.paths:
+            # We only need row count; simplest is to load minimal columns.
+            df = self._read_parquet_columns(p, [f"f{k}" for k in range(self.feature_cols)])
+            self.lens.append(int(len(df)))
+
+        self.cum = []
+        s = 0
+        for L in self.lens:
+            s += L
+            self.cum.append(s)
+
+    def __len__(self) -> int:
+        return self.cum[-1] if self.cum else 0
+
+    @staticmethod
+    @lru_cache(maxsize=32)
+    def _load_file_features(path: str, feature_cols: int):
+        cols = [f"f{k}" for k in range(feature_cols)]
+        df = ParquetFeaturesTokenDataset._read_parquet_columns(path, cols)
+        # Store as numpy int64 for fast row access
+        return df[cols].to_numpy(dtype=np.int64, copy=False)
+
+    @staticmethod
+    def _read_parquet_columns(path: str, cols: list[str]):
+        # pandas.read_parquet requires pyarrow or fastparquet installed in the environment
+        import pandas as pd
+        try:
+            return pd.read_parquet(path, columns=cols)
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to read parquet {path}. "
+                f"Make sure you installed a parquet engine (pyarrow or fastparquet). "
+                f"Original error: {e}"
+            )
+
+    def __getitem__(self, idx: int) -> torch.Tensor:
+        fi = bisect.bisect_right(self.cum, idx)
+        prev = 0 if fi == 0 else self.cum[fi - 1]
+        j = idx - prev
+
+        arr = self._load_file_features(self.paths[fi], self.feature_cols)  # (N,15)
+        x = arr[j]  # (15,)
+        return torch.from_numpy(x).long()
+
+
+
+
+
+
+
+
+
 
 
 class MultiDirZarrOrderDataset(Dataset):

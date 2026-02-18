@@ -4,12 +4,12 @@ from collections import defaultdict
 from pathlib import Path
 
 base_dir =  Path("/scratch/project_2012747/mars_data") #Path().resolve().parent.parent
-dest_folder = Path(base_dir / "order_model/train")
+dest_folder = Path(base_dir / "order_model/val") #Path(base_dir / "order_model/train")
 
 pattern = "_meta"
 
-date1 = date(2025, 11, 1)
-date2 =  date(2025, 11, 26)
+date1 = date(2025, 11, 27)
+date2 =  date(2025, 12, 2)
 
 
 def order_by_date(items):
@@ -44,11 +44,11 @@ def cut_by_date(d, start, end):
 #-------------------------------------------------------------------------------------
 # Retrieve all day/stocks available, for a given period and store them in all_pairs
 #-------------------------------------------------------------------------------------
-allas_storage = ldm.AllasStorage(config_file=".csc_creds.json")
+allas_storage = ldm.AllasStorage(config_file=".csc_creds.json", timeout=100, retries=3)
 files = ldm.list_allas_files(
     project_name="project_2012747",
     bucket_name="NewNasdaq",
-    folder="LOBSTER/",
+    folder="LOBSTER",
     storage_instance=allas_storage
 )
 only_messages = [x for x in files if pattern+"_10.parquet" in x]

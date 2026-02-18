@@ -57,47 +57,6 @@ def decode_order_index_df(df: pd.DataFrame, col: str = "f0", out_dtype=np.int32)
 
 
 
-def decode_order_index_to_mmap(
-    in_mmap: np.ndarray,
-    out_path: str,
-    chunk: int = 5_000_000,
-    out_dtype=np.int32,   # int32 usually plenty for slots/types
-):
-
-    """
-    Inputs:
-        in_mmap: mmap file containing the order_index of all orders
-    Output:
-        creates a (N, 3) np mmap array giving for N order their type/price/volume
-        type: is an integer in (0,1,2)
-        price in [0, 32) indexes the slot of the price (previously discretized)
-        volume in [0, 32) indexes the slot of the volume (previously discretized)
-    """
-
-    n = in_mmap.shape[0]
-
-    out = np.memmap(out_path, mode="w+", dtype=out_dtype, shape=(n, 3))
-
-    for s in range(0, n, chunk):
-
-        e = min(s + chunk, n) # ending index of the current chunk
-
-        # Read a chunk into RAM (small) so we can do in-place math safely
-        tmp = np.array(in_mmap[s:e], dtype=np.int64, copy=True)
-
-        tmp //= 16
-        out[s:e, 2] = (tmp & 31).astype(out_dtype, copy=False)  # volume_slot
-
-        tmp //= 32
-        out[s:e, 1] = (tmp & 31).astype(out_dtype, copy=False)  # price_slot
-
-        tmp //= 32
-        out[s:e, 0] = tmp.astype(out_dtype, copy=False)         # order_type
-
-    out.flush()
-    return out
-
-
 
 def build_order_image(arr3: np.ndarray) -> np.ndarray:
     """
@@ -318,43 +277,78 @@ def build_image_zarr_chunked_from_lookback(
     # we'll iterate over chunk blocks [s, e)
     nblocks = (N + chunkN - 1) // chunkN
 
+
+
+    
+    
+    # --- Sliding window state (counts tensor) ---
+    # decoded columns: [order_type, price_slot, volume_slot]
+    # image layout: img[order_type, volume_slot, price_slot]
+    t = decoded[:, 0].astype(np.int64, copy=False)
+    p = decoded[:, 1].astype(np.int64, copy=False)
+    v = decoded[:, 2].astype(np.int64, copy=False)
+    
+    # Track validity once; invalid events are skipped on add/remove.
+    valid_evt = (t >= 0) & (t < C) & (p >= 0) & (p < W) & (v >= 0) & (v < H)
+    
+    counts = np.zeros((C, H, W), dtype=np.int32)
+    left = 0   # current window start (inclusive) in decoded/event index space
+    right = 0  # current window end (exclusive)
+    
+    def _add(k: int):
+        """Add event k into counts if valid."""
+        if valid_evt[k]:
+            counts[t[k], v[k], p[k]] += 1
+    
+    def _remove(k: int):
+        """Remove event k from counts if valid."""
+        if valid_evt[k]:
+            counts[t[k], v[k], p[k]] -= 1
+
+
+
+
+
+
+
+
+
+
     for b in tqdm(range(nblocks), desc="Building order images (chunked)", unit="chunk"):
         s = b * chunkN
         e = min(N, s + chunkN)
 
         # build a full chunk buffer (default fill_value=0 semantics)
         buf = np.zeros((e - s, C, H, W), dtype=out_dtype)
-
-        # indices within this block that are valid and in-range
-        block_idx = np.arange(s, e, dtype=np.int64)
-        mask = (idx_60s_int[s:e] != -1)
-        valid_local = np.flatnonzero(mask)
-
-        for j in valid_local:
-            i = s + int(j)
-            back = int(idx_60s_int[i])  # starting index for image of order at index i
-            if back < 0 or back >= i:
-                continue
-
-            window = decoded[back:i]
-
-            img = build_order_image(window)
-            img = np.asarray(img)
-
-            if img.shape != (C, H, W):
-                raise ValueError(
-                    f"build_order_image returned {img.shape}, expected {(C, H, W)}"
-                )
-
-            # HWC -> CHW
-            #img = np.transpose(img, (2, 0, 1))
-
-            if img.dtype != out_dtype:
-                img = img.astype(out_dtype, copy=False)
-
-            buf[j] = img
-
-
+        
+        
+        
+        # Process indices in-order so the sliding window stays valid
+        for i in range(s, e):
+            # 1) advance right edge to i (end-exclusive): add newly included events
+            while right < i:
+                _add(right)
+                right += 1
+        
+            # 2) advance left edge to "back" (if defined) by removing events
+            back = int(idx_60s_int[i])
+            if back != -1:
+                # preserve original semantics: if back is invalid, skip (leave buf as zeros)
+                if back < 0 or back >= i:
+                    continue
+                # idx_60s_int should be non-decreasing once it becomes valid; guard anyway
+                if back < left:
+                    # If this happens, start indices went backwards; we can’t "undo" removals safely
+                    raise ValueError(
+                        f"idx_60s_int not monotonic at i={i}: back={back} < left={left}"
+                    )
+                while left < back:
+                    _remove(left)
+                    left += 1
+        
+                # 3) emit image for i: clip counts into uint8
+                # (matches build_order_image behavior with V_MAX=256)
+                buf[i - s] = np.clip(counts, 0, V_MAX).astype(out_dtype, copy=False)
 
         # ONE write per block instead of (e-s) writes
         image_array[s:e] = buf

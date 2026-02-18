@@ -7,15 +7,16 @@ from utils_preproc import *
 """ from features .parquets files into Time/f0 mmap files (loaded as 'numpy.memmap' ), then into order images files (mmap) and finally  into discrete tokens (VQGAN learned representation) """
 
 
+print("HELLO")
 
+input_dir = Path("/scratch/project_2012747/mars_data/order_model/train/final") # dir with all "features".parquet files
 
-base_dir = Path("../../data/OLD/features") # dir with all "features".parquet files
+output_dir = Path("/scratch/project_2012747/mars_data/order_batch_model/train/final") 
+
 
 exclude = {
     "features_all.parquet",
 }
-
-
 
 include = {
     #"features_NVDA_2025-12-22_messages_10.parquet",
@@ -25,14 +26,14 @@ include = {
     #"features_TSLA_2025-12-12_messages_10.parquet"
 }
 
-for f in base_dir.glob("features_*.parquet"):
+for f in input_dir.glob("*_features.parquet"):
 
+    print("ff")
+    print(f)
     #if f.name in exclude:
     #    continue
     # if f.name not in include:
     #     continue
-
-    
     
     df = pd.read_parquet(f)
     
@@ -62,12 +63,13 @@ for f in base_dir.glob("features_*.parquet"):
     )
     """
 
-    order_images_file_name = f.stem.replace("features", "order_images").replace("_messages_10", "")  + ".zarr.zip"
+    order_images_file_name = f.stem.replace("features", "order_images")  + ".zarr.zip"
 
 
-    print(Path(base_dir  / order_images_file_name))
+    if Path(output_dir  / order_images_file_name).exists():
+        continue
 
-    with ZipStore(Path(base_dir  / order_images_file_name), mode="w", compression=zipfile.ZIP_DEFLATED) as store:
+    with ZipStore(Path(output_dir  / order_images_file_name), mode="w", compression=zipfile.ZIP_DEFLATED) as store:
         root = zarr.group(store=store, overwrite=True)
 
         compressor = Blosc(cname="zstd", clevel=3, shuffle=Blosc.BITSHUFFLE)

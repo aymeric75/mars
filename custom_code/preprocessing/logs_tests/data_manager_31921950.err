@@ -1,0 +1,42 @@
+The following modules were not unloaded:
+  (Use "module --force purge" to unload all):
+
+  1) csc-tools
+Traceback (most recent call last):
+  File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lobdatamanager/tools.py", line 201, in list_allas_files
+    for obj in objects:
+               ^^^^^^^
+  File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/boto3/resources/collection.py", line 79, in __iter__
+    for page in self.pages():
+                ^^^^^^^^^^^^
+  File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/boto3/resources/collection.py", line 169, in pages
+    for page in pages:
+                ^^^^^
+  File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/botocore/paginate.py", line 269, in __iter__
+    response = self._make_request(current_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/botocore/paginate.py", line 357, in _make_request
+    return self._method(**current_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/botocore/client.py", line 569, in _api_call
+    return self._make_api_call(operation_name, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/botocore/client.py", line 1023, in _make_api_call
+    raise error_class(parsed_response, operation_name)
+botocore.exceptions.ClientError: An error occurred (InvalidAccessKeyId) when calling the ListObjects operation: Unknown
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/projappl/project_2012747/mars/MarS/custom_code/preprocessing/data_manager.py", line 48, in <module>
+    files = ldm.list_allas_files(
+            ^^^^^^^^^^^^^^^^^^^^^
+  File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lobdatamanager/tools.py", line 213, in list_allas_files
+    raise RuntimeError(
+RuntimeError: Attempted 50 times to list bucket objects, failed
+
+real	0m28.285s
+user	0m21.045s
+sys	0m2.985s
+srun: error: r02c08: task 0: Exited with exit code 1
+srun: Terminating StepId=31921950.0

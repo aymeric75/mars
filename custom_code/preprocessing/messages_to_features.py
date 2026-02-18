@@ -342,12 +342,25 @@ def pass2_write_features(
     out_path: str,
     max_events: Optional[int] = None,
 ) -> Tuple[str, int]:
+    
+        
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    
     day = pd.to_datetime(messages_df["Time"].iloc[0], unit="ns").strftime("%Y-%m-%d")
     ex, order_state, base_time = make_exchange_and_orderstate(symbol, day, conv)
 
-    rows: List[dict] = []
-    n = len(messages_df) if max_events is None else min(len(messages_df), max_events)
+    writer = None
+    buffer = []
+    CHUNK_SIZE = 50_000
+    written = 0 
+        
+    if os.path.exists(out_path):
+        os.remove(out_path)
 
+    
+    n = len(messages_df) if max_events is None else min(len(messages_df), max_events)
 
 
     # We use the meta info to obtain when we are in MarketHours (between code 22 and 23)
@@ -368,6 +381,7 @@ def pass2_write_features(
     for i, r in enumerate(tqdm(messages_df.itertuples(index=False),
                               total=n,
                               desc="pass2: features",
+                              disable=True,
                               unit="msg")):
 
         if i >= n:
@@ -420,18 +434,42 @@ def pass2_write_features(
         if feat.shape[0] != TOKEN_DIM:
             continue
 
-
-        rows.append(
+        
+        buffer.append(
             {
                 "i": i,
                 "Time": int(r.Time),
                 **{f"f{j}": int(feat[j]) for j in range(TOKEN_DIM)},
             }
         )
+        
+        if len(buffer) >= CHUNK_SIZE:
+            chunk_df = pd.DataFrame(buffer)
+            table = pa.Table.from_pandas(chunk_df)
+        
+            if writer is None:
+                writer = pq.ParquetWriter(out_path, table.schema)
+        
+            writer.write_table(table)
+        
+            written += len(buffer)
+            buffer.clear()
 
-    out_df = pd.DataFrame(rows)
-    out_df.to_parquet(out_path, index=False)
-    return out_path, len(out_df)
+    
+    if buffer:
+        chunk_df = pd.DataFrame(buffer)
+        table = pa.Table.from_pandas(chunk_df)
+    
+        if writer is None:
+            writer = pq.ParquetWriter(out_path, table.schema)
+    
+        writer.write_table(table)
+        written += len(buffer)
+    
+    if writer is not None:
+        writer.close()
+    
+    return out_path, written
 
 
 
@@ -495,11 +533,16 @@ def process_one_file(args):
 
 def main():
     
-    data_folder = "/scratch/project_2012747/mars_data/order_model/train/"
+
+    data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
+    data_train_folder = "/scratch/project_2012747/mars_data/order_model/train/"
+    output_folder = "/scratch/project_2012747/mars_data/order_model/val/final"
     
+    #data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
+    #data_train_folder = "/scratch/project_2012747/mars_data/order_model/train/"
+    #output_folder = "/scratch/project_2012747/mars_data/order_model/val/final"
     
     """
-    
     # I. CREATING BINs VALUES
     
     # Randomly select 3 files of each stock
@@ -578,7 +621,7 @@ def main():
     """
     
     # load converters
-    with open(data_folder + "intermediate/converters.pkl", "rb") as f:
+    with open(data_train_folder + "intermediate/converters.pkl", "rb") as f:
         converters = pickle.load(f)
 
     print(type(converters))
@@ -600,8 +643,14 @@ def main():
     # Get all message files
     message_files = sorted(Path(data_folder+"raw").glob("*_messages.parquet"))
     
-  
-    feature_files = ["AAPL_2025-11-03_features.parquet", "AAPL_2025-11-04_features.parquet", "AAPL_2025-11-05_features.parquet",  "AAPL_2025-11-06_features.parquet", "AAPL_2025-11-07_features.parquet", "AAPL_2025-11-10_features.parquet"]
+    
+    feature_files = sorted(
+        p.name 
+        for p in Path(output_folder)
+            .glob("*_features.parquet")
+    )
+
+    
     # Convert feature filenames to the corresponding "messages" filenames
     feature_as_messages = {
         f.replace("_features.parquet", "_messages.parquet")

@@ -6,7 +6,7 @@
 #SBATCH --ntasks-per-node=2
 #SBATCH --cpus-per-task=10
 #SBATCH --mem-per-cpu=8000
-#SBATCH --time=00:30:00
+#SBATCH --time=00:15:00
 #SBATCH --gres=gpu:v100:2
 #SBATCH --output=logs_order_model/%x_%j.out
 #SBATCH --error=logs_order_model/%x_%j.err
@@ -39,8 +39,8 @@ $PYTHON -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.cuda
 $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 
 srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u train_Order_Model_lightning.py \
-  --train_dir ../../data/order_model/train \
-  --pattern "*_features.zarr.zip" \
+  --train_dir /scratch/project_2012747/mars_data/order_model/train/final \
+  --val_dir /scratch/project_2012747/mars_data/order_model/val/final \
   --model_variant base \
   --K 1024 \
   --batch_size 32 \

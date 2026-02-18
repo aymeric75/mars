@@ -9,60 +9,48 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from market_simulation.models.utils_order_model import (
-    MultiDirZarrOrderDataset,
+    ParquetFeaturesTokenDataset,
     build_model_from_variant,
     lm_loss_all_positions,
     unzip_zarr_zips,
 )
 
-
-class OrderDataModule(pl.LightningDataModule):
+class OrderBatchDataModule(pl.LightningDataModule):
     def __init__(
         self,
         train_dir: str,
-        pattern: str,
-        K: int,
+        val_dir: str,
         batch_size: int,
-        val_frac: float,
-        seed: int,
         num_workers: int,
+        pattern: str = "*_features.parquet",
+        feature_cols: int = 15,
     ):
         super().__init__()
         self.train_dir = train_dir
-        self.pattern = pattern
-        self.K = int(K)
+        self.val_dir = val_dir
         self.batch_size = int(batch_size)
-        self.val_frac = float(val_frac)
-        self.seed = int(seed)
         self.num_workers = int(num_workers)
+        self.pattern = pattern
+        self.feature_cols = int(feature_cols)
 
         self._train = None
         self._val = None
 
     def prepare_data(self):
-        # Extract once (safe to run on every rank)
-        unzip_zarr_zips(self.train_dir, self.pattern)
+        # nothing to unzip anymore
+        pass
 
     def setup(self, stage: str | None = None):
-
-        
-    
-        # list already-extracted dirs (no unzip here)
-        zarr_dirs = [p[:-4] for p in glob.glob(os.path.join(self.train_dir, self.pattern))]
-        zarr_dirs = [d for d in zarr_dirs if os.path.isdir(d)]
-
-        ds = MultiDirZarrOrderDataset(zarr_dirs, seq_len=self.K)
-
-        n = len(ds)
-        n_val = max(1, int(n * self.val_frac))
-        g = torch.Generator().manual_seed(self.seed)
-        perm = torch.randperm(n, generator=g).tolist()
-
-        val_idx = perm[:n_val]
-        train_idx = perm[n_val:]
-
-        self._train = Subset(ds, train_idx)
-        self._val = Subset(ds, val_idx)
+        self._train = ParquetFeaturesTokenDataset(
+            parquet_dir=self.train_dir,
+            pattern=self.pattern,
+            feature_cols=self.feature_cols,
+        )
+        self._val = ParquetFeaturesTokenDataset(
+            parquet_dir=self.val_dir,
+            pattern=self.pattern,
+            feature_cols=self.feature_cols,
+        )
 
     def train_dataloader(self):
         return DataLoader(
@@ -85,6 +73,7 @@ class OrderDataModule(pl.LightningDataModule):
             drop_last=False,
             persistent_workers=(self.num_workers > 0),
         )
+
 
 
 class OrderLightningModule(pl.LightningModule):
@@ -114,6 +103,8 @@ class OrderLightningModule(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         X = batch
+        print("X.shape")
+        print(X.shape)
         logits = self(X)
         loss = lm_loss_all_positions(logits, X)
         self.log("val_loss", loss, on_step=False, sync_dist=False, prog_bar=False)
@@ -126,29 +117,29 @@ class OrderLightningModule(pl.LightningModule):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--train_dir", default="../../data/order_model/train")
-    p.add_argument("--pattern", default="*_features.zarr.zip")
+    p.add_argument("--train_dir", required=True)
+    p.add_argument("--val_dir", required=True)
+    p.add_argument("--pattern", default="*_features.parquet")
+    p.add_argument("--feature_cols", type=int, default=15)
     p.add_argument("--model_variant", default="base", choices=["base", "small"])
     p.add_argument("--K", type=int, default=1024)
     p.add_argument("--batch_size", type=int, default=256)
     p.add_argument("--lr", type=float, default=3e-4)
     p.add_argument("--max_steps", type=int, default=20000)
-    p.add_argument("--val_frac", type=float, default=0.01)
-    p.add_argument("--seed", type=int, default=42)
     p.add_argument("--num_workers", type=int, default=0)
+    p.add_argument("--seed", type=int, default=7)
     p.add_argument("--precision", default="bf16-mixed", choices=["32-true", "16-mixed", "bf16-mixed"])
     args = p.parse_args()
 
     pl.seed_everything(args.seed, workers=True)
-
-    dm = OrderDataModule(
+    
+    dm = OrderBatchDataModule(
         train_dir=args.train_dir,
-        pattern=args.pattern,
-        K=args.K,
+        val_dir=args.val_dir,
         batch_size=args.batch_size,
-        val_frac=args.val_frac,
-        seed=args.seed,
         num_workers=args.num_workers,
+        pattern=args.pattern,
+        feature_cols=args.feature_cols,
     )
 
     model = OrderLightningModule(model_variant=args.model_variant, K=args.K, lr=args.lr)

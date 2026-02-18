@@ -1,0 +1,28 @@
+The following modules were not unloaded:
+  (Use "module --force purge" to unload all):
+
+  1) csc-tools
+Traceback (most recent call last):
+  File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 185, in <module>
+    main()
+  File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 131, in main
+    pl.seed_everything(args.seed, workers=True)
+                       ^^^^^^^^^
+AttributeError: 'Namespace' object has no attribute 'seed'
+Traceback (most recent call last):
+  File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 185, in <module>
+    main()
+  File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 131, in main
+    pl.seed_everything(args.seed, workers=True)
+                       ^^^^^^^^^
+AttributeError: 'Namespace' object has no attribute 'seed'
+
+real	0m9.800s
+user	0m10.568s
+sys	0m1.328s
+
+real	0m9.799s
+user	0m10.554s
+sys	0m1.270s
+srun: error: r04g02: tasks 0-1: Exited with exit code 1
+srun: Terminating StepId=31923589.0

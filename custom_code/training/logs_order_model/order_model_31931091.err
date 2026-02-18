@@ -1,0 +1,205 @@
+The following modules were not unloaded:
+  (Use "module --force purge" to unload all):
+
+  1) csc-tools
+[rank: 0] Seed set to 7
+[rank: 1] Seed set to 7
+Using bfloat16 Automatic Mixed Precision (AMP)
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/2
+[W218 11:12:40.654499034 socket.cpp:759] [c10d] The client socket cannot be initialized to connect to [r04g05.bullx]:16091 (errno: 97 - Address family not supported by protocol).
+Initializing distributed: GLOBAL_RANK: 1, MEMBER: 2/2
+[W218 11:12:40.717823555 socket.cpp:759] [c10d] The client socket cannot be initialized to connect to [r04g05.bullx]:16091 (errno: 97 - Address family not supported by protocol).
+----------------------------------------------------------------------------------------------------
+distributed_backend=nccl
+All distributed processes registered. Starting with 2 processes
+----------------------------------------------------------------------------------------------------
+
+/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/callbacks/model_checkpoint.py:881: Checkpoint directory /projappl/project_2012747/mars/MarS/custom_code/training/checkpoints_order_model exists and is not empty.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1]
+LOCAL_RANK: 1 - CUDA_VISIBLE_DEVICES: [0,1]
+/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/utilities/model_summary/model_summary.py:242: Precision bf16-mixed is not supported by the model summary.  Estimated model size in MB will not be accurate. Using 32 bits instead.
+SLURM auto-requeueing enabled. Setting signal handlers.
+SLURM auto-requeueing enabled. Setting signal handlers.
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 186, in <module>
+[rank1]:     main()
+[rank1]:   File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 180, in main
+[rank1]:     trainer.fit(model, dm)
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 584, in fit
+[rank1]:     call._call_and_handle_interrupt(
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/call.py", line 48, in _call_and_handle_interrupt
+[rank1]:     return trainer.strategy.launcher.launch(trainer_fn, *args, trainer=trainer, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/strategies/launchers/subprocess_script.py", line 105, in launch
+[rank1]:     return function(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 630, in _fit_impl
+[rank1]:     self._run(model, ckpt_path=ckpt_path, weights_only=weights_only)
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 1079, in _run
+[rank1]:     results = self._run_stage()
+[rank1]:               ^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 1121, in _run_stage
+[rank1]:     self._run_sanity_check()
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 1150, in _run_sanity_check
+[rank1]:     val_loop.run()
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/loops/utilities.py", line 179, in _decorator
+[rank1]:     return loop_run(self, *args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/loops/evaluation_loop.py", line 146, in run
+[rank1]:     self._evaluation_step(batch, batch_idx, dataloader_idx, dataloader_iter)
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/loops/evaluation_loop.py", line 441, in _evaluation_step
+[rank1]:     output = call._call_strategy_hook(trainer, hook_name, *step_args)
+[rank1]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/call.py", line 329, in _call_strategy_hook
+[rank1]:     output = fn(*args, **kwargs)
+[rank1]:              ^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/strategies/strategy.py", line 411, in validation_step
+[rank1]:     return self._forward_redirection(self.model, self.lightning_module, "validation_step", *args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/strategies/strategy.py", line 641, in __call__
+[rank1]:     wrapper_output = wrapper_module(*args, **kwargs)
+[rank1]:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+[rank1]:     return self._call_impl(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+[rank1]:     return forward_call(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1643, in forward
+[rank1]:     else self._run_ddp_forward(*inputs, **kwargs)
+[rank1]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1459, in _run_ddp_forward
+[rank1]:     return self.module(*inputs, **kwargs)  # type: ignore[index]
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+[rank1]:     return self._call_impl(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+[rank1]:     return forward_call(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/strategies/strategy.py", line 634, in wrapped_forward
+[rank1]:     out = method(*_args, **_kwargs)
+[rank1]:           ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 106, in validation_step
+[rank1]:     logits = self(X)
+[rank1]:              ^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+[rank1]:     return self._call_impl(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+[rank1]:     return forward_call(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 88, in forward
+[rank1]:     return self.model(X)
+[rank1]:            ^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+[rank1]:     return self._call_impl(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+[rank1]:     return forward_call(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/projappl/project_2012747/mars/MarS/market_simulation/models/order_model.py", line 151, in forward
+[rank1]:     tokens = self.tokenize(features)
+[rank1]:              ^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/projappl/project_2012747/mars/MarS/market_simulation/models/order_model.py", line 142, in tokenize
+[rank1]:     assert order_features.size(1) == self.num_max_orders * 15
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]: AssertionError
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 186, in <module>
+[rank0]:     main()
+[rank0]:   File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 180, in main
+[rank0]:     trainer.fit(model, dm)
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 584, in fit
+[rank0]:     call._call_and_handle_interrupt(
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/call.py", line 48, in _call_and_handle_interrupt
+[rank0]:     return trainer.strategy.launcher.launch(trainer_fn, *args, trainer=trainer, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/strategies/launchers/subprocess_script.py", line 105, in launch
+[rank0]:     return function(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 630, in _fit_impl
+[rank0]:     self._run(model, ckpt_path=ckpt_path, weights_only=weights_only)
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 1079, in _run
+[rank0]:     results = self._run_stage()
+[rank0]:               ^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 1121, in _run_stage
+[rank0]:     self._run_sanity_check()
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/trainer.py", line 1150, in _run_sanity_check
+[rank0]:     val_loop.run()
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/loops/utilities.py", line 179, in _decorator
+[rank0]:     return loop_run(self, *args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/loops/evaluation_loop.py", line 146, in run
+[rank0]:     self._evaluation_step(batch, batch_idx, dataloader_idx, dataloader_iter)
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/loops/evaluation_loop.py", line 441, in _evaluation_step
+[rank0]:     output = call._call_strategy_hook(trainer, hook_name, *step_args)
+[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/trainer/call.py", line 329, in _call_strategy_hook
+[rank0]:     output = fn(*args, **kwargs)
+[rank0]:              ^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/strategies/strategy.py", line 411, in validation_step
+[rank0]:     return self._forward_redirection(self.model, self.lightning_module, "validation_step", *args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/strategies/strategy.py", line 641, in __call__
+[rank0]:     wrapper_output = wrapper_module(*args, **kwargs)
+[rank0]:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1643, in forward
+[rank0]:     else self._run_ddp_forward(*inputs, **kwargs)
+[rank0]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1459, in _run_ddp_forward
+[rank0]:     return self.module(*inputs, **kwargs)  # type: ignore[index]
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/lightning/pytorch/strategies/strategy.py", line 634, in wrapped_forward
+[rank0]:     out = method(*_args, **_kwargs)
+[rank0]:           ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 106, in validation_step
+[rank0]:     logits = self(X)
+[rank0]:              ^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/projappl/project_2012747/mars/MarS/custom_code/training/train_Order_Model_lightning.py", line 88, in forward
+[rank0]:     return self.model(X)
+[rank0]:            ^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/PUHTI_TYKKY_Quvj2Tb/miniforge/envs/env1/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/projappl/project_2012747/mars/MarS/market_simulation/models/order_model.py", line 151, in forward
+[rank0]:     tokens = self.tokenize(features)
+[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/projappl/project_2012747/mars/MarS/market_simulation/models/order_model.py", line 142, in tokenize
+[rank0]:     assert order_features.size(1) == self.num_max_orders * 15
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]: AssertionError
+
+real	6m34.837s
+user	2m49.270s
+sys	1m22.308s
+
+real	6m34.997s
+user	2m51.088s
+sys	1m21.439s
+srun: error: r04g05: tasks 0-1: Exited with exit code 1
+srun: Terminating StepId=31931091.0
