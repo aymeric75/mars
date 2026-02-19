@@ -10,6 +10,13 @@ def build_context_zarrs(
     indices_dir: str,
     output_dir: str,
 ):
+    """
+    zarr_dir: a folder of image 64 tokens zarr.zip
+    indices_dir: a folder with, for each day/stock, two parquet files, one with -16min indices, one with +1 min indices
+    output_dir: where we put the past16_tokens_*.zarr.zip and next1_tokens_*.zarr.zip
+    
+    """
+    
     zarr_dir = Path(zarr_dir)
     indices_dir = Path(indices_dir)
     output_dir = Path(output_dir)

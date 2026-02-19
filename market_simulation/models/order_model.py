@@ -139,10 +139,6 @@ class OrderModel(nn.Module, PyTorchModelHubMixin):
     def tokenize(self, features: Tensor) -> Tensor:
         """Tokenize inputs."""
         order_features = features.reshape(features.size(0), -1)
-        print("order_features")
-        print(order_features.shape)
-        print("self.num_max_orders")
-        print(self.num_max_orders)
         assert order_features.size(1) == self.num_max_orders * 15
         inputs = self.order_info_tokenizer(order_features)
         assert inputs.size(0) == features.size(0)
@@ -153,8 +149,6 @@ class OrderModel(nn.Module, PyTorchModelHubMixin):
     def forward(self, features: Tensor) -> Tensor:
         """Forward pass."""
         tokens = self.tokenize(features)
-        print("tokenstokenstokenstokenstokens")
-        print(tokens.shape)
         out = self.decoder(inputs_embeds=tokens, use_cache=False)  # type: ignore
         logits = out.logits
         return logits

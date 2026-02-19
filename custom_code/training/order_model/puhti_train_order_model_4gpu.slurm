@@ -3,10 +3,10 @@
 #SBATCH --account=project_2012747
 #SBATCH --partition=gputest
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=2
+#SBATCH --ntasks-per-node=4
 #SBATCH --cpus-per-task=10
-#SBATCH --time=00:15:00
-#SBATCH --gres=gpu:v100:2
+#SBATCH --time=06:15:00
+#SBATCH --gres=gpu:v100:4
 #SBATCH --mem=256G
 #SBATCH --output=logs_order_model/%x_%j.out
 #SBATCH --error=logs_order_model/%x_%j.err
