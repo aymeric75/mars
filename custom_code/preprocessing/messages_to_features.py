@@ -387,6 +387,8 @@ def pass2_write_features(
         if i >= n:
             break
 
+        if i == 0:
+            order_state.open_time = r.Time
 
         #order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit)
         order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit, ex=ex)

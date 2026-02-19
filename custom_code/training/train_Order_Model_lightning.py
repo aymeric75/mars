@@ -97,14 +97,10 @@ class OrderLightningModule(pl.LightningModule):
             on_step=True,
             sync_dist=True
         )
-        
-        
         return loss
 
     def validation_step(self, batch, batch_idx):
         X = batch
-        print("X.shape")
-        print(X.shape)
         logits = self(X)
         loss = lm_loss_all_positions(logits, X)
         self.log("val_loss", loss, on_step=False, sync_dist=False, prog_bar=False)
