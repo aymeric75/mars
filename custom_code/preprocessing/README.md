@@ -24,5 +24,4 @@ The `.zarr.zip` created can be used to train the VQGAN.
 
 
 
-`create_past_mins_next_mins_64tokens.py`: go over a folder of 64-tokens zarr.zip file, and create two other "64-tokens" zarr.zip, one with the -16 (min) 64-tokens, one with +1 (min) 64-token.
-
+`create_past_mins_next_mins_64tokens.py`: go over a folder of 64-tokens zarr.zip file, and create two other "64-tokens" zarr.zip, one with the -16 (min) 64-tokens, one with +1 (min) 64-token....
