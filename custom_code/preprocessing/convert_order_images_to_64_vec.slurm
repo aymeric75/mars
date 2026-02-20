@@ -6,33 +6,32 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=64G
 #SBATCH --cpus-per-task=1
-#SBATCH --time=00:10:00
+#SBATCH --time=00:30:00
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err
 
-set -euo pipefail
 
-
-module purge
-
-
-
-PYTHON=/projappl/project_2012747/mars/mars_env/bin/python
+# Threads for parallel libraries
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
+# Optional: your project path in PYTHONPATH
+export PYTHONPATH=$(pwd)/..
 
-SCRATCH=/scratch/project_2012747
-export RUN_ROOT="$SCRATCH/mars_runs/tests/${SLURM_JOB_ID}"
-export TORCH_HOME="$RUN_ROOT/torch_cache"
-export HF_HOME="$RUN_ROOT/hf_cache"
-export XDG_CACHE_HOME="$RUN_ROOT/xdg_cache"
-export TMPDIR="$RUN_ROOT/tmp"
+# Load required modules
+module purge
+module load gcc/11.3.0
+module load python-data/3.12-25.09
+module load rocm/5.4.6                 # Only if using GPU
 
-mkdir -p "$RUN_ROOT" "$TORCH_HOME" "$HF_HOME" "$XDG_CACHE_HOME" "$TMPDIR"
+# Activate your project-specific Python environment
+source /projappl/project_2012747/mars/mars_env_clean/bin/activate
+PYTHON=/projappl/project_2012747/mars/mars_env_clean/bin/python
 
+# Print info for debugging
+echo "Started job on $(hostname) at $(date)"
+echo "Python executable: $(which python)"
+python --version
+python -c "import numpy, torch, pandas, pyarrow, pytorch_lightning, omegaconf; print('All imports OK')"
 
-$PYTHON -c "import sys; print('python:', sys.executable)"
-$PYTHON -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.cuda.is_available())"
-$PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
-
-srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u convert_order_images_to_64_vec.py"
+# Run your Python script
+srun $PYTHON /projappl/project_2012747/mars/MarS/custom_code/preprocessing/convert_order_images_to_64_vec.py

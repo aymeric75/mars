@@ -4,8 +4,10 @@ import sys
 from pathlib import Path
 import re
 import zipfile
+import zarr
 import shutil
 import torch
+from zarr.storage import ZipStore
 import numpy as np
 import pytorch_lightning as pl
 from torch.utils.data import Dataset, DataLoader
@@ -83,36 +85,30 @@ class ZarrDataset(Dataset):
 def process_zip_file(zip_path: Path, model, device, batch_size=512):
     print(f"Processing {zip_path.name} ...")
 
+    # extract to temp folder
     extract_dir = zip_path.with_suffix("")
     if extract_dir.exists():
         shutil.rmtree(extract_dir)
-
-    # unzip
     with zipfile.ZipFile(zip_path, "r") as zf:
-        zf.extractall(zip_path.parent)
-    
-    # find the extracted folder
-    extracted_items = list(zip_path.parent.glob(zip_path.stem.replace(".zip","")+"*"))
-    if not extracted_items:
-        # fallback: maybe zip contains a single folder, pick it
-        extracted_items = [p for p in zip_path.parent.iterdir() if p.is_dir()]
-    
-    if not extracted_items:
-        raise FileNotFoundError(f"No extracted folder found for {zip_path}")
-    
-    # pick the first folder (usually the .zarr folder)
-    zarr_folder = extracted_items[0]
+        zf.extractall(extract_dir)
+
+    # the extracted folder should be a .zarr folder
+    zarr_folders = [p for p in extract_dir.iterdir() if p.is_dir() and p.suffix == ".zarr"]
+    if not zarr_folders:
+        # fallback: maybe the folder itself is the zarr
+        zarr_folder = extract_dir
+    else:
+        zarr_folder = zarr_folders[0]
+
     print(f"Using extracted folder: {zarr_folder}")
-    
+
     # open Zarr
     root = zarr.open(zarr_folder, mode="r")
     arr = root["images"]
-
     num_samples = arr.shape[0]
 
     all_tokens = []
 
-    # dataloader
     dataset = ZarrDataset(arr)
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True)
 
@@ -128,15 +124,19 @@ def process_zip_file(zip_path: Path, model, device, batch_size=512):
             if i % 20 == 0:
                 print(f"{zip_path.name}: processed {min((i+1)*batch_size, num_samples)}/{num_samples}")
 
-    # combine all batches
     all_tokens = np.vstack(all_tokens)
 
-    # save as parquet
-    out_file = OUT_DIR / f"{zip_path.stem.replace('_order_images','')}_64_vector.parquet"
-    table = pa.Table.from_arrays([all_tokens[:, i] for i in range(all_tokens.shape[1])],
-                                 names=[f"v{i}" for i in range(all_tokens.shape[1])])
-    pq.write_table(table, out_file)
-    print(f"Saved {out_file} ({all_tokens.shape[0]} rows, {all_tokens.shape[1]} cols)")
+    # save as .zarr folder
+    out_zarr_folder = OUT_DIR / f"{zip_path.stem.replace('_order_images','')}_64_vector.zarr"
+    if out_zarr_folder.exists():
+        shutil.rmtree(out_zarr_folder)
+    out_root = zarr.open(str(out_zarr_folder), mode="w", shape=all_tokens.shape,
+                         chunks=(batch_size, all_tokens.shape[1]), dtype=all_tokens.dtype)
+    out_root[:] = all_tokens
+
+    # zip the output
+    shutil.make_archive(str(out_zarr_folder), 'zip', root_dir=out_zarr_folder)
+    print(f"Saved zipped Zarr: {str(out_zarr_folder)}.zip")
 
     # cleanup
     shutil.rmtree(extract_dir)

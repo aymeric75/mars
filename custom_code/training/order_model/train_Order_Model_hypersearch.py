@@ -1,8 +1,10 @@
 import argparse
 import os
+import random
 import glob
 import lightning.pytorch as pl
 import torch
+import numpy as np
 
 from torch.utils.data import DataLoader, Subset
 from lightning.pytorch.loggers import TensorBoardLogger
@@ -22,6 +24,7 @@ class OrderBatchDataModule(pl.LightningDataModule):
         val_dir: str,
         batch_size: int,
         num_workers: int,
+        seed: int = 7,
         pattern: str = "*_features.parquet",
         feature_cols: int = 15,
     ):
@@ -32,7 +35,7 @@ class OrderBatchDataModule(pl.LightningDataModule):
         self.num_workers = int(num_workers)
         self.pattern = pattern
         self.feature_cols = int(feature_cols)
-
+        self.seed = seed
         self._train = None
         self._val = None
 
@@ -51,6 +54,16 @@ class OrderBatchDataModule(pl.LightningDataModule):
             pattern=self.pattern,
             feature_cols=self.feature_cols,
         )
+    
+    @staticmethod
+    def seed_worker(worker_id: int):
+        worker_seed = torch.initial_seed() % 2**32
+        np.random.seed(worker_seed)
+        random.seed(worker_seed)
+
+
+
+
 
     def train_dataloader(self):
         return DataLoader(
@@ -63,14 +76,20 @@ class OrderBatchDataModule(pl.LightningDataModule):
             persistent_workers=(self.num_workers > 0),
         )
 
+    
     def val_dataloader(self):
+        
+        g = torch.Generator()
+        g.manual_seed(self.seed)  # store seed in __init__
+
         return DataLoader(
             self._val,
             batch_size=self.batch_size,
-            shuffle=False,
+            shuffle=True,
             num_workers=self.num_workers,
+            worker_init_fn=self.seed_worker,
+            generator=g,  
             pin_memory=True,
-            drop_last=False,
             persistent_workers=(self.num_workers > 0),
         )
 
@@ -136,6 +155,7 @@ def main():
         train_dir=args.train_dir,
         val_dir=args.val_dir,
         batch_size=args.batch_size,
+        seed=args.seed,
         num_workers=args.num_workers,
         pattern=args.pattern,
         feature_cols=args.feature_cols,
@@ -178,6 +198,7 @@ def main():
         log_every_n_steps=4,
         val_check_interval=120,
         limit_val_batches=10,
+        deterministic=True,
         enable_checkpointing=True,
         enable_progress_bar=False,
     )

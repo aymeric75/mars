@@ -4,12 +4,12 @@ from collections import defaultdict
 from pathlib import Path
 
 base_dir =  Path("/scratch/project_2012747/mars_data") #Path().resolve().parent.parent
-dest_folder = Path(base_dir / "order_model/val") #Path(base_dir / "order_model/train")
+dest_folder = Path(base_dir / "order_model/test") #Path(base_dir / "order_model/test")
 
 pattern = "_meta"
 
-date1 = date(2025, 11, 27)
-date2 =  date(2025, 12, 2)
+date1 = date(2025, 12, 3)
+date2 =  date(2025, 12, 12)
 
 
 def order_by_date(items):
@@ -44,7 +44,7 @@ def cut_by_date(d, start, end):
 #-------------------------------------------------------------------------------------
 # Retrieve all day/stocks available, for a given period and store them in all_pairs
 #-------------------------------------------------------------------------------------
-allas_storage = ldm.AllasStorage(config_file=".csc_creds.json", timeout=100, retries=3)
+allas_storage = ldm.AllasStorage(config_file=".boto3_credentials", timeout=100, retries=3)
 files = ldm.list_allas_files(
     project_name="project_2012747",
     bucket_name="NewNasdaq",
