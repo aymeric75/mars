@@ -30,6 +30,8 @@ MANIFEST
 
 wandb/
 
+.boto3_credentials
+
 *.err
 *.out
 *.tfevents.*
