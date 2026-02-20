@@ -8,11 +8,7 @@ from mlib.core.limit_order import LimitOrder
 from mlib.core.trade_info import TradeInfo
 from mlib.core.lob_snapshot import LobSnapshot
 
-from custom_code.preprocessing.messages_to_features import (
-    Converters,
-    make_exchange_and_orderstate,
-    row_to_order,
-)
+from utils import Converters, make_exchange_and_orderstate, row_to_order
 
 # NOTE: your EnsembleModel forward is: refined = ensemble(base_logits, batch_tokens)
 #       your OrderBatchModel has .sample_next(prefix) which returns (B,1)
@@ -43,7 +39,6 @@ def build_sim_trade_infos_with_ensemble(
     *,
     symbol: str,
     conv: Converters,
-    base_time: pd.Timestamp,                 # from make_exchange()
     # models
     order_model,                             # trained OrderModel
     ob_model,                                # trained OrderBatchModel
@@ -70,7 +65,7 @@ def build_sim_trade_infos_with_ensemble(
     """
     # --- exchange + state (keep same scaffold as your preprocessing) ---
     day = pd.to_datetime(messages_df["Time"].iloc[0], unit="ns").strftime("%Y-%m-%d")
-    ex, order_state, _ = make_exchange_and_orderstate(symbol, day, conv)
+    ex, order_state, base_time  = make_exchange_and_orderstate(symbol, day, conv)
     order_state.num_max_orders = int(K)  # override the SEQ_LEN from messages_to_features.py
 
     order_model = order_model.to(device).eval()
@@ -199,28 +194,25 @@ def build_sim_trade_infos_with_ensemble(
     
     
     
+   
+
+with open("/scratch/project_2012747/mars_data/order_model/train/intermediate/converters.pkl", "rb") as f:
+    converters = pickle.load(f)
     
+messages_df = pd.read_parquet("/scratch/project_2012747/mars_data/order_model/val/raw/AAPL_2025-11-28_messages.parquet")
+meta_df = pd.read_parquet("/scratch/project_2012747/mars_data/order_model/val/raw/AAPL_2025-11-28_meta.parquet") 
     
 
 build_sim_trade_infos_with_ensemble(
-    messages_df: pd.DataFrame,
-    meta_df: pd.DataFrame,
-    *,
-    symbol: str,
-    conv: Converters,
-    base_time: pd.Timestamp,                 # from make_exchange()
+    messages_df,
+    meta_df,
+    symbol="AAPL",
+    conv=converters,
     # models
     order_model,                             # trained OrderModel
     ob_model,                                # trained OrderBatchModel
     ensemble_model,                          # trained EnsembleModel
-    device: str = "cuda",
-    # context / rollout
-    K: int = 1024,                           # order-model context length (num_max_orders)
-    past1024_tokens: torch.Tensor,           # (1024,) long, last 16 minutes tokens (flattened)
-    max_gen_orders: int = 50_000,
-    snapshot_level: int = 10,
-    time_unit: str = "ns",
-) -> Tuple[List[TradeInfo], LobSnapshot]:
+)
     
     
     

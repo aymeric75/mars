@@ -1,12 +1,13 @@
 #!/bin/bash
 #SBATCH --job-name=convert_order_images_to_64_vec
 #SBATCH --account=project_2012747
-#SBATCH --partition=test
+#SBATCH --partition=gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --mem=64G
+#SBATCH --mem=256G
+#SBATCH --gres=gpu:v100:1
 #SBATCH --cpus-per-task=1
-#SBATCH --time=00:30:00
+#SBATCH --time=24:00:00
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err
 
