@@ -53,19 +53,14 @@ parq_files = sorted(glob.glob(os.path.join(PARQ_DIR, "*.parquet")))
 
 
 for pq_path in parq_files:
-        
+    
+    
     if "features_AMZN_2025-12-09_cut_tenth.parquet" not in pq_path:
         continue
     
     ds = ParquetWindowWithTarget(pq_path, SEQ_LEN)
     dl = DataLoader(ds, batch_size=BATCH, shuffle=False,
                     num_workers=NUM_WORKERS, pin_memory=True)
-
-
-    
-    
-        
-        
     
     val_loss = 0.0
     n_tot = 0
@@ -74,15 +69,15 @@ for pq_path in parq_files:
         for x, y in dl:
             x = x.to(device, non_blocking=True)
             y = y.to(device, non_blocking=True)
-    
+             
             logits = model(x)[:, -1, :]          # (B, V)
             loss = F.cross_entropy(logits, y, reduction="sum")
-    
+            
             val_loss += loss.item()
             n_tot += y.numel()
     
     print(f"[OrderModel] val_loss = {val_loss / n_tot:.6f}")
-
+    
     
     
     continue
