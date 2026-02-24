@@ -3,7 +3,14 @@ from datetime import date
 from collections import defaultdict
 from pathlib import Path
 
-base_dir =  Path().resolve().parent.parent
+base_dir =  Path("/scratch/project_2012747/mars_data") #Path().resolve().parent.parent
+dest_folder = Path(base_dir / "order_model/test") #Path(base_dir / "order_model/test")
+
+pattern = "_meta"
+
+date1 = date(2025, 12, 3)
+date2 =  date(2025, 12, 12)
+
 
 def order_by_date(items):
     """
@@ -34,26 +41,20 @@ def cut_by_date(d, start, end):
 # 2025-11-01
 
 
-dest_folder = base_dir / "data/order_model/train"
-
-
-date1 = date(2025, 11, 1)
-date2 =  date(2025, 11, 3)
-
 #-------------------------------------------------------------------------------------
 # Retrieve all day/stocks available, for a given period and store them in all_pairs
 #-------------------------------------------------------------------------------------
-allas_storage = ldm.AllasStorage(config_file=".csc_creds.json")
+allas_storage = ldm.AllasStorage(config_file=".boto3_credentials", timeout=100, retries=3)
 files = ldm.list_allas_files(
     project_name="project_2012747",
     bucket_name="NewNasdaq",
-    folder="LOBSTER/",
+    folder="LOBSTER",
     storage_instance=allas_storage
 )
-only_messages = [x for x in files if "_messages_10.parquet" in x]
+only_messages = [x for x in files if pattern+"_10.parquet" in x]
 dico = {}
 for f in only_messages:
-    key_ = f.replace("LOBSTER/", "").replace("_messages_10.parquet", "")
+    key_ = f.replace("LOBSTER/", "").replace(pattern+"_10.parquet", "")
     dico[key_] = f
 list_stock_date = list(dico.keys())
 ordered_list_stock_date = order_by_date(list_stock_date)
@@ -94,7 +95,7 @@ for pair in all_pairs:
 
     #print(dest_folder / str(pair + "_messages" + ".parquet"))
 
-    df.to_parquet(dest_folder / str(pair + "_messages" + ".parquet"))
+    df.to_parquet(dest_folder / str(pair + pattern + ".parquet"))
 
 
     #allas_storage.download("kanniain", "A7_LOBSTER", "local_file.txt", "distant_file.txt")

@@ -3,11 +3,14 @@ import glob
 import os
 import random
 import zipfile
-from functools import lru_cache
-
+import numpy as np
 import torch
 import torch.nn.functional as F
 import zarr
+import pyarrow.parquet as pq
+
+from collections import OrderedDict
+from functools import lru_cache
 from torch.utils.data import DataLoader, Dataset, Subset
 from zarr.storage import DirectoryStore
 
@@ -36,6 +39,152 @@ def unzip_zarr_zips(train_dir="train", pattern="*.zarr.zip"):
         with zipfile.ZipFile(zpath) as zf:
             zf.extractall(out_dir)
     return sorted(glob.glob(os.path.join(train_dir, pattern.replace(".zip", ""))))  # *.zarr dirs
+
+
+
+
+
+
+class ParquetFeaturesTokenDataset(Dataset):
+    """
+    Folder of parquet files, each contains columns f0..f14 (and maybe extra columns like Time, i).
+    Returns one sample as torch.long of shape (15,).
+    """
+
+    def __init__(self, parquet_dir: str, pattern: str = "*_features.parquet", feature_cols: int = 15, seq_len=1024, rowgroup_cache_size: int = 8):
+        self.seq_len = int(seq_len)
+        self.parquet_dir = str(parquet_dir)
+        self.pattern = str(pattern)
+        self.feature_cols = int(feature_cols)
+        
+        self.rowgroup_cache_size = int(rowgroup_cache_size)
+        self._rg_cache: "OrderedDict[tuple[str, int], np.ndarray]" = OrderedDict()
+
+
+        self.paths = sorted(glob.glob(os.path.join(self.parquet_dir, self.pattern)))
+        if len(self.paths) == 0:
+            raise FileNotFoundError(f"No parquet files found in {self.parquet_dir} with pattern {self.pattern}")
+
+        # Determine lengths per file (requires a parquet engine: pyarrow or fastparquet)
+        self.lens = []
+        self._rg_cum: list[list[int]] = []
+        
+        for p in self.paths:
+            meta = self._read_parquet_metadata(p)
+            self.lens.append(int(meta.num_rows))
+        
+            rg_sizes = [int(meta.row_group(i).num_rows) for i in range(meta.num_row_groups)]
+            cum = []
+            s = 0
+            for n in rg_sizes:
+                s += n
+                cum.append(s)
+            self._rg_cum.append(cum)
+
+        
+        self.win_lens = [max(0, L - self.seq_len + 1) for L in self.lens]
+        
+        self.win_cum = []
+        s = 0
+        for W in self.win_lens:
+            s += W
+            self.win_cum.append(s)
+
+    def __len__(self) -> int:
+        return self.win_cum[-1] if self.win_cum else 0
+
+
+    @staticmethod
+    @lru_cache(maxsize=512)
+    def _read_parquet_metadata(path: str):
+        return pq.read_metadata(path)
+        
+    
+    def _load_row_group(self, path: str, rg: int) -> np.ndarray:
+        """
+        Load a single row-group from a parquet file.
+    
+        Reads only the specified row-group `rg` from `path`, restricted to
+        the feature columns (f0..f{feature_cols-1}), and returns it as a
+        NumPy array of shape (num_rows_in_rowgroup, feature_cols).
+    
+        Results are cached in a small LRU cache to avoid repeatedly
+        decompressing the same row-group during sequential access.
+        """
+        
+        key = (path, int(rg))
+        if key in self._rg_cache:
+            self._rg_cache.move_to_end(key)
+            return self._rg_cache[key]
+    
+        
+        cols = [f"f{k}" for k in range(self.feature_cols)]
+    
+        pf = pq.ParquetFile(path)
+        table = pf.read_row_group(int(rg), columns=cols)
+        arr = table.to_pandas()[cols].to_numpy(dtype=np.int64, copy=False)
+    
+        self._rg_cache[key] = arr
+        self._rg_cache.move_to_end(key)
+        while len(self._rg_cache) > self.rowgroup_cache_size:
+            self._rg_cache.popitem(last=False)
+        return arr
+    
+    def _load_rows_range(self, fi: int, start: int, length: int) -> np.ndarray:
+        """Return array of shape (length, feature_cols) from file fi, starting at row 'start'."""
+        path = self.paths[fi]
+        end = start + length
+    
+        rg_cum = self._rg_cum[fi]
+        rg_start = bisect.bisect_right(rg_cum, start)
+        rg_end = bisect.bisect_right(rg_cum, end - 1)
+    
+        chunks = []
+        for rg in range(rg_start, rg_end + 1):
+            arr = self._load_row_group(path, rg)  # shape (rg_rows, feature_cols)
+    
+            rg_prev = 0 if rg == 0 else rg_cum[rg - 1]
+            lo = max(0, start - rg_prev)
+            hi = min(arr.shape[0], end - rg_prev)
+            if lo < hi:
+                chunks.append(arr[lo:hi])
+    
+        if not chunks:
+            # should not happen unless length==0 or bounds are wrong
+            return np.empty((0, self.feature_cols), dtype=np.int64)
+    
+        return np.concatenate(chunks, axis=0)
+
+
+    
+    def __getitem__(self, idx: int) -> torch.Tensor:
+        # map global window idx -> (file fi, start row j)
+        fi = bisect.bisect_right(self.win_cum, idx)
+        prev = 0 if fi == 0 else self.win_cum[fi - 1]
+        j = idx - prev  # start row in that file
+    
+        # load window rows: shape (seq_len, feature_cols)
+        window = self._load_rows_range(fi, j, self.seq_len)
+    
+        # safety (should always be exact length if win_lens computed correctly)
+        if window.shape[0] != self.seq_len:
+            # if you prefer strictness: raise instead
+            # raise IndexError(...)
+            pad = self.seq_len - window.shape[0]
+            if pad > 0:
+                window = np.pad(window, ((0, pad), (0, 0)), mode="edge")
+    
+        # transpose to (feature_cols, seq_len)
+        #window = window.T  # (15, 1024)
+    
+        return torch.from_numpy(window).long()
+
+
+
+
+
+
+
 
 
 class MultiDirZarrOrderDataset(Dataset):

@@ -4,8 +4,11 @@ import argparse
 import pandas as pd
 import numpy as np
 import pickle
+import random
 
-
+from multiprocessing import Pool
+from collections import defaultdict
+from pathlib import Path
 from tqdm import tqdm
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
@@ -16,6 +19,8 @@ from mlib.core.limit_order import LimitOrder
 from market_simulation.conf import C
 from market_simulation.states.order_state import OrderState
 from market_simulation.utils.bin_converter import BinConverter
+
+
 
 
 SEQ_LEN = 1 # 1024
@@ -80,6 +85,18 @@ def make_exchange_and_orderstate(
 def unit_scale_to_seconds(time_unit: str) -> float:
     # messages_df["Time"] is assumed to be an integer offset; pick the right unit
     return {"ns": 1e-9, "us": 1e-6, "ms": 1e-3, "s": 1.0}[time_unit]
+
+
+
+
+
+
+def sample_parquets(input_dir, output_file, n=200):
+    dfs = []
+    for f in Path(input_dir).glob("*.parquet"):
+        df = pd.read_parquet(f)
+        dfs.append(df.sample(min(n, len(df))))
+    pd.concat(dfs, ignore_index=True).to_parquet(output_file, index=False)
 
 
 
@@ -227,13 +244,22 @@ def return_values_for_bins(
 
     fed = 0       # number of events successfully fed to exchange
     sampled = 0   # number of samples actually collected
-
+    dt_sec = 0
 
     # for i, r in enumerate(messages_df.itertuples(index=False)):
     for i, r in enumerate(tqdm(messages_df.itertuples(index=False),
                               total=n,
                               desc="pass1: bins",
                               unit="msg")):
+
+
+
+        # interval samples (based on *sampled* events)
+        cur_time = int(r.Time)
+        if prev_sample_time is not None:
+            dt_sec = (cur_time - prev_sample_time) * scale
+
+        prev_sample_time = cur_time
 
 
         if i >= n:
@@ -268,14 +294,10 @@ def return_values_for_bins(
         # sizes for volume bins (only new orders)
         if order.type in ("B", "S"):
             sizes.append(float(order.volume))
+        
+        if dt_sec > 0:
+            intervals.append(float(dt_sec))
 
-        # interval samples (based on *sampled* events)
-        cur_time = int(r.Time)
-        if prev_sample_time is not None:
-            dt_sec = (cur_time - prev_sample_time) * scale
-            if dt_sec > 0:
-                intervals.append(float(dt_sec))
-        prev_sample_time = cur_time
 
         # snapshot from exchange-built orderbook
         snap = ex.get_lob(symbol).snapshot(level=10)
@@ -320,12 +342,25 @@ def pass2_write_features(
     out_path: str,
     max_events: Optional[int] = None,
 ) -> Tuple[str, int]:
+    
+        
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    
     day = pd.to_datetime(messages_df["Time"].iloc[0], unit="ns").strftime("%Y-%m-%d")
     ex, order_state, base_time = make_exchange_and_orderstate(symbol, day, conv)
 
-    rows: List[dict] = []
-    n = len(messages_df) if max_events is None else min(len(messages_df), max_events)
+    writer = None
+    buffer = []
+    CHUNK_SIZE = 50_000
+    written = 0 
+        
+    if os.path.exists(out_path):
+        os.remove(out_path)
 
+    
+    n = len(messages_df) if max_events is None else min(len(messages_df), max_events)
 
 
     # We use the meta info to obtain when we are in MarketHours (between code 22 and 23)
@@ -346,11 +381,14 @@ def pass2_write_features(
     for i, r in enumerate(tqdm(messages_df.itertuples(index=False),
                               total=n,
                               desc="pass2: features",
+                              disable=True,
                               unit="msg")):
 
         if i >= n:
             break
 
+        if i == 0:
+            order_state.open_time = r.Time
 
         #order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit)
         order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit, ex=ex)
@@ -398,18 +436,42 @@ def pass2_write_features(
         if feat.shape[0] != TOKEN_DIM:
             continue
 
-
-        rows.append(
+        
+        buffer.append(
             {
                 "i": i,
                 "Time": int(r.Time),
                 **{f"f{j}": int(feat[j]) for j in range(TOKEN_DIM)},
             }
         )
+        
+        if len(buffer) >= CHUNK_SIZE:
+            chunk_df = pd.DataFrame(buffer)
+            table = pa.Table.from_pandas(chunk_df)
+        
+            if writer is None:
+                writer = pq.ParquetWriter(out_path, table.schema)
+        
+            writer.write_table(table)
+        
+            written += len(buffer)
+            buffer.clear()
 
-    out_df = pd.DataFrame(rows)
-    out_df.to_parquet(out_path, index=False)
-    return out_path, len(out_df)
+    
+    if buffer:
+        chunk_df = pd.DataFrame(buffer)
+        table = pa.Table.from_pandas(chunk_df)
+    
+        if writer is None:
+            writer = pq.ParquetWriter(out_path, table.schema)
+    
+        writer.write_table(table)
+        written += len(buffer)
+    
+    if writer is not None:
+        writer.close()
+    
+    return out_path, written
 
 
 
@@ -427,86 +489,193 @@ def make_exchange(symbol: str, date_str: str = "2025-10-10") -> Tuple[Exchange, 
 
 
 
+def process_one_file(args):
+
+        msg_path, converters, data_folder = args
+
+        # Build corresponding meta filename
+        meta_path = msg_path.with_name(
+            msg_path.name.replace("_messages.parquet", "_meta.parquet")
+        )
+        
+        if meta_path.exists():
+            print("Processing pair:")
+            print("  Messages:", msg_path.name)
+            print("  Meta:    ", meta_path.name)
+            
+            messages_df = pd.read_parquet(msg_path)
+            meta_df = pd.read_parquet(meta_path)
+            
+            output_file_name = msg_path.name.replace("_messages", "_features")
+            
+            symbol = msg_path.name.split("_")[0]
+        
+            time_unit = "ns"
+        
+        
+            # 57600003755960
+            #print(pd.to_timedelta(int(57600003755960), unit=time_unit))
+        
+            out_path, n_written = pass2_write_features(
+                messages_df,
+                meta_df,
+                symbol=symbol,
+                time_unit=time_unit,
+                conv=converters,
+                out_path=data_folder+"final/"+output_file_name,
+                max_events=None,
+            )
+            print(f"Wrote {n_written} feature rows -> {out_path}")
+        
+                
+        else:
+            print(f"⚠ No meta file found for {msg_path.name}")
+
+
+
 def main():
-
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--messages", required=True, help="Path to *_messages_*.parquet (messages only)")
-    ap.add_argument("--symbol", default="APPL", help="Exchange symbol name (any string)")
-    ap.add_argument("--time-unit", default="ns", choices=["ns", "us", "ms", "s"], help="Unit of messages_df['Time']")
-    ap.add_argument("--max-events", type=int, default=None, help="Process at most this many rows (debug)")
-    args = ap.parse_args()
-
-    messages_df_historical_data = pd.read_parquet("../data/training_messages_unordered.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
-
-    """  """
     
-    # price_minus_mid, sizes, intervals, lob_vols = return_values_for_bins(
-    #     messages_df_historical_data,
-    #     symbol=args.symbol,
-    #     time_unit=args.time_unit,
-    #     max_events=None,
-    #     sample_every_k=50,
-    #     #=1_000_000,  # optional
-    # )
-    # df = pd.DataFrame([{
-    #     "price_minus_mid": price_minus_mid,
-    #     "sizes": sizes,
-    #     "intervals": intervals,
-    #     "lob_vols": lob_vols,
-    # }])
-    # df.to_parquet("../data/bins_samples.parquet", index=False)
-    # print("finished")
 
-    df = pd.read_parquet("../data/bins_samples.parquet")
+    data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
+    data_train_folder = "/scratch/project_2012747/mars_data/order_model/train/"
+    output_folder = "/scratch/project_2012747/mars_data/order_model/val/final"
+    
+    #data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
+    #data_train_folder = "/scratch/project_2012747/mars_data/order_model/train/"
+    #output_folder = "/scratch/project_2012747/mars_data/order_model/val/final"
+    
+    """
+    # I. CREATING BINs VALUES
+    
+    # Randomly select 3 files of each stock
+    print(Path(data_folder + "raw").glob("*_messages.parquet"))
+
+    
+    raw_path = Path(data_folder) / "raw"
+    files_by_ticker = defaultdict(list)
+    for f in raw_path.glob("*_messages.parquet"):
+        files_by_ticker[f.name.split("_")[0]].append(f)
+    selected_files = [
+        f
+        for files in files_by_ticker.values()
+        for f in random.sample(files, min(1, len(files)))
+    ]
+
+    print("selected_files")
+    print(selected_files)
+
+    all_dfs = []  # collect results here
+    for f in selected_files:
+
+        print(f.name)
+        
+        df_historical_data = pd.read_parquet(f, columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
+        
+        price_minus_mid, sizes, intervals, lob_vols = return_values_for_bins(
+            df_historical_data,
+            symbol="Whatever",
+            time_unit="ns",
+            max_events=10000, # None,
+            sample_every_k= 50 #100000,
+            #=1_000_000,  # optional
+        )
+        
+    
+        df = pd.DataFrame([{
+            "price_minus_mid": price_minus_mid,
+            "sizes": sizes,
+            "intervals": intervals,
+            "lob_vols": lob_vols,
+        }])
+        
+        all_dfs.append(df)
+
+            
+    
+    # 🔹 Concatenate everything after the loop
+    final_df = pd.concat(all_dfs, ignore_index=True)
+    
+    # 🔹 Save once
+    final_df.to_parquet(data_folder + "/intermediate/bins_samples_better.parquet", index=False)
+
+    
+    # II. Creating Converters
+    
+    df = pd.read_parquet(data_folder + "intermediate/bins_samples.parquet")
+    print("df.shape")
+    print(df.shape)
     price_minus_mid = df.loc[0, "price_minus_mid"]
     sizes         = df.loc[0, "sizes"]
     intervals     = df.loc[0, "intervals"]
     lob_vols      = df.loc[0, "lob_vols"]
+    
+    
+    print("price_minus_mid")
+    print(price_minus_mid)
 
     converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
 
-    
+    # save converters
+    with open(data_folder + "intermediate/converters.pkl", "wb") as f:
+        pickle.dump(converters, f)
 
-    # print("converters.price_level.bins")
-    # print(converters.price_level.bins)
-    # print("converters.order_volume.bins")
-    # print(converters.order_volume.bins)
-    # print("converters.pred_order_volume.bins")
-    # print(converters.pred_order_volume.bins)
-    # print("converters.order_interval.bins")
-    # print(converters.order_interval.bins)
-    # print("converters.lob_volume.bins")
-    # print(converters.lob_volume.bins)
+    
+    """
+    
+    # load converters
+    with open(data_train_folder + "intermediate/converters.pkl", "rb") as f:
+        converters = pickle.load(f)
+
+    print(type(converters))
+    
+    print("converters.price_level.bins")
+    print(converters.price_level.bins)
+    print("converters.order_volume.bins")
+    print(converters.order_volume.bins)
+    print("converters.pred_order_volume.bins")
+    print(converters.pred_order_volume.bins)
+    print("converters.order_interval.bins")
+    print(converters.order_interval.bins)
+    print("converters.lob_volume.bins")
+    print(converters.lob_volume.bins)
     # breakpoint()
 
-    #messages_df = pd.read_parquet("../data/2025-10-10_messages_10.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
-    messages_df = pd.read_parquet("../data/2025-10-09_messages_10.parquet", columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
-
-    print("messages_df")
-    print(messages_df)
-
-    meta_df = pd.read_parquet("../data/2025-10-10_meta_10.parquet")
-
-    print(meta_df[meta_df['System_Event_Code'] == 23])
-
-    print("meta_df")
-    print(meta_df['System_Event_Code'].unique())
-
-    time_unit = "ns"
-
-    # 57600003755960
-    print(pd.to_timedelta(int(57600003755960), unit=time_unit))
-
-    out_path, n_written = pass2_write_features(
-        messages_df,
-        meta_df,
-        symbol=args.symbol,
-        time_unit=args.time_unit,
-        conv=converters,
-        out_path="../data/mymessages.parquet",
-        max_events=args.max_events,
+    # III. CREATING FEATURES FILES
+    
+    # Get all message files
+    message_files = sorted(Path(data_folder+"raw").glob("*_messages.parquet"))
+    
+    
+    feature_files = sorted(
+        p.name 
+        for p in Path(output_folder)
+            .glob("*_features.parquet")
     )
-    print(f"Wrote {n_written} feature rows -> {out_path}")
+
+    
+    # Convert feature filenames to the corresponding "messages" filenames
+    feature_as_messages = {
+        f.replace("_features.parquet", "_messages.parquet")
+        for f in feature_files
+    }
+    
+    # Filter paths
+    filtered_paths = [
+        p for p in message_files
+        if p.name not in feature_as_messages
+    ]
+    
+    message_files = filtered_paths
+
+    n_workers = int(os.environ.get("SLURM_CPUS_PER_TASK", 4))
+    
+    args = [(msg_path, converters, data_folder) for msg_path in message_files]
+    
+    with Pool(processes=n_workers) as pool:
+        
+        for _ in pool.imap_unordered(process_one_file, args):
+            pass
+
 
 
 

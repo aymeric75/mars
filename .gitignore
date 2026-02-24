@@ -33,6 +33,11 @@ MANIFEST
 
 wandb/
 
+.boto3_credentials
+
+*.err
+*.out
+*.tfevents.*
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -200,3 +205,4 @@ checkpoints/
 taming/modules/autoencoder/lpips/
 **/lpips/
 .cache/
+third_party/.DS_Store

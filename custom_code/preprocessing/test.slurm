@@ -1,13 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=preprocessing_ensemble
+#SBATCH --job-name=correct_f4_val
 #SBATCH --account=project_2012747
-#SBATCH --partition=gputest
+#SBATCH --partition=small
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=10
+#SBATCH --cpus-per-task=5
 #SBATCH --mem-per-cpu=8000
-#SBATCH --time=00:15:00
-#SBATCH --gres=gpu:v100:1
+#SBATCH --time=02:15:00
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err
 
@@ -40,6 +39,6 @@ $PYTHON -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.cuda
 $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 
 
-srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u ensemble_preprocessing.py"
+srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u correct_f4.py"
 
 

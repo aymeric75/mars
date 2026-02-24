@@ -1,19 +1,16 @@
 #!/bin/bash
-#SBATCH --job-name=correct_f4
+#SBATCH --job-name=order_images_preprocessing
 #SBATCH --account=project_2012747
 #SBATCH --partition=small
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=5
-#SBATCH --mem-per-cpu=8000
-#SBATCH --time=02:15:00
+#SBATCH --mem=256G
+#SBATCH --cpus-per-task=10
+#SBATCH --time=04:15:00
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err
 
 set -euo pipefail
-
-
-
 
 module purge
 
@@ -39,6 +36,6 @@ $PYTHON -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.cuda
 $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 
 
-srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u correct_f4.py"
+srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u order_images_preprocessing.py"
 
 
