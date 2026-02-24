@@ -62,9 +62,6 @@ class OrderBatchDataModule(pl.LightningDataModule):
         random.seed(worker_seed)
 
 
-
-
-
     def train_dataloader(self):
         return DataLoader(
             self._train,

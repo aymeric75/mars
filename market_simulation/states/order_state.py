@@ -157,11 +157,18 @@ class OrderState(State):
     def on_trading(self, trade_info: TradeInfo) -> None:
         """Update order state with trading information."""
         if self.latest_lob is None:
+            # first order
             self.latest_lob = trade_info.lob_snapshot
             self.prev_order = trade_info.order
             self.open_time = trade_info.order.time
+    
+            # --- new: append first order ---
+            self.cur_order = trade_info.order
+            self.cur_order_lob = trade_info.lob_snapshot
+            self.update_order_info(trade_info)
             return
-
+    
+   
         # set open price if need
         if self.open_trans_price is None and trade_info.transactions and trade_info.transactions[0].type in ["B", "S"]:
             #breakpoint()
@@ -314,10 +321,13 @@ class OrderState(State):
         if mid_price is None:
             return  # cannot compute features yet
         
-
+        
         
         price_change = 0 if self.open_trans_price is None else mid_price / self.open_trans_price - 1
         price_change = np.clip(price_change, -0.2, 0.2)
+        
+
+        
         seconds_to_open = self.get_seconds_to_open(self.cur_order.time, self.open_time)
 
         # print("OrderInfo.NUM_LOB_VOLUMES")

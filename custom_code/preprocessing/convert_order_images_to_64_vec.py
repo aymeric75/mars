@@ -1,27 +1,35 @@
-# process to parquet 
+# Standard library
 import os
 import sys
-from pathlib import Path
+import math
 import re
-import zipfile
-import zarr
 import shutil
-import torch
-from zarr.storage import ZipStore
+import zipfile
+from pathlib import Path
+
+# Third-party
 import numpy as np
-import pytorch_lightning as pl
-from torch.utils.data import Dataset, DataLoader
-from omegaconf import OmegaConf
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+import torch
+import pytorch_lightning as pl
+import zarr
+from zarr.storage import ZipStore
+from tqdm import tqdm
+from omegaconf import OmegaConf
+import argparse
 
+# PyTorch utilities
+from torch.utils.data import Dataset, DataLoader
+print(os.cpu_count())
 # -------------------------
 # Add external repos
 # -------------------------
 BASE = Path("/projappl/project_2012747/mars_derrick_branch/third_party")
 CKPT_DIR = Path("/scratch/project_2012747/Mars_Derrick/checkpoints/checkpoint_downsample_100")
 ZIP_DIR = Path("/scratch/project_2012747/mars_data/order_batch_model/train/intermediate/")
+ZIP_DIR_PROCESSED = Path("/scratch/project_2012747/mars_data/order_batch_model/train/final/")
 OUT_DIR = Path("/scratch/project_2012747/mars_data/order_batch_model/train/final/")
 
 sys.path.insert(0, str(BASE / "latent_diffusion"))
@@ -66,8 +74,8 @@ def load_model(best_ckpt):
     return model, device
 
 # -------------------------
-# Fast Zarr dataset
-# -------------------------
+
+
 class ZarrDataset(Dataset):
     def __init__(self, arr):
         self.arr = arr
@@ -79,80 +87,216 @@ class ZarrDataset(Dataset):
         x = self.arr[idx]
         return torch.from_numpy(x).float().div_(255.0)
 
-# -------------------------
-# Processing function
-# -------------------------
-def process_zip_file(zip_path: Path, model, device, batch_size=512):
-    print(f"Processing {zip_path.name} ...")
+from numcodecs import Blosc
+import threading
 
-    # extract to temp folder
+def process_zip_file(zip_path: Path, model, device, batch_size=1024):
+    print(f"Processing {zip_path.name}")
+
     extract_dir = zip_path.with_suffix("")
     if extract_dir.exists():
         shutil.rmtree(extract_dir)
-    with zipfile.ZipFile(zip_path, "r") as zf:
-        zf.extractall(extract_dir)
 
-    # the extracted folder should be a .zarr folder
-    zarr_folders = [p for p in extract_dir.iterdir() if p.is_dir() and p.suffix == ".zarr"]
-    if not zarr_folders:
-        # fallback: maybe the folder itself is the zarr
-        zarr_folder = extract_dir
-    else:
-        zarr_folder = zarr_folders[0]
+    # Fast unzip
+    with zipfile.ZipFile(zip_path) as z:
+        z.extractall(extract_dir)
 
-    print(f"Using extracted folder: {zarr_folder}")
+    zarr_folders = [p for p in extract_dir.iterdir() if p.suffix == ".zarr"]
+    zarr_folder = zarr_folders[0] if zarr_folders else extract_dir
 
-    # open Zarr
     root = zarr.open(zarr_folder, mode="r")
     arr = root["images"]
+
     num_samples = arr.shape[0]
 
-    all_tokens = []
-
-    dataset = ZarrDataset(arr)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True)
+    # -------------------------
+    # Determine token dimension once
+    # -------------------------
+    encode = model.m.encode
 
     with torch.inference_mode():
-        for i, x in enumerate(loader):
-            x = x.to(device, non_blocking=True)
-            with torch.autocast("cuda"):
-                _, _, info = model.m.encode(x)
-            B = x.size(0)
-            tokens = info[2].view(B, -1).cpu().numpy()
-            all_tokens.append(tokens)
+        sample = torch.zeros((1, *arr.shape[1:]), device=device)
+        _, _, info = encode(sample)
 
-            if i % 20 == 0:
-                print(f"{zip_path.name}: processed {min((i+1)*batch_size, num_samples)}/{num_samples}")
+        tokens = info[2]
+        if isinstance(tokens, (tuple, list)):
+            tokens = tokens[0]
 
-    all_tokens = np.vstack(all_tokens)
+        token_dim = tokens.numel()
+        
+    stem = get_filename(zip_path)
+    
+    out_zarr = OUT_DIR / f"{stem}_64vectors.zarr"
 
-    # save as .zarr folder
-    out_zarr_folder = OUT_DIR / f"{zip_path.stem.replace('_order_images','')}_64_vector.zarr"
-    if out_zarr_folder.exists():
-        shutil.rmtree(out_zarr_folder)
-    out_root = zarr.open(str(out_zarr_folder), mode="w", shape=all_tokens.shape,
-                         chunks=(batch_size, all_tokens.shape[1]), dtype=all_tokens.dtype)
-    out_root[:] = all_tokens
+    if out_zarr.exists():
+        shutil.rmtree(out_zarr)
 
-    # zip the output
-    shutil.make_archive(str(out_zarr_folder), 'zip', root_dir=out_zarr_folder)
-    print(f"Saved zipped Zarr: {str(out_zarr_folder)}.zip")
+    out = zarr.open(
+        str(out_zarr),
+        mode="w",
+        shape=(num_samples, token_dim),
+        chunks=(batch_size, token_dim),
+        dtype=np.float32,
+        compressor=Blosc(
+            cname="lz4",
+            clevel=1,
+            shuffle=Blosc.BITSHUFFLE
+        ),
+        zarr_format=2
+    )
 
-    # cleanup
+    torch.backends.cudnn.benchmark = True
+    torch.set_float32_matmul_precision("high")
+
+    stream = torch.cuda.Stream()
+
+    write_idx = 0
+    pending_write = None
+
+    def async_write(start, data):
+        out[start:start + data.shape[0]] = data
+
+    # -------------------------
+    # Double buffer setup
+    # -------------------------
+    next_batch_np = arr[0:batch_size]
+
+    with torch.inference_mode(), torch.autocast("cuda", dtype=torch.float16):
+
+        for i in tqdm(
+            range(0, num_samples, batch_size),
+            desc=zip_path.name,
+            smoothing=0,
+            mininterval=1,
+        ):
+
+            batch_np = next_batch_np
+
+            # Preload next batch early (IO overlap)
+            next_i = i + batch_size
+            if next_i < num_samples:
+                next_batch_np = arr[next_i:next_i + batch_size]
+
+            # Pinned memory staging
+            batch = torch.from_numpy(batch_np).pin_memory()
+
+            with torch.cuda.stream(stream):
+                x = batch.to(
+                    device,
+                    non_blocking=True,
+                    dtype=torch.float16
+                ).div_(255)
+
+                _, _, info = encode(x)
+
+                tokens = info[2]
+                if isinstance(tokens, (tuple, list)):
+                    tokens = tokens[0]
+
+                tokens = tokens.view(x.size(0), -1).cpu().numpy()
+
+            torch.cuda.current_stream().wait_stream(stream)
+
+            # Async disk write
+            if pending_write is not None:
+                pending_write.join()
+
+            pending_write = threading.Thread(
+                target=async_write,
+                args=(write_idx, tokens),
+            )
+            pending_write.start()
+
+            write_idx += tokens.shape[0]
+
+        if pending_write:
+            pending_write.join()
+
+    shutil.make_archive(str(out_zarr), "zip", root_dir=out_zarr)
     shutil.rmtree(extract_dir)
 
-# -------------------------
-# Main
-# -------------------------
+def parse_args():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--symbol",
+        type=str,
+        default=None,
+        help="Process only zarr files starting with this symbol (e.g. GOOG)"
+    )
+    # ignore unknown args (needed in Jupyter)
+    args, _ = parser.parse_known_args()
+    return args
+    
+def get_filename(zip_path: Path, file_path_filter= "_order_images"):
+    stem = zip_path.name
+    stem = stem.replace(f"{file_path_filter}.zarr.zip", "")
+    stem = stem.replace(f"{file_path_filter}.zarr", "")
+    stem = stem.replace(".zarr.zip", "")   # remove leftover .zarr.zip
+    stem = stem.replace(".zarr", "")       # remove leftover .zarr
+    return stem
+    
+
 def main():
+    args = parse_args()
+    symbol_arg = args.symbol
     best_ckpt = find_best_checkpoint(CKPT_DIR)
     model, device = load_model(best_ckpt)
 
-    zip_files = list(ZIP_DIR.glob("*.zarr.zip"))
-    print(f"Found {len(zip_files)} zip files to process.")
 
-    for zip_file in zip_files:
+    # Read once (DO NOT overwrite later)
+    all_zip_files = list(ZIP_DIR.glob("*.zarr.zip"))
+    all_processed_files = list(ZIP_DIR_PROCESSED.glob("*.zarr.zip"))
+
+    print(f"Total raw files: {len(all_zip_files)}")
+    print(f"Total processed files: {len(all_processed_files)}")
+
+    files_to_process = []
+
+
+
+
+    # Filter per symbol
+    raw_symbol_files = [
+        p for p in all_zip_files
+        if p.name.startswith(symbol)
+    ]
+
+    processed_symbol_files = [
+        p for p in all_processed_files
+        if p.name.startswith(symbol)
+    ]
+
+    # Extract base names
+    raw_names = {
+        get_filename(p, "_order_images"): p
+        for p in raw_symbol_files
+    }
+
+    processed_names = {
+        get_filename(p, "_64vectors")
+        for p in processed_symbol_files
+    }
+
+    # Find unprocessed
+    missing = [
+        raw_names[name]
+        for name in raw_names
+        if name not in processed_names
+    ]
+
+    print(f"{symbol}: {len(missing)} files to process")
+
+    files_to_process.extend(missing)
+
+    print("\nFinal files to process:")
+    for f in files_to_process:
+        print(f)
+
+
+    for zip_file in files_to_process:
         process_zip_file(zip_file, model, device)
 
+        
 if __name__ == "__main__":
     main()
