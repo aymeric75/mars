@@ -61,6 +61,8 @@ class Level:
         assert clear_order.is_buy or clear_order.is_sell
         matched_volume = 0
         matched_details: list[tuple[int, int]] = []
+
+
         for order in self._orders.values():
             assert order.type != clear_order.type
             vol = min(order.volume, clear_order.volume)

@@ -252,6 +252,11 @@ def get_rollout_info(path: Path) -> RolloutInfo | None:
     simulated_trade_infos, start_lob = rollouts[1]
     replay_stylized_fact = get_minute_info(replay_trade_infos, start_lob)
     rollouts_stylized_facts = get_minute_info(simulated_trade_infos, start_lob)
+    replay_stylized_fact = replay_stylized_fact[:26]
+    rollouts_stylized_facts = rollouts_stylized_facts[:26]
+    print("len     aaa")
+    print(len(replay_stylized_fact))
+    print(len(rollouts_stylized_facts))
     rollout_info = RolloutInfo(
         symbol=replay_trade_infos[0].order.symbol,
         start_time=start_lob.time,
@@ -264,6 +269,8 @@ def get_rollout_info(path: Path) -> RolloutInfo | None:
     if len(rollout_info.simulation_minutes) != 26:
         logging.warning(f"Got {len(rollout_info.simulation_minutes)} simulation minutes")
         return None
+
+    print("was here")
     return rollout_info
 
 

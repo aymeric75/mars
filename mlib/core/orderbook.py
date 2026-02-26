@@ -245,11 +245,29 @@ class Orderbook:
             if self.asks[index].volume == 0:
                 self.asks.pop(index)
             return transactions
+
+
+
         if order.is_buy:
+
             levels = self.asks
             empty_levels: list[int] = []
+            # if levels:
+            #     print(levels)
+            #     print("hello")
+            #     print(order.price)
+            #     breakpoint()
+
             for index_level, level in enumerate(levels):
+
                 if level.price <= order.price:
+
+                    #  NO AGRESIVE ORDERS,
+                    # an order get executed only when   there is basically a CROSSING between asks and bids   #
+
+                    #### Limit orders are added to  the   order book
+
+
                     if level.volume > 0:
                         (
                             order,

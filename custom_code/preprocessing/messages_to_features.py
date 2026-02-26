@@ -181,8 +181,37 @@ def row_to_order(
             tag="replay",
         )
 
+
+    # # Visible execution / cross trade: reduce resting visible order volume
+    # if msg in (4,):
+    #     # We treat it as a cancel-on-id of 'size' shares.
+    #     # If price missing/0, infer from current orderbook.
+    #     if (price is None or price == 0) and ex is not None and order_id >= 0:
+    #         try:
+    #             price = ex.get_lob(symbol).get_price_of_order_id(order_id)
+    #         except Exception:
+    #             # If the order is already gone (fully executed earlier), skip quietly.
+    #             return None
+
+    #     return LimitOrder(
+    #         time=t,
+    #         type=side,
+    #         price=price,
+    #         volume=size,
+    #         symbol=symbol,
+    #         agent_id=-1,
+    #         order_id=order_id,
+    #         cancel_type=side,
+    #         cancel_id=order_id,
+    #         tag="replay_exec_",
+    #     )
+
+
+
+
     # Visible execution / cross trade: reduce resting visible order volume
     if msg in (4,):
+
         # We treat it as a cancel-on-id of 'size' shares.
         # If price missing/0, infer from current orderbook.
         if (price is None or price == 0) and ex is not None and order_id >= 0:
@@ -204,6 +233,10 @@ def row_to_order(
             cancel_id=order_id,
             tag="replay_exec",
         )
+
+
+
+
 
 
     # Unknown / unsupported
@@ -293,7 +326,7 @@ def return_values_for_bins(
         # sizes for volume bins (only new orders)
         if order.type in ("B", "S"):
             sizes.append(float(order.volume))
-        
+
         if dt_sec > 0:
             intervals.append(float(dt_sec))
 
@@ -341,24 +374,24 @@ def pass2_write_features(
     out_path: str,
     max_events: Optional[int] = None,
 ) -> Tuple[str, int]:
-    
-        
+
+
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    
+
     day = pd.to_datetime(messages_df["Time"].iloc[0], unit="ns").strftime("%Y-%m-%d")
     ex, order_state, base_time = make_exchange_and_orderstate(symbol, day, conv)
 
     writer = None
     buffer = []
     CHUNK_SIZE = 50_000
-    written = 0 
-        
+    written = 0
+
     if os.path.exists(out_path):
         os.remove(out_path)
 
-    
+
     n = len(messages_df) if max_events is None else min(len(messages_df), max_events)
 
 
@@ -426,6 +459,13 @@ def pass2_write_features(
         feat = np.asarray(feat, dtype=np.int32).reshape(-1)
 
 
+        # dans index tu as déjà:   order_type, price_slot, volume_slot, interval_slot (IN SECONDS !!!!!!)
+        #  le prix, on le prend tel qu'il est (eg 7268100)
+        # le volume aussi,
+        #
+
+
+
         #     # index  vol_ratio_slot  trans_ratio_slot   price_change_to_open    time_to_open     lob_volumes
         #     # f0     f1              f2                 f3                       f4             f5  f6  f7  f8  f9  f10  f11  f12  f13  f14
         #     # 10624   9              0                  0                         2147          0   0   0   0   0    0    0    0    0    0
@@ -435,7 +475,7 @@ def pass2_write_features(
         if feat.shape[0] != TOKEN_DIM:
             continue
 
-        
+
         buffer.append(
             {
                 "i": i,
@@ -443,33 +483,33 @@ def pass2_write_features(
                 **{f"f{j}": int(feat[j]) for j in range(TOKEN_DIM)},
             }
         )
-        
+
         if len(buffer) >= CHUNK_SIZE:
             chunk_df = pd.DataFrame(buffer)
             table = pa.Table.from_pandas(chunk_df)
-        
+
             if writer is None:
                 writer = pq.ParquetWriter(out_path, table.schema)
-        
+
             writer.write_table(table)
-        
+
             written += len(buffer)
             buffer.clear()
 
-    
+
     if buffer:
         chunk_df = pd.DataFrame(buffer)
         table = pa.Table.from_pandas(chunk_df)
-    
+
         if writer is None:
             writer = pq.ParquetWriter(out_path, table.schema)
-    
+
         writer.write_table(table)
         written += len(buffer)
-    
+
     if writer is not None:
         writer.close()
-    
+
     return out_path, written
 
 
@@ -496,25 +536,25 @@ def process_one_file(args):
         meta_path = msg_path.with_name(
             msg_path.name.replace("_messages.parquet", "_meta.parquet")
         )
-        
+
         if meta_path.exists():
             print("Processing pair:")
             print("  Messages:", msg_path.name)
             print("  Meta:    ", meta_path.name)
-            
+
             messages_df = pd.read_parquet(msg_path)
             meta_df = pd.read_parquet(meta_path)
-            
+
             output_file_name = msg_path.name.replace("_messages", "_features")
-            
+
             symbol = msg_path.name.split("_")[0]
-        
+
             time_unit = "ns"
-        
-        
+
+
             # 57600003755960
             #print(pd.to_timedelta(int(57600003755960), unit=time_unit))
-        
+
             out_path, n_written = pass2_write_features(
                 messages_df,
                 meta_df,
@@ -525,31 +565,31 @@ def process_one_file(args):
                 max_events=None,
             )
             print(f"Wrote {n_written} feature rows -> {out_path}")
-        
-                
+
+
         else:
             print(f"⚠ No meta file found for {msg_path.name}")
 
 
 
 def main():
-    
+
 
     data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
     data_train_folder = "/scratch/project_2012747/mars_data/order_model/train/"
     output_folder = "/scratch/project_2012747/mars_data/order_model/val/final"
-    
+
     #data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
     #data_train_folder = "/scratch/project_2012747/mars_data/order_model/train/"
     #output_folder = "/scratch/project_2012747/mars_data/order_model/val/final"
-    
+
     """
     # I. CREATING BINs VALUES
-    
+
     # Randomly select 3 files of each stock
     print(Path(data_folder + "raw").glob("*_messages.parquet"))
 
-    
+
     raw_path = Path(data_folder) / "raw"
     files_by_ticker = defaultdict(list)
     for f in raw_path.glob("*_messages.parquet"):
@@ -567,9 +607,9 @@ def main():
     for f in selected_files:
 
         print(f.name)
-        
+
         df_historical_data = pd.read_parquet(f, columns=["Time", "Step", "Message_Type", "Order", "Price", "Size", "Direction"])
-        
+
         price_minus_mid, sizes, intervals, lob_vols = return_values_for_bins(
             df_historical_data,
             symbol="Whatever",
@@ -578,28 +618,28 @@ def main():
             sample_every_k= 50 #100000,
             #=1_000_000,  # optional
         )
-        
-    
+
+
         df = pd.DataFrame([{
             "price_minus_mid": price_minus_mid,
             "sizes": sizes,
             "intervals": intervals,
             "lob_vols": lob_vols,
         }])
-        
+
         all_dfs.append(df)
 
-            
-    
+
+
     # 🔹 Concatenate everything after the loop
     final_df = pd.concat(all_dfs, ignore_index=True)
-    
+
     # 🔹 Save once
     final_df.to_parquet(data_folder + "/intermediate/bins_samples_better.parquet", index=False)
 
-    
+
     # II. Creating Converters
-    
+
     df = pd.read_parquet(data_folder + "intermediate/bins_samples.parquet")
     print("df.shape")
     print(df.shape)
@@ -607,8 +647,8 @@ def main():
     sizes         = df.loc[0, "sizes"]
     intervals     = df.loc[0, "intervals"]
     lob_vols      = df.loc[0, "lob_vols"]
-    
-    
+
+
     print("price_minus_mid")
     print(price_minus_mid)
 
@@ -618,15 +658,15 @@ def main():
     with open(data_folder + "intermediate/converters.pkl", "wb") as f:
         pickle.dump(converters, f)
 
-    
+
     """
-    
+
     # load converters
     with open(data_train_folder + "intermediate/converters.pkl", "rb") as f:
         converters = pickle.load(f)
 
     print(type(converters))
-    
+
     print("converters.price_level.bins")
     print(converters.price_level.bins)
     print("converters.order_volume.bins")
@@ -640,38 +680,38 @@ def main():
     # breakpoint()
 
     # III. CREATING FEATURES FILES
-    
+
     # Get all message files
     message_files = sorted(Path(data_folder+"raw").glob("*_messages.parquet"))
-    
-    
+
+
     feature_files = sorted(
-        p.name 
+        p.name
         for p in Path(output_folder)
             .glob("*_features.parquet")
     )
 
-    
+
     # Convert feature filenames to the corresponding "messages" filenames
     feature_as_messages = {
         f.replace("_features.parquet", "_messages.parquet")
         for f in feature_files
     }
-    
+
     # Filter paths
     filtered_paths = [
         p for p in message_files
         if p.name not in feature_as_messages
     ]
-    
+
     message_files = filtered_paths
 
     n_workers = int(os.environ.get("SLURM_CPUS_PER_TASK", 4))
-    
+
     args = [(msg_path, converters, data_folder) for msg_path in message_files]
-    
+
     with Pool(processes=n_workers) as pool:
-        
+
         for _ in pool.imap_unordered(process_one_file, args):
             pass
 
