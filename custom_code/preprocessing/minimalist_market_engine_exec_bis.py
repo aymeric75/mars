@@ -15,9 +15,9 @@
 import pandas as pd
 from pathlib import Path
 
-messages = pd.read_parquet(Path("data/LOBSTER_AAPL_2025-11-18_messages_10.parquet"))
-meta = pd.read_parquet(Path("data/LOBSTER_AAPL_2025-11-18_meta_10.parquet"))
-snapshots = pd.read_parquet(Path("data/LOBSTER_AAPL_2025-11-18_snapshots_10.parquet"))
+messages = pd.read_parquet(Path("data/LOBSTER_META_2025-10-01_messages_10.parquet"))
+meta = pd.read_parquet(Path("data/LOBSTER_META_2025-10-01_meta_10.parquet"))
+snapshots = pd.read_parquet(Path("data/LOBSTER_META_2025-10-01_snapshots_10.parquet"))
 
 
 
@@ -72,6 +72,9 @@ count_sells = 0
 count_cancels = 0
 total_transactions = 0
 
+
+
+
 for i, r in enumerate(tqdm(messages.itertuples(index=False),
                             total=n,
                             desc="pass",
@@ -113,13 +116,13 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
 
                     total_transactions += 1
 
-                    break
+                    #break
 
     if i > 1696659:
         print(snap)
 
 
-        print("CONCLUSION: NEAR END SNAPS SHOULD CORRESPOND TO GROUND TRUTH!!")
+        #print("CONCLUSION: NEAR END SNAPS SHOULD CORRESPOND TO GROUND TRUTH!!")
 
 
 
