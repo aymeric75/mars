@@ -104,7 +104,6 @@ def row_to_order(
     r,
     *,
     symbol: str,
-    base_time: pd.Timestamp,
     time_unit: str,
     ex: Optional[Exchange] = None,   # <-- NEW: allow price lookup from current book
 ) -> Optional[LimitOrder]:
@@ -266,7 +265,7 @@ def return_values_for_bins(
             break
 
         #order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit)
-        order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit, ex=ex)
+        order = row_to_order(r, symbol=symbol, time_unit=time_unit, ex=ex)
 
         if order is None:
             continue
@@ -391,7 +390,7 @@ def pass2_write_features(
             order_state.open_time = r.Time
 
         #order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit)
-        order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit, ex=ex)
+        order = row_to_order(r, symbol=symbol, time_unit=time_unit, ex=ex)
 
         if order is None:
             continue

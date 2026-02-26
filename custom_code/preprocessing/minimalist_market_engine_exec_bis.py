@@ -70,6 +70,7 @@ n = len(messages)
 count_buys = 0
 count_sells = 0
 count_cancels = 0
+count_visible_exec = 0
 total_transactions = 0
 
 for i, r in enumerate(tqdm(messages.itertuples(index=False),
@@ -95,8 +96,8 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
     except AssertionError:
         raise
 
-    print("i is ", i)
-    print(trade_infos[0].lob_snapshot)
+
+    ########### replay_exec_
 
     if trade_infos:
 
@@ -105,17 +106,31 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
             if trade_info.transactions:
 
                 for trans in trade_info.transactions:
+
+                    # if float(trans.price) > 0:
+                    #     print(">>>>>>>> 0")
+                    #     print(trans)
+                    #     print(trans.price)
+                    #     breakpoint()
+
                     if trans.type == "B":
                         count_buys+=1
                     if trans.type == "S":
                         count_sells+=1
                     if trans.type == "C":
                         count_cancels+=1
-
-
+                        if order.tag == "replay_exec":
+                            # print("IN REPLAYX ")
+                            # print(trans.price)
+                            # breakpoint()
+                            count_visible_exec+=1
+                        else:
+                            print("NOT IN REPLAY")
+                            print(trans.price)
+                            breakpoint()
                     total_transactions += 1
 
-                    break
+                    #break
 
     if i > 1696659:
         print(snap)
@@ -124,11 +139,17 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
         print("CONCLUSION: NEAR END SNAPS SHOULD CORRESPOND TO GROUND TRUTH!!")
 
 
-
+# 64065
 perc_buys = round((count_buys / total_transactions) * 100)
 perc_sells = round((count_sells / total_transactions) * 100)
 perc_cancels = round((count_cancels / total_transactions) * 100)
 
+print("count buys ", count_buys)
+print("count sells ", count_sells)
+print("count cancels ", count_cancels)
+print("count_visible_exec ", count_visible_exec)
+print("count total ", total_transactions)
+print()
 print("perc_buys ", perc_buys)
 print("perc_sells ", perc_sells)
 print("perc_cancels ", perc_cancels)

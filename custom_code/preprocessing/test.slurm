@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=correct_f4_val
+#SBATCH --job-name=some_stuff
 #SBATCH --account=project_2012747
 #SBATCH --partition=small
 #SBATCH --nodes=1
@@ -39,6 +39,6 @@ $PYTHON -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.cuda
 $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 
 
-srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u correct_f4.py"
+srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u minimalist_market_engine_exec_bis.py"
 
 
