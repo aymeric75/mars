@@ -73,6 +73,9 @@ count_cancels = 0
 count_visible_exec = 0
 total_transactions = 0
 
+
+
+
 for i, r in enumerate(tqdm(messages.itertuples(index=False),
                             total=n,
                             desc="pass",
@@ -136,7 +139,7 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
         print(snap)
 
 
-        print("CONCLUSION: NEAR END SNAPS SHOULD CORRESPOND TO GROUND TRUTH!!")
+        #print("CONCLUSION: NEAR END SNAPS SHOULD CORRESPOND TO GROUND TRUTH!!")
 
 
 # 64065
