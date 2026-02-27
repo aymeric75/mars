@@ -1,15 +1,21 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_parquet("LOBSTER_META_2025-10-01_messages_10.parquet")
+df = pd.read_parquet("LOBSTER_META_2025-11-03_messages_10.parquet")
 
+# 1500 0000
 print(df)
+print(df.iloc[54629])
+print(df[df["Time"] == 34205066399503])
+print(df[df["Step"] == 75978])
 # print(df["Message_Type"].unique())
 # print((df["Message_Type"] == 12).sum())
 # # 64065
 # print(df[df["Message_Type"] == 12])
 exit()
 
+# 6.566600e+06
+# 6560000
 
 
 

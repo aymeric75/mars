@@ -9,9 +9,11 @@ from utils_preproc import *
 
 print("HELLO")
 
-input_dir = Path("/scratch/project_2012747/mars_data/order_model/train/final") # dir with all "features".parquet files
+#input_dir = Path("/scratch/project_2012747/mars_data/order_model/train/final") # dir with all "features".parquet files
+input_dir = Path("../../data/features")
 
-output_dir = Path("/scratch/project_2012747/mars_data/order_batch_model/train/final") 
+#output_dir = Path("/scratch/project_2012747/mars_data/order_batch_model/train/final")
+output_dir = Path("output_dir")
 
 
 exclude = {
@@ -34,17 +36,17 @@ for f in input_dir.glob("*_features.parquet"):
     #    continue
     # if f.name not in include:
     #     continue
-    
+
     df = pd.read_parquet(f)
-    
+
 
     decoded = decode_order_index_df(df)
-    
+
     t = df["Time"]
 
     idx_60s_int = past_index_around_60s_ns(t, seconds=60, none_value=-1, return_object=False)
 
-    
+
 
     idx = np.where(idx_60s_int != -1)[0][0]
 
@@ -61,6 +63,16 @@ for f in input_dir.glob("*_features.parquet"):
 
     if Path(output_dir  / order_images_file_name).exists():
         continue
+
+
+    #print(f.stem)
+    ids_60s_file_name = f.stem.replace("features", "ids-60s-int") + ".npy"
+    # print("idx_60s_int")
+    # print(idx_60s_int)
+    # print(type(idx_60s_int))
+    np.save(Path(output_dir  / ids_60s_file_name), idx_60s_int)
+    exit()
+
 
     with ZipStore(Path(output_dir  / order_images_file_name), mode="w", compression=zipfile.ZIP_DEFLATED) as store:
         root = zarr.group(store=store, overwrite=True)
