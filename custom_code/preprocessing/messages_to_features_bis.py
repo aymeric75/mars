@@ -659,17 +659,9 @@ def main():
         pickle.dump(converters, f)
 
 
-    
-    
-    # load converters
-    with open("converter.pkl", "rb") as f:
-        conv
-        erters = pickle.load(f)
-
-    print(type(converters))
-
-    # breakpoint()
     """
+
+
     import json
        
            
@@ -716,7 +708,8 @@ def main():
     print("converters.lob_volume.bins")
     print(converters.lob_volume.bins)
 
-    
+
+
     # III. CREATING FEATURES FILES
 
     # Get all message files
@@ -752,7 +745,7 @@ def main():
     print("FILTERED PATHS BEFORE")
     print(len(filtered_paths))
     print(filtered_paths[:5])
-    """
+    
     filtered_paths = [
         p for p in filtered_paths
         if any(keyword in p.name for keyword in some_list)
@@ -762,7 +755,7 @@ def main():
         p for p in filtered_paths
         if p.name.split("_")[0] not in some_list
     ]
-    
+    """
     
     print("FILTERED PATHS AFTER")
     print(len(filtered_paths))

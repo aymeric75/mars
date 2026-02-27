@@ -1,10 +1,13 @@
 import sys
+import re
 import numpy as np
 import pandas as pd
 import pickle
 from tqdm import tqdm
 from typing import Optional, Tuple, List
 from pathlib import Path
+from multiprocessing import Pool, cpu_count
+from collections import defaultdict
 
 from mlib.core.trade_info import TradeInfo
 from mlib.core.lob_snapshot import LobSnapshot
@@ -73,13 +76,8 @@ def build_replay_trade_infos(
     trade_infos_list = []
 
     for i, r in enumerate(
-        tqdm(messages_df.itertuples(index=False), total=n, desc="replay", unit="msg")
+        tqdm(messages_df.itertuples(index=False), total=n, desc="replay", unit="msg", miniters=10000)
     ):
-
-
-        # print(r)
-        # print(r.Time)
-
 
 
         if i == 0:
@@ -194,47 +192,124 @@ def build_replay_trade_infos(
 
 
 
+"""
+
 with open("../preprocessing/converters.pkl", "rb") as f:
     converters = pickle.load(f)
 
-messages_df = pd.read_parquet("../preprocessing/data/LOBSTER_META_2025-10-01_messages_10.parquet")
-meta_df = pd.read_parquet("../preprocessing/data/LOBSTER_META_2025-10-01_meta_10.parquet")
 
-list_of_replay_trade_infos_lists, start_lob = build_replay_trade_infos(
-    messages_df,
-    meta_df,
-    symbol="META",
-    day="2025-10-01",
-    conv=converters,
-    max_events=None
+
+# Directory containing the parquet files
+data_dir = Path("/scratch/project_2012747/mars_data/experiments/stylized_facts")
+
+# Regex pattern to extract stock, date, type, and optional suffix
+pattern = re.compile(
+    r"LOBSTER_(?P<stock>[A-Z]+)_(?P<date>\d{4}-\d{2}-\d{2})_(?P<type>messages|meta)_\d+\.parquet"
 )
 
+# Dictionary to collect pairs
+pairs = defaultdict(dict)
 
-# print("JUS TO SHOW THE RESULT ")
-# print(list_of_replay_trade_infos_lists)
+# Iterate over complete pairs only
+for (stock, date), files in pairs.items():
+    if "messages" in files and "meta" in files:
+        messages_df = files["messages"]
+        meta_df = files["meta"]
+        
 
-for i, list_ in enumerate(list_of_replay_trade_infos_lists):
+        
+        list_of_replay_trade_infos_lists, start_lob = build_replay_trade_infos(
+            messages_df,
+            meta_df,
+            symbol=str(stock),
+            day=str(date),
+            conv=converters,
+            max_events=None
+        )
+        
+        
+        for i, list_ in enumerate(list_of_replay_trade_infos_lists):
+        
+            pkl_utils.save_pkl_zstd(
+                [(list_, start_lob), (list_, start_lob)],
+                Path(f"trade_infos/tradeInfos__replay_{stock}_{date}_{i}.zstd")
+            )
+        
+        
 
-    pkl_utils.save_pkl_zstd(
-        [(list_, start_lob), (list_, start_lob)],
-        Path("folders/tradeInfos__replay_"+str(i)+".zstd")
+
+"""
+
+
+
+CONVERTERS = None
+
+
+def _init_worker(converters_pkl_path: str):
+    global CONVERTERS
+    with open(converters_pkl_path, "rb") as f:
+        CONVERTERS = pickle.load(f)
+
+
+def _process_pair(args):
+    stock, date, msg_path, meta_path, out_dir = args
+
+    messages_df = pd.read_parquet(msg_path)
+    meta_df = pd.read_parquet(meta_path)
+
+    lists, start_lob = build_replay_trade_infos(
+        messages_df,
+        meta_df,
+        symbol=stock,
+        day=date,
+        conv=CONVERTERS,
+        max_events=None,
     )
 
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    for i, lst in enumerate(lists):
+        pkl_utils.save_pkl_zstd(
+            [(lst, start_lob), (lst, start_lob)],
+            out_dir / f"tradeInfos__replay_{stock}_{date}_{i}.zstd",
+        )
+
+    return stock, date, len(lists)
 
 
+def main():
+    converters_pkl = "../../preprocessing/converters.pkl"
+    data_dir = Path("/scratch/project_2012747/mars_data/experiments/stylized_facts")
+    out_dir = Path("trade_infos")
+    
+    pat = re.compile(
+        r"(?P<stock>[A-Z]+)_(?P<date>\d{4}-\d{2}-\d{2})_"
+        r"(?P<type>messages|meta).parquet"
+    )
+
+    pairs = defaultdict(dict)
+    for p in data_dir.glob("*.parquet"):
+        m = pat.match(p.name)
+        if not m:
+            continue
+        key = (m["stock"], m["date"])
+        pairs[key][m["type"]] = p
+
+    print("PAIRS ::::")
+    print(pairs)
 
 
+    tasks = [
+        (stock, date, files["messages"], files["meta"], str(out_dir))
+        for (stock, date), files in pairs.items()
+        if "messages" in files and "meta" in files
+    ]
+
+    with Pool(processes=cpu_count(), initializer=_init_worker, initargs=(converters_pkl,)) as pool:
+        for stock, date, n_lists in pool.imap_unordered(_process_pair, tasks, chunksize=1):
+            print(f"{stock} {date}: wrote {n_lists} outputs")
 
 
-
-
-# minutes = get_minute_info(replay_trade_infos, start_lob)
-
-# pkl_utils.save_pkl_zstd(
-#     minutes,
-#     Path("my_minutes_replay.zstd")
-# )
-
-
-# print("start_lob")
-# print(start_lob)
+if __name__ == "__main__":
+    main()

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from utils_preproc import *
 
-""" from features .parquets files into Time/f0 mmap files (loaded as 'numpy.memmap' ), then into order images files (mmap) and finally  into discrete tokens (VQGAN learned representation) """
+""" from features .parquets files into *order-images.zarr.zip files holding the order images """
 
 
 print("HELLO")
@@ -44,6 +44,7 @@ for f in input_dir.glob("*_features.parquet"):
 
     idx_60s_int = past_index_around_60s_ns(t, seconds=60, none_value=-1, return_object=False)
 
+    
 
     idx = np.where(idx_60s_int != -1)[0][0]
 
@@ -55,15 +56,7 @@ for f in input_dir.glob("*_features.parquet"):
     W = 32
     C = 3
 
-    """
-    save_images_tail_zip(
-        Path(mmaps  / (date_str+"_order_images.zarr.zip")),
-        Path(mmaps  / (date_str+"_order_images_pruned.zarr.zip")),
-        start_idx=idx,
-    )
-    """
-
-    order_images_file_name = f.stem.replace("features", "order_images")  + ".zarr.zip"
+    order_images_file_name = f.stem.replace("features", "order-images")  + ".zarr.zip"
 
 
     if Path(output_dir  / order_images_file_name).exists():

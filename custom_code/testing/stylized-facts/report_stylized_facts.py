@@ -456,7 +456,7 @@ def plot_return_kurtosis(rollout_infos: list[RolloutInfo], output_dir: Path, pri
     # ax.set_title("Heavy Tails and Aggregational Gaussianity")
     ax.set_title("Kurtosis of Returns")
     ax.set_ylim(1, 9)
-    fig_path = output_dir / f"cont2-{price_type}-heavy-tails-aggregational-gaussianity.pdf"
+    fig_path = output_dir / f"cont2-{price_type}-heavy-tails-aggregational-gaussianity.png"
     save_and_close_fig(fig, fig_path)
 
     cont2_detail_dir = output_dir / "cont2-detail"
@@ -472,7 +472,7 @@ def plot_return_kurtosis(rollout_infos: list[RolloutInfo], output_dir: Path, pri
         ax.set_xlabel("Return")
         ax.set_title(f"Delta_t = {delta_t}")
         ax.set_xlim(-0.01, 0.01)
-        fig_path = cont2_detail_dir / f"cont2-delta_t-{delta_t}-{price_type}.pdf"
+        fig_path = cont2_detail_dir / f"cont2-delta_t-{delta_t}-{price_type}.png"
         save_and_close_fig(fig, fig_path)
 
 
@@ -500,7 +500,7 @@ def plot_return_skewness(rollout_infos: list[RolloutInfo], output_dir: Path) -> 
     # ax.set_title("Gain/loss Asymmetry")
     ax.set_title("Skewness of Returns")
 
-    fig_path = output_dir / "cont3-gain-loss-asymmetry.pdf"
+    fig_path = output_dir / "cont3-gain-loss-asymmetry.png"
     save_and_close_fig(fig, fig_path)
 
 
@@ -538,7 +538,7 @@ def plot_return_intermittency(rollout_infos: list[RolloutInfo], output_dir: Path
     # ax.set_title("Intermittency: Fano Factor")
     ax.set_title('Fano Factor of "Burst" Returns')
     ax.set_xticks([0, 2, 4, 6, 8, 10])
-    fig_path = output_dir / "cont5-intermittency.pdf"
+    fig_path = output_dir / "cont5-intermittency.png"
     save_and_close_fig(fig, fig_path)
 
 
@@ -587,7 +587,7 @@ def plot_volatility_clustering(rollout_infos: list[RolloutInfo], output_dir: Pat
     ax.set_xticks(AX_TICK_20)
     # ax.set_title("Volatility Clustering and Slow Decay of Absolute Return", fontsize=8)
     ax.set_title("Auto-Correaltion of Absolute Returns")
-    fig_path = output_dir / "cont6-volatility-clustering-slow-decay.pdf"
+    fig_path = output_dir / "cont6-volatility-clustering-slow-decay.png"
     save_and_close_fig(fig, fig_path)
 
 
@@ -604,7 +604,17 @@ def plot_conditional_heavy_tails(rollout_infos: list[RolloutInfo], output_dir: P
     max_delta_t = 20
     data = get_return_info(rollout_infos, delta_ts=list(range(1, max_delta_t + 1)), taus=[0])
     data = data[(data["r1"] > -0.5) & (data["r1"] < 0.5)]
-    data["time"] = data["time"].dt.time
+    #data["time"] = data["time"].dt.time
+    
+        
+        
+    # if it's datetime, convert to minute-of-day index; if timedelta, minute-of-duration index
+    if pd.api.types.is_datetime64_any_dtype(data["time"]):
+        data["time"] = data["time"].dt.hour * 60 + data["time"].dt.minute
+    else:
+        data["time"] = (data["time"].dt.total_seconds() // 60).astype(int)
+    
+    
     data["minute_vol"] = data.groupby(["source", "delta_t", "time"])["r1"].transform(lambda x: (x.std()))
     data["r1"] = data["r1"] / data["minute_vol"]
     groups = data.groupby(["source", "delta_t", "symbol"])
@@ -628,7 +638,7 @@ def plot_conditional_heavy_tails(rollout_infos: list[RolloutInfo], output_dir: P
     ax.set_ylim(1, 9)
     # ax.set_title("Conditional Heavy Tails")
     ax.set_title("Kurtosis of Returns (Normalized)")
-    fig_path = output_dir / "cont7-conditional-heavy-tails.pdf"
+    fig_path = output_dir / "cont7-conditional-heavy-tails.png"
     save_and_close_fig(fig, fig_path)
 
     # output details for cont7
@@ -647,7 +657,7 @@ def plot_conditional_heavy_tails(rollout_infos: list[RolloutInfo], output_dir: P
         sns.histplot(data=sub_data, x="r1", hue="source", kde=False, alpha=0.4, stat="probability", bins=129, ax=ax)
         ax.set_xlabel("Return")
         ax.set_title(f"Delta_t = {delta_t}")
-        fig_path = cont7_detail_dir / f"cont7-delta_t-{delta_t}.pdf"
+        fig_path = cont7_detail_dir / f"cont7-delta_t-{delta_t}.png"
         save_and_close_fig(fig, fig_path)
 
 
@@ -681,7 +691,7 @@ def plot_leverage_effect(rollout_infos: list[RolloutInfo], output_dir: Path) -> 
     # ax.set_title("Leverage Effect")
     ax.set_title("Correlation between Return and Lagged Volatility", fontsize=8)
 
-    fig_path = output_dir / "cont9-leverage-effect.pdf"
+    fig_path = output_dir / "cont9-leverage-effect.png"
     save_and_close_fig(fig, fig_path)
 
 
@@ -712,7 +722,7 @@ def plot_volume_volatility_correlation(rollout_infos: list[RolloutInfo], output_
     ax.set_xticks(AX_TICK_20)
     # ax.set_title("Volume/Volatility Correlation")
     ax.set_title("Correlation between Volume and Lagged Volatility", fontsize=8)
-    fig_path = output_dir / "cont10-volume-volatility-corr.pdf"
+    fig_path = output_dir / "cont10-volume-volatility-corr.png"
     save_and_close_fig(fig, fig_path)
 
 
@@ -781,7 +791,7 @@ def plot_timescale_asymmetry(rollout_infos: list[RolloutInfo], output_dir: Path)
     ax.set_ylabel("Corr")
     ax.axvline(0, color="gray", linestyle="--")
     ax.axhline(0, color="gray", linestyle="solid")
-    fig_path = output_dir / "cont11-asymmetry-in-timescales.pdf"
+    fig_path = output_dir / "cont11-asymmetry-in-timescales.png"
     save_and_close_fig(fig, fig_path)
 
 
@@ -807,7 +817,7 @@ def plot_data_distribution(rollouts: list[RolloutInfo], output_dir: Path) -> Non
     xticks = [x for x in xticks if x.date() <= max_date]  # type: ignore
     ax.set_xticks(xticks)  # type: ignore
     ax.set_xticklabels([x.strftime("%Y-%m-%d") for x in xticks], rotation=45)
-    fig_path = output_dir / "date-distribution.pdf"
+    fig_path = output_dir / "date-distribution.png"
     logging.info(f"First date: {min_date}, Last date: {max_date}")
     save_and_close_fig(fig, fig_path)
 
@@ -820,7 +830,7 @@ def plot_data_distribution(rollouts: list[RolloutInfo], output_dir: Path) -> Non
     ax.set_title(f"Instrument Distribution (Total Symbols: {total_symbols})")
     ax.set_xlabel("# of Simulaton")
     ax.set_ylabel("# of Instruments")
-    fig_path = output_dir / "symbol-distribution.pdf"
+    fig_path = output_dir / "symbol-distribution.png"
     save_and_close_fig(fig, fig_path)
 
 
@@ -841,7 +851,7 @@ def generate_stylized_facts(path: Path, output_dir: Path) -> None:
     # Absence of autocorrelations
     plot_return_autocorrelation(rollouts, output_dir, price_type="last")
     plot_return_autocorrelation(rollouts, output_dir, price_type="mean")
-    """
+    
     # Heavy tails
     plot_return_kurtosis(rollouts, output_dir, "last")
 
@@ -851,7 +861,7 @@ def generate_stylized_facts(path: Path, output_dir: Path) -> None:
     # Intermittency
     plot_return_intermittency(rollouts, output_dir)
 
-    Volatility clustering
+    # Volatility clustering
     plot_volatility_clustering(rollouts, output_dir)
 
     # Conditional heavy tails
@@ -871,7 +881,7 @@ def generate_stylized_facts(path: Path, output_dir: Path) -> None:
 
     # Dataset distribution characteristics
     plot_data_distribution(rollouts, output_dir)
-    """
+    
 
 if __name__ == "__main__":
     """Generate stylized facts visualizations from rollout information.

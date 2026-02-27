@@ -10,7 +10,7 @@ rollout_infos = []
 
 from pathlib import Path
 
-directory = Path("folders")
+directory = Path("trade_infos")
 
 for path in directory.iterdir():
     if path.is_file():
