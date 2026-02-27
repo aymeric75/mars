@@ -314,7 +314,7 @@ def build_image_zarr_chunked_from_lookback(
 
 
 
-    for b in tqdm(range(nblocks), desc="Building order images (chunked)", unit="chunk"):
+    for b in tqdm(range(nblocks), desc="Building order images (chunked)", miniters=1000, unit="chunk", disable=True):
         s = b * chunkN
         e = min(N, s + chunkN)
 

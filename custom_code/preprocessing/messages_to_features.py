@@ -575,12 +575,10 @@ def process_one_file(args):
 def main():
 
 
-    data_folder = "/scratch/project_2012747/mars_data/order_model/train/"
-    data_train_folder = "/scratch/project_2012747/mars_data/order_model/train/"
-    output_folder = "/scratch/project_2012747/mars_data/order_model/train/final"
+    data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
+    output_folder = "/scratch/project_2012747/mars_data/order_model/val/final"
 
     #data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
-    #data_train_folder = "/scratch/project_2012747/mars_data/order_model/train/"
     #output_folder = "/scratch/project_2012747/mars_data/order_model/val/final"
 
     """
