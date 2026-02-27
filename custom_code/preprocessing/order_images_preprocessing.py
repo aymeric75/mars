@@ -9,11 +9,11 @@ from utils_preproc import *
 
 print("HELLO")
 
-#input_dir = Path("/scratch/project_2012747/mars_data/order_model/train/final") # dir with all "features".parquet files
-input_dir = Path("../../data/features")
+input_dir = Path("/scratch/project_2012747/mars_data/order_model/train/final") # dir with all "features".parquet files
+#input_dir = Path("../../data/features")
 
-#output_dir = Path("/scratch/project_2012747/mars_data/order_batch_model/train/final")
-output_dir = Path("output_dir")
+output_dir = Path("/scratch/project_2012747/mars_data/order_batch_model/train/raw")
+#output_dir = Path("output_dir")
 
 
 exclude = {
@@ -65,14 +65,9 @@ for f in input_dir.glob("*_features.parquet"):
         continue
 
 
-    #print(f.stem)
     ids_60s_file_name = f.stem.replace("features", "ids-60s-int") + ".npy"
-    # print("idx_60s_int")
-    # print(idx_60s_int)
-    # print(type(idx_60s_int))
     np.save(Path(output_dir  / ids_60s_file_name), idx_60s_int)
-    exit()
-
+   
 
     with ZipStore(Path(output_dir  / order_images_file_name), mode="w", compression=zipfile.ZIP_DEFLATED) as store:
         root = zarr.group(store=store, overwrite=True)
