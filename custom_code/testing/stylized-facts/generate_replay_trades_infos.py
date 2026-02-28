@@ -1,5 +1,6 @@
 import sys
 import re
+import json
 import numpy as np
 import pandas as pd
 import pickle
@@ -12,10 +13,53 @@ from collections import defaultdict
 from mlib.core.trade_info import TradeInfo
 from mlib.core.lob_snapshot import LobSnapshot
 from market_simulation.utils import pkl_utils
-
+from market_simulation.utils.bin_converter import BinConverter
 from utils import Converters, make_exchange_and_orderstate, row_to_order
 
 from report_stylized_facts import get_minute_info
+
+
+
+
+
+SEQ_LEN = 1 # 1024
+TOKEN_DIM = 15
+NUM_BINS_PRICE_LEVEL = 32
+NUM_BINS_ORDER_VOLUME = 32
+NUM_BINS_ORDER_INTERVAL = 16
+NUM_BINS_LOB_VOLUME = 32
+
+
+
+
+
+
+
+
+def build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols):
+    """
+    Create BinConverters
+    """
+
+    pm = [float(x) for x in price_minus_mid if x is not None and np.isfinite(x)]
+    price_level = BinConverter.create_from_values(pm, NUM_BINS_PRICE_LEVEL)
+
+    ov = [float(x) for x in sizes if x is not None and x > 0]
+    order_volume = BinConverter.create_from_values(ov, NUM_BINS_ORDER_VOLUME)
+
+    itv = [float(x) for x in intervals if x is not None and x > 0]
+    order_interval = BinConverter.create_from_values(itv, NUM_BINS_ORDER_INTERVAL)
+
+    lv = [float(x) for x in lob_vols if x is not None and x > 0]
+    lob_volume = BinConverter.create_from_values(lv, NUM_BINS_LOB_VOLUME)
+
+    return Converters(price_level, order_volume, order_volume, order_interval, lob_volume)
+
+
+
+
+
+
 
 def build_replay_trade_infos(
     messages_df: pd.DataFrame,
@@ -36,6 +80,7 @@ def build_replay_trade_infos(
     """
 
     ex, order_state, _base_time = make_exchange_and_orderstate(symbol, day, conv)
+
 
     # Align meta System_Event_Code to each message row (same as pass2_write_features)
     meta = meta_df.sort_values("Time", kind="mergesort")
@@ -100,6 +145,7 @@ def build_replay_trade_infos(
         if sys_code == 22 and not markethours:
             markethours = True
             start_lob = ex.get_lob(symbol).snapshot(level=snapshot_level)
+            start_lob = start_lob._replace(time=_base_time)
 
         if sys_code == 23:
             break
@@ -215,9 +261,9 @@ for (stock, date), files in pairs.items():
     if "messages" in files and "meta" in files:
         messages_df = files["messages"]
         meta_df = files["meta"]
-        
 
-        
+
+
         list_of_replay_trade_infos_lists, start_lob = build_replay_trade_infos(
             messages_df,
             meta_df,
@@ -226,16 +272,16 @@ for (stock, date), files in pairs.items():
             conv=converters,
             max_events=None
         )
-        
-        
+
+
         for i, list_ in enumerate(list_of_replay_trade_infos_lists):
-        
+
             pkl_utils.save_pkl_zstd(
                 [(list_, start_lob), (list_, start_lob)],
                 Path(f"trade_infos/tradeInfos__replay_{stock}_{date}_{i}.zstd")
             )
-        
-        
+
+
 
 
 """
@@ -245,10 +291,49 @@ for (stock, date), files in pairs.items():
 CONVERTERS = None
 
 
-def _init_worker(converters_pkl_path: str):
+def _init_worker(converters_json_path: str):
+
     global CONVERTERS
-    with open(converters_pkl_path, "rb") as f:
-        CONVERTERS = pickle.load(f)
+
+
+
+
+    with open(converters_json_path, "r", encoding="utf-8") as f:
+        obj = json.load(f)
+
+    #price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
+
+    price_minus_mid = []
+    for bin_item in obj["state"]["price_level"]["bin_values"]:
+        price_minus_mid.extend(bin_item["data"])
+
+    #sizes = blob["state"]["order_volume"]["bin_values"]["data"]
+    sizes = []
+    for bin_item in obj["state"]["order_volume"]["bin_values"]:
+        sizes.extend(bin_item["data"])
+
+    #intervals = blob["state"]["order_interval"]["bin_values"]["data"]
+    intervals = []
+    for bin_item in obj["state"]["order_interval"]["bin_values"]:
+        intervals.extend(bin_item["data"])
+
+
+
+    #lob_vols = blob["state"]["lob_volume"]["bin_values"]["data"]
+    lob_vols = []
+    for bin_item in obj["state"]["lob_volume"]["bin_values"]:
+        lob_vols.extend(bin_item["data"])
+
+
+    CONVERTERS = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
+
+
+
+
+
+
+
+
 
 
 def _process_pair(args):
@@ -279,10 +364,11 @@ def _process_pair(args):
 
 
 def main():
-    converters_pkl = "../../preprocessing/converters.pkl"
-    data_dir = Path("/scratch/project_2012747/mars_data/experiments/stylized_facts")
+    converters_json = "converters_portable.json"
+    #data_dir = Path("/scratch/project_2012747/mars_data/experiments/stylized_facts")
+    data_dir = Path("some_data")
     out_dir = Path("trade_infos")
-    
+
     pat = re.compile(
         r"(?P<stock>[A-Z]+)_(?P<date>\d{4}-\d{2}-\d{2})_"
         r"(?P<type>messages|meta).parquet"
@@ -296,9 +382,6 @@ def main():
         key = (m["stock"], m["date"])
         pairs[key][m["type"]] = p
 
-    print("PAIRS ::::")
-    print(pairs)
-
 
     tasks = [
         (stock, date, files["messages"], files["meta"], str(out_dir))
@@ -306,7 +389,7 @@ def main():
         if "messages" in files and "meta" in files
     ]
 
-    with Pool(processes=cpu_count(), initializer=_init_worker, initargs=(converters_pkl,)) as pool:
+    with Pool(processes=cpu_count(), initializer=_init_worker, initargs=(converters_json,)) as pool:
         for stock, date, n_lists in pool.imap_unordered(_process_pair, tasks, chunksize=1):
             print(f"{stock} {date}: wrote {n_lists} outputs")
 
