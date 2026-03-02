@@ -19,18 +19,12 @@ from utils import Converters, make_exchange_and_orderstate, row_to_order
 from report_stylized_facts import get_minute_info
 
 
-
-
-
 SEQ_LEN = 1 # 1024
 TOKEN_DIM = 15
 NUM_BINS_PRICE_LEVEL = 32
 NUM_BINS_ORDER_VOLUME = 32
 NUM_BINS_ORDER_INTERVAL = 16
 NUM_BINS_LOB_VOLUME = 32
-
-
-
 
 
 
@@ -54,9 +48,6 @@ def build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols):
     lob_volume = BinConverter.create_from_values(lv, NUM_BINS_LOB_VOLUME)
 
     return Converters(price_level, order_volume, order_volume, order_interval, lob_volume)
-
-
-
 
 
 
@@ -237,9 +228,7 @@ def build_replay_trade_infos(
 
 
 
-
 """
-
 with open("../preprocessing/converters.pkl", "rb") as f:
     converters = pickle.load(f)
 
@@ -281,11 +270,7 @@ for (stock, date), files in pairs.items():
                 Path(f"trade_infos/tradeInfos__replay_{stock}_{date}_{i}.zstd")
             )
 
-
-
-
 """
-
 
 
 CONVERTERS = None
@@ -326,13 +311,6 @@ def _init_worker(converters_json_path: str):
 
 
     CONVERTERS = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
-
-
-
-
-
-
-
 
 
 
