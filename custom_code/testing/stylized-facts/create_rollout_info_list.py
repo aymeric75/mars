@@ -18,8 +18,9 @@ for path in directory.iterdir():
         print(type(path))    # <class 'pathlib.PosixPath'> (or WindowsPath)
 
         #resssssss = pkl_utils.load_pkl_zstd(path)
-
-        rollout_infos.append(get_rollout_info(path))
+        rollow_info = get_rollout_info(path)
+        if rollow_info is not None:
+            rollout_infos.append(rollow_info)
 
     #get_rollout_info(Path("tradeInfos_snapshot_replay.zstd"))
 
