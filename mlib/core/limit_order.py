@@ -114,3 +114,18 @@ class LimitOrder(BaseOrder):
     def get_limit_orders(self, orderbook: "Orderbook") -> list["LimitOrder"]:
         """Convert to limit orders with orderbook information."""
         return [self.clone()]
+
+
+    def with_time(self, new_time: pd.Timestamp) -> "LimitOrder":
+        return LimitOrder(
+            time=new_time,
+            type=self.type,
+            price=self.price,
+            volume=self.volume,
+            symbol=self.symbol,
+            agent_id=self.agent_id,
+            order_id=self.order_id,
+            cancel_type=self.cancel_type,
+            cancel_id=self.cancel_id,
+            tag=self.tag,
+        )

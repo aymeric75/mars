@@ -197,21 +197,37 @@ def get_minute_info(trade_infos: list[TradeInfo], start_lob: LobSnapshot) -> lis
     infos = []
     last_price = start_lob.last_price
 
+
+    # print("start_lob")
+
+    # print(start_lob)
+    # print(start_lob.time)
+    start_lob = start_lob._replace(time=start_lob.time.normalize())
+
+
     counteerrrr  = 0
 
     for trade_info in trade_infos:
         trans_volume = 0
 
-        print("trade info ")
-        print(trade_info)
-        print("counteerrrr ", counteerrrr)
+        # print(type(trade_info.order.time))
+        # print(trade_info.order.time)
+        if isinstance(trade_info.order.time, pd.Timedelta):
+            trade_info.order.time = start_lob.time + trade_info.order.time
 
         if trade_info.transactions: # and trade_info.transactions[0].type != "C"
             last_price = trade_info.transactions[0].price
-            print(last_price)
+            #print(last_price)
             trans_volume = sum([x.volume for x in trade_info.transactions])
-            print(trans_volume)
+            #print(trans_volume)
             #breakpoint()
+
+        if isinstance(trade_info.order.time.round("60s"), pd.Timedelta):
+            print("BIG ISSUE ")
+            exit()
+
+
+        #print(type(trade_info.order.time.round("60s")))
         infos.append(
             {
                 "time": trade_info.order.time.round("60s"),
@@ -275,6 +291,9 @@ def get_rollout_info(path: Path) -> RolloutInfo | None:
     assert rollouts[0] is not None
     replay_trade_infos, _ = rollouts[0]  # real replay
     rollouts = [x for x in rollouts if x is not None]
+
+
+
     if len(rollouts) != 2:
         logging.warning(f"Got {len(rollouts)} rollouts")
         return None
@@ -389,6 +408,8 @@ def plot_return_autocorrelation(rollout_infos: list[RolloutInfo], output_dir: Pa
     """
     max_tau = 10
     data = get_return_info(rollout_infos, delta_ts=[1], taus=list(range(1, max_tau + 1)), price_type=price_type)
+
+
     groups = data.groupby(["source", "lag", "symbol"])
 
     def r_corr(x, col1, col2) -> float:  # noqa: ANN001
@@ -605,16 +626,16 @@ def plot_conditional_heavy_tails(rollout_infos: list[RolloutInfo], output_dir: P
     data = get_return_info(rollout_infos, delta_ts=list(range(1, max_delta_t + 1)), taus=[0])
     data = data[(data["r1"] > -0.5) & (data["r1"] < 0.5)]
     #data["time"] = data["time"].dt.time
-    
-        
-        
+
+
+
     # if it's datetime, convert to minute-of-day index; if timedelta, minute-of-duration index
     if pd.api.types.is_datetime64_any_dtype(data["time"]):
         data["time"] = data["time"].dt.hour * 60 + data["time"].dt.minute
     else:
         data["time"] = (data["time"].dt.total_seconds() // 60).astype(int)
-    
-    
+
+
     data["minute_vol"] = data.groupby(["source", "delta_t", "time"])["r1"].transform(lambda x: (x.std()))
     data["r1"] = data["r1"] / data["minute_vol"]
     groups = data.groupby(["source", "delta_t", "symbol"])
@@ -848,10 +869,11 @@ def generate_stylized_facts(path: Path, output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     logging.info(f"Found {len(rollouts)} rollouts in {path}")
 
+
     # Absence of autocorrelations
     plot_return_autocorrelation(rollouts, output_dir, price_type="last")
     plot_return_autocorrelation(rollouts, output_dir, price_type="mean")
-    
+
     # Heavy tails
     plot_return_kurtosis(rollouts, output_dir, "last")
 
@@ -881,7 +903,7 @@ def generate_stylized_facts(path: Path, output_dir: Path) -> None:
 
     # Dataset distribution characteristics
     plot_data_distribution(rollouts, output_dir)
-    
+
 
 if __name__ == "__main__":
     """Generate stylized facts visualizations from rollout information.

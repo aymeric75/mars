@@ -28,6 +28,10 @@ class BaseOrder(ABC):
         """The time of the order."""
         return self._time
 
+    @time.setter
+    def time(self, new_time: Timestamp) -> None:
+        self._time = new_time
+
     @property
     def symbol(self) -> str:
         """The symbol of the order."""

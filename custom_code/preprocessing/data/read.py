@@ -3,15 +3,12 @@ import matplotlib.pyplot as plt
 
 df = pd.read_parquet("LOBSTER_META_2025-11-03_messages_10.parquet")
 
-# 1500 0000
 print(df)
-print(df.iloc[54629])
-print(df[df["Time"] == 34205066399503])
-print(df[df["Step"] == 75978])
-# print(df["Message_Type"].unique())
-# print((df["Message_Type"] == 12).sum())
-# # 64065
-# print(df[df["Message_Type"] == 12])
+
+df["Time_seconds"] = df["Time"] / 1e9
+
+print(df[(df["Message_Type"] == 4) & (df["Order"] == 376839)])
+
 exit()
 
 # 6.566600e+06
@@ -30,6 +27,9 @@ valid_indices = df.index[df["Mid_Price"].notna()].tolist()
 
 #print(valid_indices)
 print(len(valid_indices)) # 1696627
+
+
+# Est ce qu'on peut regrouper les Orders ?
 
 
 print(df)

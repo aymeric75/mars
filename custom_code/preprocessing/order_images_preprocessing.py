@@ -17,6 +17,7 @@ from utils_preproc import decode_order_index_df, past_index_around_60s_ns, build
 
 print("HELLO")
 
+#
 
 
 # dir with all "*_features.parquet" files
@@ -63,15 +64,15 @@ def process_one_file(f_str: str, input_dir_str: str, output_dir_str: str) -> str
         return f"SKIP (no valid 60s lookback): {f.name}"
 
 
-    
+
     order_images_file_name = f.stem.replace("features", "order_images") + ".zarr.zip"
     final_path = output_dir / order_images_file_name
     tmp_path = final_path.with_suffix(final_path.suffix + ".tmp")
-    
+
     # Skip if already fully completed
     if final_path.exists():
         return f"SKIP (exists): {final_path.name}"
-    
+
     # Clean up leftover tmp from crashed runs
     if tmp_path.exists():
         tmp_path.unlink()
@@ -98,7 +99,7 @@ def process_one_file(f_str: str, input_dir_str: str, output_dir_str: str) -> str
 
         build_image_zarr_chunked_from_lookback(idx_60s_int, decoded, arr, image_shape=(C, H, W))
         store.flush()
-    
+
     # Atomic rename to final name (safe commit)
     tmp_path.rename(final_path)
 

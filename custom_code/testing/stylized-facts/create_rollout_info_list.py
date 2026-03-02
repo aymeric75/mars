@@ -17,11 +17,13 @@ for path in directory.iterdir():
         print(path)          # path is already a Path object
         print(type(path))    # <class 'pathlib.PosixPath'> (or WindowsPath)
 
-        resssssss = pkl_utils.load_pkl_zstd(path)
+        #resssssss = pkl_utils.load_pkl_zstd(path)
 
         rollout_infos.append(get_rollout_info(path))
 
     #get_rollout_info(Path("tradeInfos_snapshot_replay.zstd"))
+
+    #
 
 
 # ---- SHOULD add multiple rolloutinfos to the list
