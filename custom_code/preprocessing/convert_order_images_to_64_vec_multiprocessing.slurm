@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH --job-name=convert_order_images_to_64_vec
-#SBATCH --account=project_2012747
+#SBATCH --account=project_2017808
 #SBATCH --partition=gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=256G
 #SBATCH --gres=gpu:v100:1
 #SBATCH --cpus-per-task=1
-#SBATCH --time=24:00:00
+#SBATCH --time=12:00:00
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err
 
@@ -46,7 +46,11 @@ python -c "import numpy, torch, pandas, pyarrow, pytorch_lightning, omegaconf; p
 # -------------------------
 # List of symbols
 # -------------------------
-SYMBOLS=('AAPL' 'AMD' 'AMZN'  'GOOG_' 'GOOGL'  'NVDA' 'PLTR' 'TSLA')
+SYMBOLS=('AAPL' 'AMD' 'AMZN' 'GOOG' 'GOOGL' 'NVDA' 'PLTR' 'TSLA')
+
+#('AAPL'  'AMD' 'AMZN'  'ASML'  'AVGO'  'COST'  'GOOG_'  'GOOGL'  'INTC'  'META'  'MSFT'  'NFLX'  'NVDA'  'PLTR'  'TSLA')
+
+
 
 # -------------------------
 # Loop over symbols and submit a job for each
@@ -60,14 +64,14 @@ for SYMBOL in "${SYMBOLS[@]}"; do
     # Submit the job
     sbatch --job-name=$JOB_NAME --export=SYMBOL=$SYMBOL <<EOF
 #!/bin/bash
-#SBATCH --account=project_2012747
+#SBATCH --account=project_2017808
 #SBATCH --partition=gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=256G
 #SBATCH --gres=gpu:v100:1
 #SBATCH --cpus-per-task=1
-#SBATCH --time=12:00:00
+#SBATCH --time=20:00:00
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err
 

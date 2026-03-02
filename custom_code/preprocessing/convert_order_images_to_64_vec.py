@@ -28,7 +28,7 @@ print(os.cpu_count())
 # -------------------------
 BASE = Path("/projappl/project_2012747/mars_derrick_branch/third_party")
 CKPT_DIR = Path("/scratch/project_2012747/Mars_Derrick/checkpoints/checkpoint_downsample_100")
-ZIP_DIR = Path("/scratch/project_2012747/mars_data/order_batch_model/train/intermediate/")
+ZIP_DIR = Path("/scratch/project_2012747/mars_data/order_batch_model/train/raw/")
 ZIP_DIR_PROCESSED = Path("/scratch/project_2012747/mars_data/order_batch_model/train/final/")
 OUT_DIR = Path("/scratch/project_2012747/mars_data/order_batch_model/train/final/")
 
@@ -239,22 +239,37 @@ def get_filename(zip_path: Path, file_path_filter= "_order_images"):
 
 def main():
     args = parse_args()
-    symbol_arg = args.symbol
+    symbol = args.symbol
     best_ckpt = find_best_checkpoint(CKPT_DIR)
     model, device = load_model(best_ckpt)
-
+    '''
 
     # Read once (DO NOT overwrite later)
     all_zip_files = list(ZIP_DIR.glob("*.zarr.zip"))
-    all_processed_files = list(ZIP_DIR_PROCESSED.glob("*.zarr.zip"))
 
-    print(f"Total raw files: {len(all_zip_files)}")
-    print(f"Total processed files: {len(all_processed_files)}")
+    # Read all zip files
+    #all_zip_files = list(ZIP_DIR.glob("*.zarr.zip"))
 
+    raw_symbol_files = [
+        p for p in all_zip_files
+        if p.name.startswith(symbol_arg)
+    ]
+
+    print(f"Total raw files: {len(raw_symbol_files)}")
+
+    for zip_file in raw_symbol_files:
+        print(f"Processing: {zip_file}")
+        process_zip_file(zip_file, model, device)
+
+
+
+    '''
+    
     files_to_process = []
 
 
-
+    all_zip_files = list(ZIP_DIR.glob("*.zarr.zip"))
+    all_processed_files = list(ZIP_DIR_PROCESSED.glob("*.zarr.zip"))
 
     # Filter per symbol
     raw_symbol_files = [
@@ -296,6 +311,7 @@ def main():
 
     for zip_file in files_to_process:
         process_zip_file(zip_file, model, device)
+        
 
         
 if __name__ == "__main__":

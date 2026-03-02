@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=order_model_grid
-#SBATCH --account=project_2012747
+#SBATCH --account=project_2017808
 #SBATCH --partition=gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=2

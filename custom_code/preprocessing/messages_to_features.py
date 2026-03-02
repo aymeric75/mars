@@ -575,8 +575,8 @@ def process_one_file(args):
 def main():
 
 
-    data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
-    output_folder = "/scratch/project_2012747/mars_data/order_model/val/final"
+    data_folder = "/scratch/project_2012747/mars_data/order_model/train/"
+    output_folder = "/scratch/project_2012747/mars_data/order_model/train/final"
 
     #data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
     #output_folder = "/scratch/project_2012747/mars_data/order_model/val/final"
@@ -755,12 +755,12 @@ def main():
         p for p in filtered_paths
         if any(keyword in p.name for keyword in some_list)
     ]
-    """
+    
     filtered_paths = [
         p for p in filtered_paths
         if p.name.split("_")[0] not in some_list
     ]
-    
+    """
     
     print("FILTERED PATHS AFTER")
     print(len(filtered_paths))

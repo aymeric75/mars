@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=some_stuff
-#SBATCH --account=project_2012747
-#SBATCH --partition=test
+#SBATCH --job-name=correct_f4
+#SBATCH --account=project_2017808
+#SBATCH --partition=small
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=5
-#SBATCH --mem-per-cpu=8000
-#SBATCH --time=00:05:00
+#SBATCH --mem=128G
+#SBATCH --time=04:00:00
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err
 
@@ -39,6 +39,6 @@ $PYTHON -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.cuda
 $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 
 
-srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u minimalist_market_engine_exec_bis.py"
+srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u correct_f4.py"
 
 

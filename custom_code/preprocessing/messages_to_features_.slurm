@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=messages_to_features
-#SBATCH --account=project_2012747
+#SBATCH --account=project_2017808
 #SBATCH --partition=small
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=128G
-#SBATCH --time=02:00:00
+#SBATCH --time=05:30:00
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err
 

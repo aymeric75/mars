@@ -111,6 +111,7 @@ def main():
     files = sorted(INPUT_DIR.glob("*_features.parquet"))
     files = [f for f in files if should_process(f)]
 
+
     if not files:
         print("No files to process.")
         return
