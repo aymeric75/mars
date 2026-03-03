@@ -30,7 +30,7 @@ def build_context_zarrs(
         if not m:
             continue
 
-        print("OK1")
+
         stock = m.group("stock")
         date = m.group("date")
 
@@ -40,15 +40,13 @@ def build_context_zarrs(
         if not past_path.exists() or not next_path.exists():
             continue
 
-        print("OK2")
+
         past_df = pd.read_parquet(past_path)
         next_df = pd.read_parquet(next_path)
 
         # load image tokens (N, 64)
         tokens = zarr.open(zarr_path, mode="r")
 
-        
-        print("OK3")
 
         # indices
         past_idx = past_df[[k for k in range(16)]].to_numpy(dtype=np.int64)   # (M, 16)
@@ -94,7 +92,7 @@ def build_context_zarrs(
 
 
 build_context_zarrs(
-    "../../data/order_batch_model",
-    "../../data/order_batch_model/results",
-    "../../data/order_batch_model",
+    "/scratch/project_2012747/mars_data/order_batch_model/val/raw",
+    "/scratch/project_2012747/mars_data/order_batch_model/val/intermediate",
+    "/scratch/project_2012747/mars_data/order_batch_model/val/final",
 )

@@ -342,9 +342,9 @@ def _process_pair(args):
 
 
 def main():
-    converters_json = "converters_portable.json"
+    converters_json = "/projappl/project_2012747/mars/MarS/custom_code/preprocessing/converters_portable.json"
     #data_dir = Path("/scratch/project_2012747/mars_data/experiments/stylized_facts")
-    data_dir = Path("some_data")
+    data_dir = Path("/scratch/project_2012747/mars_data/order_model/train/raw")
     out_dir = Path("trade_infos")
 
     pat = re.compile(

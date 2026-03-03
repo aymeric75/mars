@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 import numpy as np
 import pandas as pd
-
+from tqdm.auto import tqdm  # or: from tqdm import tqdm
 ONE_MIN_NS = 60_000_000_000
 
 
@@ -60,9 +60,10 @@ def create_min16_plus1_indices_from_feature_parquets(input_dir: str, output_dir:
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    pat = re.compile(r"features_(?P<stock>[^_]+)_(?P<date>\d{4}-\d{2}-\d{2})_messages_.*\.parquet$")
+    #pat = re.compile(r"features_(?P<stock>[^_]+)_(?P<date>\d{4}-\d{2}-\d{2})_messages_.*\.parquet$")
+    pat = re.compile(r"(?P<stock>[^_]+)_(?P<date>\d{4}-\d{2}-\d{2})_features.*\.parquet$")
 
-    for p in sorted(in_dir.glob("*.parquet")):
+    for p in tqdm(sorted(in_dir.glob("*.parquet")), desc="Processing parquets"):
         m = pat.match(p.name)
         if not m:
             continue
@@ -93,8 +94,8 @@ def create_min16_plus1_indices_from_feature_parquets(input_dir: str, output_dir:
 
 
 
-input_dir = Path("/scratch/project_2012747/mars_data/order_model/train/final") # dir with all "features".parquet files
-output_dir = Path("/scratch/project_2012747/mars_data/order_batch_model/train/intermediate") 
+input_dir = Path("/scratch/project_2012747/mars_data/order_model/val/final") # dir with all "features".parquet files
+output_dir = Path("/scratch/project_2012747/mars_data/order_batch_model/val/intermediate") 
 
 
 

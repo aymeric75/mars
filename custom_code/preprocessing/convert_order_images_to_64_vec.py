@@ -28,9 +28,9 @@ print(os.cpu_count())
 # -------------------------
 BASE = Path("/projappl/project_2012747/mars_derrick_branch/third_party")
 CKPT_DIR = Path("/scratch/project_2012747/Mars_Derrick/checkpoints/checkpoint_downsample_100")
-ZIP_DIR = Path("/scratch/project_2012747/mars_data/order_batch_model/train/raw/")
-ZIP_DIR_PROCESSED = Path("/scratch/project_2012747/mars_data/order_batch_model/train/final/")
-OUT_DIR = Path("/scratch/project_2012747/mars_data/order_batch_model/train/final/")
+ZIP_DIR = Path("/scratch/project_2012747/mars_data/order_batch_model/val/raw/")
+ZIP_DIR_PROCESSED = Path("/scratch/project_2012747/mars_data/order_batch_model/val/final/")
+OUT_DIR = Path("/scratch/project_2012747/mars_data/order_batch_model/val/final/")
 
 sys.path.insert(0, str(BASE / "latent_diffusion"))
 sys.path.insert(0, str(BASE / "taming-transformers"))

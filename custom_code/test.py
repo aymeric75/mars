@@ -1,6 +1,8 @@
 import os
 import pyarrow.parquet as pq
+import pandas as pd
 
+"""
 folder_path = "/scratch/project_2012747/mars_data/order_model/train/final"
 
 log_file = "corrupted_parquet_files.txt"
@@ -17,3 +19,8 @@ with open(log_file, "w") as log:
                     print(f"CORRUPTED: {filepath}")
                     log.write(filepath + "\n")
                     os.remove(filepath)
+
+"""
+
+
+print(pd.read_parquet("/scratch/project_2012747/mars_data/order_model/val/final/AAPL_2025-11-28_features.parquet"))
