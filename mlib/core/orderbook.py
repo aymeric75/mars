@@ -220,6 +220,7 @@ class Orderbook:
         levels.append(Level(order.price, order.volume, [order]))
 
     def _update_with_normal_order(self, order: LimitOrder) -> list[Transaction]:  # noqa: PLR0915
+
         """Update orderbook with normal order."""
 
 

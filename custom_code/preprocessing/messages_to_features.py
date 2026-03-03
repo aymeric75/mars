@@ -200,8 +200,6 @@ def row_to_order(
 
         #price = r.Price
 
-        #si tu vois Type 4, ce qui fonctionne c'est, à partir du SIDE et du prix,
-
         return LimitOrder(
             time=t,
             type=reversed_side,
@@ -585,6 +583,7 @@ def process_one_file(args):
 
             # 57600003755960
             #print(pd.to_timedelta(int(57600003755960), unit=time_unit))
+
 
             out_path, n_written = pass2_write_features(
                 messages_df,

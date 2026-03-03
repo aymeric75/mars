@@ -14,12 +14,6 @@ print(df[(df["Message_Type"] == 4)])
 
 
 
-exit()
-
-# 6.566600e+06
-# 6560000
-
-
 
 df["Mid_Price"] = (
     (df["Ask_Price_1"] + df["Bid_Price_1"]) / 2
