@@ -20,6 +20,9 @@ meta = pd.read_parquet(Path("data/LOBSTER_META_2025-10-01_meta_10.parquet"))
 snapshots = pd.read_parquet(Path("data/LOBSTER_META_2025-10-01_snapshots_10.parquet"))
 
 
+print(messages[messages["Message_Type"] == 4])
+#print(messages.head(11))
+#exit()
 
 #-----------------------------------------
 # Create an "Order State" and an exchange
@@ -36,7 +39,7 @@ from market_simulation.conf import C
 from market_simulation.states.order_state import OrderState
 from market_simulation.utils.bin_converter import BinConverter
 
-from messages_to_features import make_exchange_and_orderstate, make_exchange, row_to_order, build_converters_from_samples
+from messages_to_features import make_exchange_and_orderstate, make_exchange, row_to_order, build_converters_from_samples, pass2_write_features
 
 SEQ_LEN = 1 # 1024
 TOKEN_DIM = 15
@@ -92,7 +95,7 @@ for bin_item in obj["state"]["lob_volume"]["bin_values"]:
 
 converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
 
-
+print("OIOOOO")
 
 symbol = "META"
 ex, order_state, base_time = make_exchange_and_orderstate(symbol, "2025-10-01", converters)
@@ -108,6 +111,21 @@ count_sells = 0
 count_cancels = 0
 count_visible_exec = 0
 total_transactions = 0
+
+
+
+
+pass2_write_features(
+    messages,
+    meta,
+    symbol = "META",
+    time_unit = "ns",
+    conv = converters,
+    out_path="some_folder.parquet"
+)
+
+exit()
+
 
 
 
@@ -130,10 +148,12 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
     if order is None:
         continue
 
-    #print(snap)
-    break
     # if i > 12:
     #     break
+
+
+
+    #if r.Messate_type
 
     try:
         trade_infos = ex.submit_continuous_auction_order(order)
@@ -150,6 +170,17 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
             if trade_info.transactions:
 
                 for trans in trade_info.transactions:
+
+
+                    # if r.Message_Type == 4:
+                    #     print("on y esst")
+                    #     print(r)
+                    #     print("trans.type")
+                    #     print(trans.type)
+                    #     print(trade_info.order.type)
+                    #     exit()
+
+
 
                     # if float(trans.price) > 0:
                     #     print(">>>>>>>> 0")
@@ -180,23 +211,27 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
         print(snap)
 
 
+        # quand c'est type 4, alors trans.type doit correspondre au type donné DANS LE MESSAGE (r.Message_Type)
+
+        #
+
         #print("CONCLUSION: NEAR END SNAPS SHOULD CORRESPOND TO GROUND TRUTH!!")
 
 
-# 64065
-perc_buys = round((count_buys / total_transactions) * 100)
-perc_sells = round((count_sells / total_transactions) * 100)
-perc_cancels = round((count_cancels / total_transactions) * 100)
+# # 64065
+# perc_buys = round((count_buys / total_transactions) * 100)
+# perc_sells = round((count_sells / total_transactions) * 100)
+# perc_cancels = round((count_cancels / total_transactions) * 100)
 
-print("count buys ", count_buys)
-print("count sells ", count_sells)
-print("count cancels ", count_cancels)
-print("count_visible_exec ", count_visible_exec)
-print("count total ", total_transactions)
-print()
-print("perc_buys ", perc_buys)
-print("perc_sells ", perc_sells)
-print("perc_cancels ", perc_cancels)
+# print("count buys ", count_buys)
+# print("count sells ", count_sells)
+# print("count cancels ", count_cancels)
+# print("count_visible_exec ", count_visible_exec)
+# print("count total ", total_transactions)
+# print()
+# print("perc_buys ", perc_buys)
+# print("perc_sells ", perc_sells)
+# print("perc_cancels ", perc_cancels)
 
 #-----------------------------------------------------------------------------------------------------
 # Next, COUNT THE NUMBER OF TRADES, AND ALSO, SEE whatever "trade" is being made, or in a large sense,

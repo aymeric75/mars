@@ -221,6 +221,8 @@ class Orderbook:
 
     def _update_with_normal_order(self, order: LimitOrder) -> list[Transaction]:  # noqa: PLR0915
         """Update orderbook with normal order."""
+
+
         assert order.volume > 0
         assert order.price >= 0
         transactions: list[Transaction] = []
@@ -228,7 +230,7 @@ class Orderbook:
             index = self._find_matched_index(order.price, self.bids)
             assert index >= 0
             assert order.price != 0
-            trans = self.bids[index].update_with_cancel_order(order)
+            trans = self.bids[index].update_with_cancel_or_agressive_order(order)
             transactions.append(trans)
             if self.bids[index].volume == 0:
                 self.bids.pop(index)
@@ -237,12 +239,37 @@ class Orderbook:
             index = self._find_matched_index(order.price, self.asks)
             assert index >= 0
             assert order.price != 0
-            trans = self.asks[index].update_with_cancel_order(order)
+            trans = self.asks[index].update_with_cancel_or_agressive_order(order)
             transactions.append(trans)
             if self.asks[index].volume == 0:
                 self.asks.pop(index)
             return transactions
 
+        #  Buy Limit Agressive Order, we consume the ask side at the price given in the order message
+        if order.is_buy and order.tag == "type_4":
+            index = self._find_matched_index(order.price, self.asks)
+            assert index >= 0
+            assert order.price != 0
+            trans = self.asks[index].update_with_cancel_or_agressive_order(order)
+            transactions.append(trans)
+            if self.asks[index].volume == 0:
+                self.asks.pop(index)
+            return transactions
+
+
+        #  Sell Limit Agressive Order, we consume the bid side at the price given in the order message
+        if order.is_sell and order.tag == "type_4":
+            index = self._find_matched_index(order.price, self.bids)
+            assert index >= 0
+            assert order.price != 0
+            trans = self.bids[index].update_with_cancel_or_agressive_order(order)
+            transactions.append(trans)
+            if self.bids[index].volume == 0:
+                self.bids.pop(index)
+            return transactions
+
+
+        #
         if order.is_buy:
 
             levels = self.asks
@@ -251,8 +278,6 @@ class Orderbook:
             for index_level, level in enumerate(levels):
 
                 if level.price <= order.price:
-
-
                     if level.volume > 0:
                         (
                             order,
@@ -283,6 +308,7 @@ class Orderbook:
                 self._add_to_level(order, self.bids, ascending=False)
         else:
             assert order.is_sell
+
             levels = self.bids
             empty_levels = []
             for index_level, level in enumerate(levels):

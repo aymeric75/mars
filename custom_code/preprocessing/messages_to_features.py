@@ -17,7 +17,7 @@ from mlib.core.exchange import Exchange
 from mlib.core.exchange_config import create_exchange_config_without_call_auction
 from mlib.core.limit_order import LimitOrder
 from market_simulation.conf import C
-from market_simulation.states.order_state import OrderState
+from market_simulation.states.order_state import OrderState, PredOrderInfo
 from market_simulation.utils.bin_converter import BinConverter
 
 
@@ -131,7 +131,8 @@ def row_to_order(
     # Your convention: -1 = Bid, +1 = Ask
     direction = int(r.Direction) if not pd.isna(r.Direction) else 0
     side = "B" if direction == -1 else "S"
-    inversed_side = "S" if direction == -1 else "B"
+    reversed_side =  "S" if direction == -1 else "B"
+
 
     order_id = int(r.Order) if not pd.isna(r.Order) else -1
     price = int(r.Price) if not pd.isna(r.Price) else 0
@@ -199,34 +200,25 @@ def row_to_order(
 
         #price = r.Price
 
+        #si tu vois Type 4, ce qui fonctionne c'est, à partir du SIDE et du prix,
+
         return LimitOrder(
             time=t,
-            type=inversed_side,
+            type=reversed_side,
             price=price,
             volume=size,
             symbol=symbol,
             agent_id=-1,
-            order_id=order_id,
-            cancel_type="",
-            cancel_id=-1,
-            tag="replay_exec",
+            order_id=-1,
+            cancel_type=side,
+            cancel_id=order_id,
+            tag="type_4",
         )
 
 
 
-    """
-            time=t,
-            type=side,          # "B" or "S"
-            price=price,
-            volume=size,
-            symbol=symbol,
-            agent_id=-1,
-            order_id=order_id,
-            cancel_type="",
-            cancel_id=-1,
-            tag="replay",
 
-    """
+
 
 
     # # Visible execution / cross trade: reduce resting visible order volume
@@ -476,6 +468,25 @@ def pass2_write_features(
         # boolean IN_BETWEN
 
         feat = order_state.recent_orders[-1].to_vector()
+
+        print(feat)
+
+        # SEQ_LEN = 1 # 1024
+        # TOKEN_DIM = 15
+        # NUM_BINS_PRICE_LEVEL = 32
+        # NUM_BINS_ORDER_VOLUME = 32
+        # NUM_BINS_ORDER_INTERVAL = 16
+        # NUM_BINS_LOB_VOLUME = 32
+
+
+        if r.Message_Type == 4:
+            print(r)
+            print("on y est")
+            order_type = feat[0] // (NUM_BINS_PRICE_LEVEL * NUM_BINS_ORDER_VOLUME * NUM_BINS_ORDER_INTERVAL)
+            print(PredOrderInfo.get_type_from_index(order_type))
+
+            exit()
+
         feat = np.asarray(feat, dtype=np.int32).reshape(-1)
 
 

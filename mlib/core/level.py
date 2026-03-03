@@ -27,17 +27,21 @@ class Level:
         """Check if the level has the order id."""
         return id in self._orders
 
-    def update_with_cancel_order(self, cancel_order: LimitOrder) -> Transaction:
+    def update_with_cancel_or_agressive_order(self, cancel_order: LimitOrder) -> Transaction:
         """Update the level with a cancel order."""
-        assert cancel_order.is_cancel
+        assert cancel_order.is_cancel or cancel_order.tag == "type_4"
         self._volume -= cancel_order.volume
         index = cancel_order.cancel_id
         assert index in self._orders
         self._orders[index].decrease_volume(cancel_order.volume)
+
+        type_ = "C"
+        if cancel_order.tag == "type_4":
+            type_ = cancel_order.type
         trans_info = Transaction(
             symbol=cancel_order.symbol,
             time=cancel_order.time,
-            type="C",
+            type=type_,
             price=cancel_order.price,
             volume=cancel_order.volume,
             buy_id=[self._orders[index].order_id] if self._orders[index].is_buy else [],
