@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 
 class BaseOrder(ABC):
     """The base class for order.
-
     A base order should implement `get_limit_orders` that convert the base order to limit orders with orderbook information.
     """
 
