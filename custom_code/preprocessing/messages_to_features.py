@@ -131,6 +131,7 @@ def row_to_order(
     # Your convention: -1 = Bid, +1 = Ask
     direction = int(r.Direction) if not pd.isna(r.Direction) else 0
     side = "B" if direction == -1 else "S"
+    inversed_side = "S" if direction == -1 else "B"
 
     order_id = int(r.Order) if not pd.isna(r.Order) else -1
     price = int(r.Price) if not pd.isna(r.Price) else 0
@@ -182,31 +183,6 @@ def row_to_order(
         )
 
 
-    # # Visible execution / cross trade: reduce resting visible order volume
-    # if msg in (4,):
-    #     # We treat it as a cancel-on-id of 'size' shares.
-    #     # If price missing/0, infer from current orderbook.
-    #     if (price is None or price == 0) and ex is not None and order_id >= 0:
-    #         try:
-    #             price = ex.get_lob(symbol).get_price_of_order_id(order_id)
-    #         except Exception:
-    #             # If the order is already gone (fully executed earlier), skip quietly.
-    #             return None
-
-    #     return LimitOrder(
-    #         time=t,
-    #         type=side,
-    #         price=price,
-    #         volume=size,
-    #         symbol=symbol,
-    #         agent_id=-1,
-    #         order_id=order_id,
-    #         cancel_type=side,
-    #         cancel_id=order_id,
-    #         tag="replay_exec_",
-    #     )
-
-
 
 
     # Visible execution / cross trade: reduce resting visible order volume
@@ -221,18 +197,62 @@ def row_to_order(
                 # If the order is already gone (fully executed earlier), skip quietly.
                 return None
 
+        #price = r.Price
+
         return LimitOrder(
             time=t,
-            type="C",
+            type=inversed_side,
             price=price,
             volume=size,
             symbol=symbol,
             agent_id=-1,
-            order_id=-1,
-            cancel_type=side,
-            cancel_id=order_id,
+            order_id=order_id,
+            cancel_type="",
+            cancel_id=-1,
             tag="replay_exec",
         )
+
+
+
+    """
+            time=t,
+            type=side,          # "B" or "S"
+            price=price,
+            volume=size,
+            symbol=symbol,
+            agent_id=-1,
+            order_id=order_id,
+            cancel_type="",
+            cancel_id=-1,
+            tag="replay",
+
+    """
+
+
+    # # Visible execution / cross trade: reduce resting visible order volume
+    # if msg in (4,):
+
+    #     # We treat it as a cancel-on-id of 'size' shares.
+    #     # If price missing/0, infer from current orderbook.
+    #     if (price is None or price == 0) and ex is not None and order_id >= 0:
+    #         try:
+    #             price = ex.get_lob(symbol).get_price_of_order_id(order_id)
+    #         except Exception:
+    #             # If the order is already gone (fully executed earlier), skip quietly.
+    #             return None
+
+    #     return LimitOrder(
+    #         time=t,
+    #         type="C",
+    #         price=price,
+    #         volume=size,
+    #         symbol=symbol,
+    #         agent_id=-1,
+    #         order_id=-1,
+    #         cancel_type=side,
+    #         cancel_id=order_id,
+    #         tag="replay_exec",
+    #     )
 
 
 
@@ -657,8 +677,8 @@ def main():
         pickle.dump(converters, f)
 
 
-    
-    
+
+
     # load converters
     with open("converter.pkl", "rb") as f:
         conv
@@ -668,37 +688,39 @@ def main():
 
     # breakpoint()
     """
+
+
     import json
-       
-           
-           
+
+
+
     with open("converters_portable.json", "r", encoding="utf-8") as f:
         obj = json.load(f)
-    
+
     #price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
-        
+
     price_minus_mid = []
     for bin_item in obj["state"]["price_level"]["bin_values"]:
         price_minus_mid.extend(bin_item["data"])
-    
+
     #sizes = blob["state"]["order_volume"]["bin_values"]["data"]
     sizes = []
     for bin_item in obj["state"]["order_volume"]["bin_values"]:
         sizes.extend(bin_item["data"])
-    
+
     #intervals = blob["state"]["order_interval"]["bin_values"]["data"]
     intervals = []
     for bin_item in obj["state"]["order_interval"]["bin_values"]:
         intervals.extend(bin_item["data"])
-    
-    
-    
+
+
+
     #lob_vols = blob["state"]["lob_volume"]["bin_values"]["data"]
     lob_vols = []
     for bin_item in obj["state"]["lob_volume"]["bin_values"]:
-        lob_vols.extend(bin_item["data"])    
-    
-    
+        lob_vols.extend(bin_item["data"])
+
+
     converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
     #converters = Converters(**{k: bc_from_dict(v) for k, v in blob.items()})
 
@@ -714,7 +736,7 @@ def main():
     print("converters.lob_volume.bins")
     print(converters.lob_volume.bins)
 
-    
+
     # III. CREATING FEATURES FILES
 
     # Get all message files
@@ -735,7 +757,7 @@ def main():
         f.replace("_features.parquet", "_messages.parquet")
         for f in feature_files
     }
-    
+
     print("feature_as_messages")
     print(feature_as_messages)
 
@@ -755,13 +777,13 @@ def main():
         p for p in filtered_paths
         if any(keyword in p.name for keyword in some_list)
     ]
-    
+
     filtered_paths = [
         p for p in filtered_paths
         if p.name.split("_")[0] not in some_list
     ]
     """
-    
+
     print("FILTERED PATHS AFTER")
     print(len(filtered_paths))
     print(filtered_paths[:5])

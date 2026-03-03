@@ -234,9 +234,6 @@ class Orderbook:
                 self.bids.pop(index)
             return transactions
         if order.is_cancel_sell:
-            # print(f"order.price is {order.price}")
-            # print(f"order.volume is {order.volume}")
-            # print(f"self.asks is {self.asks}")
             index = self._find_matched_index(order.price, self.asks)
             assert index >= 0
             assert order.price != 0
@@ -246,26 +243,14 @@ class Orderbook:
                 self.asks.pop(index)
             return transactions
 
-
-
         if order.is_buy:
 
             levels = self.asks
             empty_levels: list[int] = []
-            # if levels:
-            #     print(levels)
-            #     print("hello")
-            #     print(order.price)
-            #     breakpoint()
 
             for index_level, level in enumerate(levels):
 
                 if level.price <= order.price:
-
-                    #  NO AGRESIVE ORDERS,
-                    # an order get executed only when   there is basically a CROSSING between asks and bids   #
-
-                    #### Limit orders are added to  the   order book
 
 
                     if level.volume > 0:
@@ -302,6 +287,7 @@ class Orderbook:
             empty_levels = []
             for index_level, level in enumerate(levels):
                 if level.price >= order.price:
+
                     if level.volume > 0:
                         (
                             order,

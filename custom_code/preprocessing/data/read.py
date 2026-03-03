@@ -1,13 +1,18 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_parquet("LOBSTER_META_2025-11-03_messages_10.parquet")
+df = pd.read_parquet("LOBSTER_META_2025-10-01_messages_10.parquet")
 
 print(df)
 
-df["Time_seconds"] = df["Time"] / 1e9
+# df["Time_seconds"] = df["Time"] / 1e9
 
-print(df[(df["Message_Type"] == 4) & (df["Order"] == 376839)])
+# print(df[(df["Message_Type"] == 4) & (df["Order"] == 376839)])
+
+print(df[(df["Message_Type"] == 4)])
+
+
+
 
 exit()
 

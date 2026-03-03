@@ -36,7 +36,7 @@ from market_simulation.conf import C
 from market_simulation.states.order_state import OrderState
 from market_simulation.utils.bin_converter import BinConverter
 
-from messages_to_features import make_exchange_and_orderstate, make_exchange, row_to_order
+from messages_to_features import make_exchange_and_orderstate, make_exchange, row_to_order, build_converters_from_samples
 
 SEQ_LEN = 1 # 1024
 TOKEN_DIM = 15
@@ -54,8 +54,44 @@ class Converters:
     order_interval: BinConverter
     lob_volume: BinConverter
 
-with open("converters.pkl", "rb") as f:
-    converters = pickle.load(f)
+# with open("converters.pkl", "rb") as f:
+#     converters = pickle.load(f)
+
+
+
+import json
+
+
+
+with open("converters_portable.json", "r", encoding="utf-8") as f:
+    obj = json.load(f)
+
+#price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
+
+price_minus_mid = []
+for bin_item in obj["state"]["price_level"]["bin_values"]:
+    price_minus_mid.extend(bin_item["data"])
+
+#sizes = blob["state"]["order_volume"]["bin_values"]["data"]
+sizes = []
+for bin_item in obj["state"]["order_volume"]["bin_values"]:
+    sizes.extend(bin_item["data"])
+
+#intervals = blob["state"]["order_interval"]["bin_values"]["data"]
+intervals = []
+for bin_item in obj["state"]["order_interval"]["bin_values"]:
+    intervals.extend(bin_item["data"])
+
+
+
+#lob_vols = blob["state"]["lob_volume"]["bin_values"]["data"]
+lob_vols = []
+for bin_item in obj["state"]["lob_volume"]["bin_values"]:
+    lob_vols.extend(bin_item["data"])
+
+
+converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
+
 
 
 symbol = "META"
@@ -94,6 +130,11 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
     if order is None:
         continue
 
+    #print(snap)
+    break
+    # if i > 12:
+    #     break
+
     try:
         trade_infos = ex.submit_continuous_auction_order(order)
     except AssertionError:
@@ -122,15 +163,15 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
                         count_sells+=1
                     if trans.type == "C":
                         count_cancels+=1
-                        if order.tag == "replay_exec":
-                            # print("IN REPLAYX ")
-                            # print(trans.price)
-                            # breakpoint()
-                            count_visible_exec+=1
-                        else:
-                            print("NOT IN REPLAY")
-                            print(trans.price)
-                            breakpoint()
+                        # if order.tag == "replay_exec":
+                        #     # print("IN REPLAYX ")
+                        #     # print(trans.price)
+                        #     # breakpoint()
+                        #     count_visible_exec+=1
+                        # else:
+                        #     print("NOT IN REPLAY")
+                        #     print(trans.price)
+                        #     #breakpoint()
                     total_transactions += 1
 
                     #break
