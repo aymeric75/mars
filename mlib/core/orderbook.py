@@ -204,6 +204,7 @@ class Orderbook:
                 break
         return index
 
+
     def _clear_levels(self, level_indexes: list[int], levels: list[Level]) -> None:
         for index in reversed(level_indexes):
             levels.pop(index)

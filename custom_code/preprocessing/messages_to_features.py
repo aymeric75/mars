@@ -469,29 +469,18 @@ def pass2_write_features(
 
         print(feat)
 
-        # SEQ_LEN = 1 # 1024
-        # TOKEN_DIM = 15
-        # NUM_BINS_PRICE_LEVEL = 32
-        # NUM_BINS_ORDER_VOLUME = 32
-        # NUM_BINS_ORDER_INTERVAL = 16
-        # NUM_BINS_LOB_VOLUME = 32
 
+        # if r.Message_Type == 4:
+        #     print(r)
+        #     print("on")
+        #     order_type = feat[0] // (NUM_BINS_PRICE_LEVEL * NUM_BINS_ORDER_VOLUME * NUM_BINS_ORDER_INTERVAL)
+        #     print(PredOrderInfo.get_type_from_index(order_type))
 
-        if r.Message_Type == 4:
-            print(r)
-            print("on y est")
-            order_type = feat[0] // (NUM_BINS_PRICE_LEVEL * NUM_BINS_ORDER_VOLUME * NUM_BINS_ORDER_INTERVAL)
-            print(PredOrderInfo.get_type_from_index(order_type))
-
-            exit()
+        #     exit()
 
         feat = np.asarray(feat, dtype=np.int32).reshape(-1)
 
 
-        # dans index tu as déjà:   order_type, price_slot, volume_slot, interval_slot (IN SECONDS !!!!!!)
-        #  le prix, on le prend tel qu'il est (eg 7268100)
-        # le volume aussi,
-        #
 
 
 
