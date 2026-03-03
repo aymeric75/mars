@@ -3,7 +3,7 @@ import numpy as np
 from datasets import load_dataset
 
 # /scratch/project_2012747/mars_data/order_model/val/final
-parquet_dir = "/scratch/project_2012747/mars_data/order_model/val/final"
+parquet_dir = "/scratch/project_2012747/mars_data/order_model/train/final"
 files = sorted(glob.glob(f"{parquet_dir}/*_features.parquet"))
 
 def add_f4(batch):

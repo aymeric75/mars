@@ -12,6 +12,7 @@ from pathlib import Path
 from tqdm import tqdm
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
+from datetime import datetime
 
 from mlib.core.exchange import Exchange
 from mlib.core.exchange_config import create_exchange_config_without_call_auction
@@ -467,7 +468,6 @@ def pass2_write_features(
 
         feat = order_state.recent_orders[-1].to_vector()
 
-        print(feat)
 
 
         # if r.Message_Type == 4:
@@ -594,8 +594,16 @@ def process_one_file(args):
 def main():
 
 
-    data_folder = "/scratch/project_2012747/mars_data/order_model/train/"
-    output_folder = "/scratch/project_2012747/mars_data/order_model/train/final"
+    data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
+    output_folder = "/scratch/project_2012747/mars_data/order_model/train/val"
+
+    # train dates
+    #start = datetime.strptime("2025-11-03", "%Y-%m-%d").date()
+    #end   = datetime.strptime("2025-11-06", "%Y-%m-%d").date()
+    
+    # val dates
+    start = datetime.strptime("2025-11-27", "%Y-%m-%d").date()
+    end   = datetime.strptime("2025-11-29", "%Y-%m-%d").date()
 
     #data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
     #output_folder = "/scratch/project_2012747/mars_data/order_model/val/final"
@@ -748,8 +756,6 @@ def main():
             .glob("*_features.parquet")
     )
 
-    print("feature_files 1")
-    print(feature_files)
 
     # Convert feature filenames to the corresponding "messages" filenames
     feature_as_messages = {
@@ -757,10 +763,8 @@ def main():
         for f in feature_files
     }
 
-    print("feature_as_messages")
-    print(feature_as_messages)
 
-    some_list = ["AAPL", "AMD", "AMZN", "ASML", "AVGO", "COST", "GOOG", "GOOGL"]
+    some_list = ["AMD", "AMZN"]
 
 
     # Filter paths
@@ -768,24 +772,29 @@ def main():
         p for p in message_files
         if p.name not in feature_as_messages
     ]
-    print("FILTERED PATHS BEFORE")
-    print(len(filtered_paths))
-    print(filtered_paths[:5])
-    """
+
+        
+
+    
+    filtered_paths = [
+        f for f in filtered_paths
+        if start <= datetime.strptime(f.stem.split('_')[1], "%Y-%m-%d").date() <= end
+    ]
+    
+    
+    
     filtered_paths = [
         p for p in filtered_paths
         if any(keyword in p.name for keyword in some_list)
     ]
+    
 
+    """
     filtered_paths = [
         p for p in filtered_paths
         if p.name.split("_")[0] not in some_list
     ]
     """
-
-    print("FILTERED PATHS AFTER")
-    print(len(filtered_paths))
-    print(filtered_paths[:5])
 
     message_files = filtered_paths
 

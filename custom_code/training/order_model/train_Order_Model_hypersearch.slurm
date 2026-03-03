@@ -35,7 +35,7 @@ $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 
 # ---- Hyperparameter grid (edit freely) ----
 LRS=(1e-4 3e-4 1e-3)
-BSS=(4 8)
+BSS=(8 16)
 
 for LR in "${LRS[@]}"; do
   for BS in "${BSS[@]}"; do
@@ -61,7 +61,7 @@ for LR in "${LRS[@]}"; do
       --K 1024 \
       --batch_size ${BS} \
       --lr ${LR} \
-      --max_steps 3000 \
+      --max_steps 4000 \
       --num_workers 2 \
       --precision bf16-mixed \
       --run_root ${TB_ROOT} \

@@ -21,8 +21,8 @@ print("HELLO")
 
 
 # dir with all "*_features.parquet" files
-INPUT_DIR = Path("/scratch/project_2012747/mars_data/order_model/val/final")
-OUTPUT_DIR = Path("/scratch/project_2012747/mars_data/order_batch_model/val/raw")
+INPUT_DIR = Path("/scratch/project_2012747/mars_data/order_model/train/final")
+OUTPUT_DIR = Path("/scratch/project_2012747/mars_data/order_batch_model/train/raw")
 
 
 

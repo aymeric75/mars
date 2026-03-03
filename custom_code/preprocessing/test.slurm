@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=create_past_mins_next_mins_64tokens
+#SBATCH --job-name=correct_f4
 #SBATCH --account=project_2017808
 #SBATCH --partition=small
 #SBATCH --nodes=1
@@ -39,6 +39,6 @@ $PYTHON -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.cuda
 $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 
 
-srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u create_past_mins_next_mins_64tokens.py"
+srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u correct_f4.py"
 
 

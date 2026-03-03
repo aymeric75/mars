@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=order_images_preprocessing
-#SBATCH --account=project_2012747
+#SBATCH --account=project_2017808
 #SBATCH --partition=small
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
