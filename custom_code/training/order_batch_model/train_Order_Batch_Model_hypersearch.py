@@ -2,16 +2,16 @@
 import argparse
 import glob
 import os
-
-import lightning.pytorch as pl
 import torch
+import lightning.pytorch as pl
+
+from pathlib import Path
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader, Subset
 
 from market_simulation.models.order_batch_model import OrderBatchModel
-from market_simulation.models.utils_order_batch_model import MultiDirZarrTokenDataset, lm_loss_next_token
-from market_simulation.models.utils_order_model import unzip_zarr_zips
+from market_simulation.models.utils_order_batch_model import TokenDataset, lm_loss_next_token
 
 
 
@@ -37,22 +37,12 @@ class OrderBatchDataModule(pl.LightningDataModule):
         self._train = None
         self._val = None
 
-    def prepare_data(self):
-        # unzip in BOTH folders (safe if already extracted)
-        unzip_zarr_zips(self.train_dir, self.pattern)
-        unzip_zarr_zips(self.val_dir, self.pattern)
-
     def setup(self, stage: str | None = None):
         # use extracted dirs only: *.zarr.zip -> *.zarr
-        train_zarr_dirs = [p[:-4] for p in glob.glob(os.path.join(self.train_dir, self.pattern))]
-        train_zarr_dirs = [d for d in train_zarr_dirs if os.path.isdir(d)]
-
-        val_zarr_dirs = [p[:-4] for p in glob.glob(os.path.join(self.val_dir, self.pattern))]
-        val_zarr_dirs = [d for d in val_zarr_dirs if os.path.isdir(d)]
-
-        self._train = MultiDirZarrTokenDataset(zarr_dirs=train_zarr_dirs, array_path=self.array_path)
-        self._val = MultiDirZarrTokenDataset(zarr_dirs=val_zarr_dirs, array_path=self.array_path)
-
+        self._train = TokenDataset(sorted(Path(self.train_dir).glob("*.npy")))
+        self._val = TokenDataset(sorted(Path(self.val_dir).glob("*.npy")))
+        
+        
     def train_dataloader(self):
         return DataLoader(
             self._train,
@@ -139,7 +129,7 @@ def main():
     
     p.add_argument("--train_dir", default="/scratch/project_2012747/mars_data/order_batch_model/train/final")
     p.add_argument("--val_dir", type=str, default="/scratch/project_2012747/mars_data/order_batch_model/val/final", required=True)
-    p.add_argument("--pattern", default="*.zarr.zip")
+    p.add_argument("--pattern", default="*.npy")
     p.add_argument("--array_path", default="")
     p.add_argument("--batch_size", type=int, default=16)
 

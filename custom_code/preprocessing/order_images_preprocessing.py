@@ -65,7 +65,7 @@ def process_one_file(f_str: str, input_dir_str: str, output_dir_str: str) -> str
 
 
 
-    order_images_file_name = f.stem.replace("features", "order_images") + ".zarr.zip"
+    order_images_file_name = f.stem.replace("features", "order-images") + ".zarr.zip"
     final_path = output_dir / order_images_file_name
     tmp_path = final_path.with_suffix(final_path.suffix + ".tmp")
 

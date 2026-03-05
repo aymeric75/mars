@@ -33,9 +33,21 @@ $PYTHON -c "import sys; print('python:', sys.executable)"
 $PYTHON -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.cuda.is_available())"
 $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 
+
+echo "SLURM_JOB_ID=${SLURM_JOB_ID-}"
+echo "SLURM_NTASKS=${SLURM_NTASKS-}"
+echo "SLURM_NTASKS_PER_NODE=${SLURM_NTASKS_PER_NODE-}"
+echo "SLURM_GPUS=${SLURM_GPUS-}"
+echo "SLURM_JOB_GPUS=${SLURM_JOB_GPUS-}"
+echo "SLURM_STEP_GPUS=${SLURM_STEP_GPUS-}"
+echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES-}"
+
+
+
+
 # ---- Hyperparameter grid (edit freely) ----
 LRS=(1e-4 3e-4 1e-3)
-BSS=(8 16)
+BSS=(32)  #(8 16)
 
 for LR in "${LRS[@]}"; do
   for BS in "${BSS[@]}"; do

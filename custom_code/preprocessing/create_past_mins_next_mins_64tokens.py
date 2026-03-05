@@ -23,9 +23,10 @@ def build_context_zarrs(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # images_tokens_AMZN-2025-12-11.zarr
-    pat = re.compile(r"images-tokens_(?P<stock>[^-]+)-(?P<date>\d{4}-\d{2}-\d{2})\.zarr")
+    pat = re.compile(r"(?P<stock>[^_]+)_(?P<date>\d{4}-\d{2}-\d{2})_64vectors\.zarr\.zip$")
 
-    for zarr_path in zarr_dir.glob("*.zarr"):
+
+    for zarr_path in zarr_dir.glob("*.zarr.zip"):
         m = pat.match(zarr_path.name)
         if not m:
             continue
@@ -92,7 +93,7 @@ def build_context_zarrs(
 
 
 build_context_zarrs(
-    "/scratch/project_2012747/mars_data/order_batch_model/val/raw",
-    "/scratch/project_2012747/mars_data/order_batch_model/val/intermediate",
-    "/scratch/project_2012747/mars_data/order_batch_model/val/final",
+    "/scratch/project_2012747/mars_data/order_batch_model/train/final",
+    "/scratch/project_2012747/mars_data/order_batch_model/train/intermediate",
+    "/scratch/project_2012747/mars_data/order_batch_model/train/final",
 )

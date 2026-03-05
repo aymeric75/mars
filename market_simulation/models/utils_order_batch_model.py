@@ -6,18 +6,40 @@ from typing import Sequence
 
 import torch
 import zarr
+import numpy as np
+
 from numcodecs import blosc  # noqa: F401
 from torch.utils.data import Dataset
 from zarr.storage import DirectoryStore
 
 
+
+
+class TokenDataset(Dataset):
+    def __init__(self, files):
+        self.arrays = [np.load(f, mmap_mode="r") for f in files]
+        self.idx = np.cumsum([0] + [a.shape[0] for a in self.arrays])
+
+    def __len__(self):
+        return self.idx[-1]
+
+    def __getitem__(self, i):
+        j = np.searchsorted(self.idx, i, side="right") - 1
+        k = i - self.idx[j]
+        x = self.arrays[j][k]          # (16,64)
+        return torch.tensor(x.reshape(-1), dtype=torch.long)  # 1024 tokens
+
+
+"""
 class MultiDirZarrTokenDataset(Dataset):
-    """
+    
+    '''
     Many extracted Zarr dirs, each contains an array (N, 16, 64).
     Returns one sample flattened to (1024,) as torch.long.
-    """
-
+    '''
+    
     def __init__(self, zarr_dirs: Sequence[str], array_path: str = "arr_0"):
+        
         self.paths = list(zarr_dirs)
         self.array_path = str(array_path)
 
@@ -36,7 +58,7 @@ class MultiDirZarrTokenDataset(Dataset):
         return self.cum[-1] if self.cum else 0
 
     @staticmethod
-    @lru_cache(maxsize=32)
+    @lru_cache(maxsize=2)
     def _open_array(dir_path: str, array_path: str):
         return zarr.open(DirectoryStore(dir_path), path=array_path, mode="r")
 
@@ -48,6 +70,7 @@ class MultiDirZarrTokenDataset(Dataset):
         A = self._open_array(self.paths[fi], self.array_path)
         x = A[j].reshape(-1)  # (16,64) -> (1024,)
         return torch.from_numpy(x).long()
+"""
 
 
 def lm_loss_next_token(logits: torch.Tensor, input_ids: torch.Tensor) -> torch.Tensor:

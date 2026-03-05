@@ -14,8 +14,8 @@ sys.path.append(str(base))
 
 from custom_code.training.train_Order_Model_lightning import OrderLightningModule
 
-CKPT_PATH = "../training/checkpoints_order_model/step=step=1920-val=val_loss=2.7747.ckpt"
-PARQ_DIR  = "../../data/ensemble_model/train/features"
+CKPT_PATH = "step=step=3360-val=val_loss=3.7445.ckpt"
+PARQ_DIR  = "/scratch/project_2012747/mars_data/order_model/train/final"
 OUT_DIR   = "/scratch/project_2012747/mars_data/output_order_model_for_ensemble_topk"
 
 SEQ_LEN = 1024

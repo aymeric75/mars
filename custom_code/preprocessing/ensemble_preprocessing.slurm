@@ -1,18 +1,17 @@
 #!/bin/bash
-#SBATCH --job-name=create_past_mins_next_mins_64tokens
+#SBATCH --job-name=convert_order_images_to_64_vec
 #SBATCH --account=project_2017808
-#SBATCH --partition=test
+#SBATCH --partition=gputest
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=5
-#SBATCH --mem=128G
+#SBATCH --mem=32G
+#SBATCH --gres=gpu:v100:1
+#SBATCH --cpus-per-task=1
 #SBATCH --time=00:15:00
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err
 
 set -euo pipefail
-
-
 
 
 module purge
@@ -39,6 +38,6 @@ $PYTHON -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.cuda
 $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 
 
-srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u create_past_mins_next_mins_64tokens.py"
 
-
+# Run your Python script
+srun $PYTHON /projappl/project_2012747/mars/MarS/custom_code/preprocessing/ensemble_preprocessing.py

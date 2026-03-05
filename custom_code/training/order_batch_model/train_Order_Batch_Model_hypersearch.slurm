@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=order_batch_grid
 #SBATCH --account=project_2017808
-#SBATCH --partition=gpu
+#SBATCH --partition=gputest
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=2
+#SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
-#SBATCH --time=04:00:00
-#SBATCH --gres=gpu:v100:2
+#SBATCH --time=00:15:00
+#SBATCH --gres=gpu:v100:1
 #SBATCH --mem=256G
 #SBATCH --output=logs_batch_model/%x_%j.out
 #SBATCH --error=logs_batch_model/%x_%j.err
@@ -34,7 +34,7 @@ $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 
 # ---- Hyperparameter grid (ONLY LR and BS) ----
 LRS=(1e-4 3e-4 1e-3)
-BSS=(16 32)
+BSS=(2)
 
 for LR in "${LRS[@]}"; do
   for BS in "${BSS[@]}"; do
@@ -52,9 +52,9 @@ for LR in "${LRS[@]}"; do
     mkdir -p "$TORCH_HOME" "$HF_HOME" "$XDG_CACHE_HOME" "$TMPDIR"
 
     srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u train_Order_Batch_Model_hypersearch.py \
-      --train_dir /scratch/project_2012747/mars_data/order_batch_model \
-      --val_dir   /scratch/project_2012747/mars_data/order_batch_model \
-      --pattern \"*.zarr.zip\" \
+      --train_dir /scratch/project_2012747/mars_data/order_batch_model/train/final \
+      --val_dir   /scratch/project_2012747/mars_data/order_batch_model/val/final \
+      --pattern \"past16_tokens*.npy\" \
       --batch_size ${BS} \
       --lr ${LR} \
       --max_steps 3000 \

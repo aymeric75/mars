@@ -93,9 +93,9 @@ def create_min16_plus1_indices_from_feature_parquets(input_dir: str, output_dir:
 
 
 
-
-input_dir = Path("/scratch/project_2012747/mars_data/order_model/val/final") # dir with all "features".parquet files
-output_dir = Path("/scratch/project_2012747/mars_data/order_batch_model/val/intermediate") 
+    
+input_dir = Path("/scratch/project_2012747/mars_data/order_model/train/final") # dir with all "features".parquet files
+output_dir = Path("/scratch/project_2012747/mars_data/order_batch_model/train/intermediate") 
 
 
 

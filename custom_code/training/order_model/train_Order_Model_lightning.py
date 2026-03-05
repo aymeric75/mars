@@ -3,6 +3,8 @@ import os
 import glob
 import lightning.pytorch as pl
 import torch
+import time
+from lightning.pytorch.callbacks import Callback
 
 from torch.utils.data import DataLoader, Subset
 from lightning.pytorch.loggers import TensorBoardLogger
@@ -111,6 +113,47 @@ class OrderLightningModule(pl.LightningModule):
         return torch.optim.AdamW(self.parameters(), lr=self.lr)
 
 
+
+
+
+
+
+
+class GPUUsageProbe(Callback):
+    def on_fit_start(self, trainer, pl_module):
+        if torch.cuda.is_available():
+            local_rank = os.environ.get("LOCAL_RANK", "NA")
+            global_rank = trainer.global_rank
+            world_size = trainer.world_size
+            cur = torch.cuda.current_device()
+            name = torch.cuda.get_device_name(cur)
+            print(
+                f"[FIT_START] global_rank={global_rank} local_rank={local_rank} "
+                f"world_size={world_size} cuda_current_device={cur} name={name} "
+                f"CUDA_VISIBLE_DEVICES={os.environ.get('CUDA_VISIBLE_DEVICES', 'NA')}",
+                flush=True,
+            )
+
+    def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
+        # print once per rank at the first batch
+        if batch_idx == 0 and torch.cuda.is_available():
+            cur = torch.cuda.current_device()
+            alloc = torch.cuda.memory_allocated(cur) / 1024**2
+            reserv = torch.cuda.memory_reserved(cur) / 1024**2
+            print(
+                f"[FIRST_BATCH] rank={trainer.global_rank} device={cur} "
+                f"mem_alloc_MB={alloc:.1f} mem_reserved_MB={reserv:.1f}",
+                flush=True,
+            )
+
+
+
+
+
+
+
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--train_dir", required=True)
@@ -161,7 +204,7 @@ def main():
     trainer = pl.Trainer(
         default_root_dir=run_dir,
         logger=logger,
-        callbacks=[ckpt_cb],
+        callbacks=[ckpt_cb, GPUUsageProbe()],
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices="auto" if torch.cuda.is_available() else 1,
         strategy="ddp" if torch.cuda.is_available() else "auto",
