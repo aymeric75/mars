@@ -161,14 +161,14 @@ class OrderState(State):
             self.latest_lob = trade_info.lob_snapshot
             self.prev_order = trade_info.order
             self.open_time = trade_info.order.time
-    
+
             # --- new: append first order ---
             self.cur_order = trade_info.order
             self.cur_order_lob = trade_info.lob_snapshot
             self.update_order_info(trade_info)
             return
-    
-   
+
+
         # set open price if need
         if self.open_trans_price is None and trade_info.transactions and trade_info.transactions[0].type in ["B", "S"]:
             #breakpoint()
@@ -194,7 +194,7 @@ class OrderState(State):
         self._last_mid_price = mid
         return mid
 
-    
+
     def get_seconds_to_open(self, cur_time: pd.Timestamp, open_time: pd.Timestamp) -> int:
         """Get seconds to market open.
 
@@ -241,9 +241,9 @@ class OrderState(State):
             # choose one of these behaviors:
             return 0  # (A) fallback to a default index
             # or: raise/skip upstream if you prefer (see below)
-        
+
         price_slot = self.converter.price_level.get_bin_index(cur_order.price - mid_price)
-        
+
         volume_slot = self.converter.order_volume.get_bin_index(cur_order.volume)
         interval_slot = self.converter.order_interval.get_bin_index(interval_seconds)
 
@@ -270,6 +270,7 @@ class OrderState(State):
 
         return retour
 
+
     def get_pred_order_info(self, order_index: int) -> PredOrderInfo:
         """Reverse function of get_order_index, need a further sampling to get real price/volume/interval."""
         order_type = order_index // (self.num_bins_price_level * self.num_bins_pred_order_volume * self.num_bins_order_interval)
@@ -285,6 +286,29 @@ class OrderState(State):
             interval=interval_slot,
         )
 
+
+    @staticmethod
+    def get_pred_order_info_static(
+        order_index: int,
+        num_bins_price_level: int,
+        num_bins_pred_order_volume: int,
+        num_bins_order_interval: int,
+    ) -> PredOrderInfo:
+        """Reverse function of get_order_index, need a further sampling to get real price/volume/interval."""
+        order_type = order_index // (num_bins_price_level * num_bins_pred_order_volume * num_bins_order_interval)
+        price_slot = (order_index % (num_bins_price_level * num_bins_pred_order_volume * num_bins_order_interval)) // (
+            num_bins_pred_order_volume * num_bins_order_interval
+        )
+        volume_slot = (order_index % (num_bins_pred_order_volume * num_bins_order_interval)) // num_bins_order_interval
+        interval_slot = order_index % num_bins_order_interval
+        return PredOrderInfo(
+            order_type=PredOrderInfo.get_type_from_index(order_type),
+            price=price_slot,
+            volume=volume_slot,
+            interval=interval_slot,
+        )
+
+
     def get_lob_volume_slots(self, lob: LobSnapshot, total_len: int = 10) -> list[int]:
         """Get volume slots from lob."""
         assert total_len % 2 == 0
@@ -296,7 +320,7 @@ class OrderState(State):
         mid_price = self.safe_mid_price(lob)
         if mid_price is None:
             return [0] * total_len
-        
+
         for price, volume in zip(lob.ask_prices, lob.ask_volumes, strict=True):
             price_slot = (price - mid_price) // 100 + offset
             if 0 <= price_slot < total_len:
@@ -320,14 +344,14 @@ class OrderState(State):
         mid_price = self.safe_mid_price(trade_info.lob_snapshot)
         if mid_price is None:
             return  # cannot compute features yet
-        
-        
-        
+
+
+
         price_change = 0 if self.open_trans_price is None else mid_price / self.open_trans_price - 1
         price_change = np.clip(price_change, -0.2, 0.2)
-        
 
-        
+
+
         seconds_to_open = self.get_seconds_to_open(self.cur_order.time, self.open_time)
 
         # print("OrderInfo.NUM_LOB_VOLUMES")

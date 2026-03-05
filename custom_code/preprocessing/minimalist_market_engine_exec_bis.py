@@ -21,8 +21,26 @@ snapshots = pd.read_parquet(Path("data/LOBSTER_META_2025-10-01_snapshots_10.parq
 
 
 print(messages[messages["Message_Type"] == 4])
-#print(messages.head(11))
-#exit()
+
+
+print("MESSAGES")
+ms = messages.iloc[1693260:1693265]
+with open("messages.txt", "w") as f:
+    f.write(ms.to_string())
+print()
+print("SNAPSHOTS")
+
+df_short = snapshots.rename(columns=lambda c: (
+    c.replace("Ask_Price_", "AP")
+     .replace("Ask_Size_", "AS")
+     .replace("Bid_Price_", "BP")
+     .replace("Bid_Size_", "BS")
+))
+
+sna = snapshots.iloc[1693260:1693265]
+with open("snapshots.txt", "w") as f:
+    f.write(sna.to_string())
+exit()
 
 #-----------------------------------------
 # Create an "Order State" and an exchange
@@ -115,16 +133,16 @@ total_transactions = 0
 
 
 
-pass2_write_features(
-    messages,
-    meta,
-    symbol = "META",
-    time_unit = "ns",
-    conv = converters,
-    out_path="some_folder.parquet"
-)
+# pass2_write_features(
+#     messages,
+#     meta,
+#     symbol = "META",
+#     time_unit = "ns",
+#     conv = converters,
+#     out_path="some_folder.parquet"
+# )
 
-exit()
+# exit()
 
 
 
@@ -172,13 +190,17 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
                 for trans in trade_info.transactions:
 
 
-                    # if r.Message_Type == 4:
-                    #     print("on y esst")
-                    #     print(r)
-                    #     print("trans.type")
-                    #     print(trans.type)
-                    #     print(trade_info.order.type)
-                    #     exit()
+                    if r.Message_Type == 4:
+                        print("on y esst")
+                        print(r)
+                        print("trans.type")
+                        print(trans.type)
+                        print(trade_info.order.type)
+                        snapshot = ex.get_lob(symbol).snapshot(level=10)
+                        print(snapshot)
+
+
+                        exit()
 
 
 
