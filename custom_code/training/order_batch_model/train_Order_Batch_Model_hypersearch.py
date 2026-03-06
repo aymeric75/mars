@@ -11,7 +11,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader, Subset
 
 from market_simulation.models.order_batch_model import OrderBatchModel
-from market_simulation.models.utils_order_batch_model import TokenDataset, lm_loss_next_token
+from market_simulation.models.utils_order_batch_model import MultiDirZarrTokenDataset, lm_loss_next_token
 
 
 
@@ -22,7 +22,6 @@ class OrderBatchDataModule(pl.LightningDataModule):
         train_dir: str,
         val_dir: str,
         pattern: str,
-        array_path: str,
         batch_size: int,
         num_workers: int,
     ):
@@ -30,7 +29,6 @@ class OrderBatchDataModule(pl.LightningDataModule):
         self.train_dir = train_dir
         self.val_dir = val_dir
         self.pattern = pattern
-        self.array_path = array_path
         self.batch_size = int(batch_size)
         self.num_workers = int(num_workers)
 
@@ -38,9 +36,11 @@ class OrderBatchDataModule(pl.LightningDataModule):
         self._val = None
 
     def setup(self, stage: str | None = None):
-        # use extracted dirs only: *.zarr.zip -> *.zarr
-        self._train = TokenDataset(sorted(Path(self.train_dir).glob("*.npy")))
-        self._val = TokenDataset(sorted(Path(self.val_dir).glob("*.npy")))
+        train_dirs = sorted(Path(self.train_dir).glob(self.pattern))
+        val_dirs   = sorted(Path(self.val_dir).glob(self.pattern))
+
+        self._train = MultiDirZarrTokenDataset([str(p) for p in train_dirs])
+        self._val   = MultiDirZarrTokenDataset([str(p) for p in val_dirs])
         
         
     def train_dataloader(self):
@@ -129,8 +129,7 @@ def main():
     
     p.add_argument("--train_dir", default="/scratch/project_2012747/mars_data/order_batch_model/train/final")
     p.add_argument("--val_dir", type=str, default="/scratch/project_2012747/mars_data/order_batch_model/val/final", required=True)
-    p.add_argument("--pattern", default="*.npy")
-    p.add_argument("--array_path", default="")
+    p.add_argument("--pattern", default="*.zarr")
     p.add_argument("--batch_size", type=int, default=16)
 
     p.add_argument("--emb_dim", type=int, default=128) #default=768)
@@ -168,7 +167,6 @@ def main():
         train_dir=args.train_dir,
         val_dir=args.val_dir,
         pattern=args.pattern,
-        array_path=args.array_path,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
     )

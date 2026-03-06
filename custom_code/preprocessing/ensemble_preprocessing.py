@@ -1,27 +1,34 @@
+""" """
 # ensemble_preprocessing_parquet_topk_plus_target.py
 import os, sys, glob
 import numpy as np
 import pandas as pd
 import torch
 import zarr
-from torch.utils.data import Dataset, DataLoader
+import torch.nn.functional as F
+
+
+from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
 from pathlib import Path
 from tqdm import tqdm
-import torch.nn.functional as F
+from numcodecs import Blosc
+
+
+print("ICI000")
 
 base = Path(__file__).resolve().parents[2]
 sys.path.append(str(base))
 
-from custom_code.training.train_Order_Model_lightning import OrderLightningModule
-
+from custom_code.training.order_model.train_Order_Model_hypersearch import OrderLightningModule
+print("ICI1111")
 CKPT_PATH = "step=step=3360-val=val_loss=3.7445.ckpt"
 PARQ_DIR  = "/scratch/project_2012747/mars_data/order_model/train/final"
-OUT_DIR   = "/scratch/project_2012747/mars_data/output_order_model_for_ensemble_topk"
+OUT_DIR   = "/scratch/project_2012747/mars_data/ensemble_model/val/final"
 
 SEQ_LEN = 1024
 BATCH   = 64
 TOPK    = 64
-NUM_WORKERS = 4
+NUM_WORKERS = 1
 
 FEATURE_COLS = [f"f{i}" for i in range(15)]  # f0..f14
 TARGET_COL   = "f0"                          # next-order ground truth
@@ -29,9 +36,7 @@ TARGET_COL   = "f0"                          # next-order ground truth
 os.makedirs(OUT_DIR, exist_ok=True)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model = OrderLightningModule.load_from_checkpoint(CKPT_PATH).to(device).eval()
-
-
-
+print("ICI2222")
 
 
 class ParquetWindowWithTarget(Dataset):
@@ -52,21 +57,36 @@ class ParquetWindowWithTarget(Dataset):
 parq_files = sorted(glob.glob(os.path.join(PARQ_DIR, "*.parquet")))
 
 
-for pq_path in parq_files:
+for iii, pq_path in enumerate(parq_files):
     
     
-    if "features_AMZN_2025-12-09_cut_tenth.parquet" not in pq_path:
-        continue
+    
+    print(pq_path)
+    
+    #if "features_AMZN_2025-12-09_cut_tenth.parquet" not in pq_path:
+    #    continue
     
     ds = ParquetWindowWithTarget(pq_path, SEQ_LEN)
-    dl = DataLoader(ds, batch_size=BATCH, shuffle=False,
+    
+    n = len(ds)
+    indices = np.random.choice(n, int(0.01*n), replace=False)
+    
+    sampler = SubsetRandomSampler(indices)
+    
+    dl = DataLoader(ds, batch_size=BATCH, sampler=sampler,
                     num_workers=NUM_WORKERS, pin_memory=True)
     
     val_loss = 0.0
     n_tot = 0
     
+    
+    #### Used to check the Order Model val loss on the current file
+    """
     with torch.inference_mode():
-        for x, y in dl:
+        
+        pbar = tqdm(dl, desc="Validation", total=len(dl))
+        for x, y in pbar:
+            print("on iteration")
             x = x.to(device, non_blocking=True)
             y = y.to(device, non_blocking=True)
              
@@ -75,29 +95,13 @@ for pq_path in parq_files:
             
             val_loss += loss.item()
             n_tot += y.numel()
-    
+            pbar.set_postfix({"avg_loss": val_loss / max(n_tot,1)})
+            
     print(f"[OrderModel] val_loss = {val_loss / n_tot:.6f}")
-    
-    
-    
-    continue
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    """
     
 
-    
-    
-    
-    
-    import zarr
-    from numcodecs import Blosc
+
     
     V = model.hparams.vocab_size if hasattr(model, "hparams") and hasattr(model.hparams, "vocab_size") else 49152
     
@@ -130,10 +134,13 @@ for pq_path in parq_files:
         dtype="i4",
         compressor=compressor,
     )
-    
+    max_batches = int(0.1 * len(dl))
+
     offset = 0
     with torch.inference_mode():
-        for x, y in tqdm(dl, desc=Path(pq_path).name):
+        for i, (x, y) in enumerate(tqdm(dl, desc=Path(pq_path).name)):
+            
+            
             x = x.to(device, non_blocking=True)           # (B,T,15)
             logits = model(x)[:, -1, :]                   # (B,V) float32/bf16 on GPU
             logits = logits.to(torch.float16)             # store as float16 to save space
@@ -142,18 +149,11 @@ for pq_path in parq_files:
             log_arr[offset:offset+n] = logits.cpu().numpy()
             tgt_arr[offset:offset+n] = y.numpy().astype(np.int32)
             offset += n
-    
+     
     print("saved:", out_logits)
     print("saved:", out_targets)
 
 
-
-
-
-
-
-    
-    
     
     """
     stem = Path(pq_path).stem

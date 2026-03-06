@@ -54,7 +54,7 @@ for LR in "${LRS[@]}"; do
     srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u train_Order_Batch_Model_hypersearch.py \
       --train_dir /scratch/project_2012747/mars_data/order_batch_model/train/final \
       --val_dir   /scratch/project_2012747/mars_data/order_batch_model/val/final \
-      --pattern \"past16_tokens*.npy\" \
+      --pattern \"past16_tokens*.zarr\" \
       --batch_size ${BS} \
       --lr ${LR} \
       --max_steps 3000 \

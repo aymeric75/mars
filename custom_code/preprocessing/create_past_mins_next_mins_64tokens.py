@@ -3,7 +3,7 @@ import re
 import numpy as np
 import pandas as pd
 import zarr
-
+from numcodecs import Blosc
 
 def build_context_zarrs(
     zarr_dir: str,
@@ -65,31 +65,42 @@ def build_context_zarrs(
         next_tokens = tok_uniq[inv[M * 16 :]]            # (M, 64)
 
         
-        """
-        # build past (num_samples, 16, 64)
-        past_tokens = np.stack(
-            [
-                tokens[past_df[k].to_numpy()]
-                for k in range(16)
-            ],
-            axis=1,
-        )
         
+        # OPTIONAL: store smaller (likely) + consistent dtype
+        past_tokens = past_tokens.astype(np.int16, copy=False)
+        next_tokens = next_tokens.astype(np.int16, copy=False)
 
-        # build next (num_samples, 64)
-        next_tokens = tokens[next_df[0].to_numpy()]
-        """
-        print("OK4")
+        # save as .npy
+        #np.save(output_dir / f"past16_tokens_{stock}-{date}.npy", past_tokens)
+        #np.save(output_dir / f"next1_tokens_{stock}-{date}.npy", next_tokens)
+
+
         
-        # save as zarr.zip (v2)
-        zarr.save(
-            output_dir / f"past16_tokens_{stock}-{date}.zarr.zip",
-            past_tokens,
+        compressor = Blosc(cname="zstd", clevel=5, shuffle=Blosc.BITSHUFFLE)
+                
+        # past: (M, 16, 64)
+        out_past = zarr.open(
+            output_dir / f"past16_tokens_{stock}-{date}.zarr",
+            mode="w",
+            shape=past_tokens.shape,
+            chunks=(min(1024, past_tokens.shape[0]), 16, 64),
+            dtype=past_tokens.dtype,
+            compressor=compressor,
         )
-        zarr.save(
-            output_dir / f"next1_tokens_{stock}-{date}.zarr.zip",
-            next_tokens,
+        out_past[:] = past_tokens
+        
+        # next: (M, 64)
+        out_next = zarr.open(
+            output_dir / f"next1_tokens_{stock}-{date}.zarr",
+            mode="w",
+            shape=next_tokens.shape,
+            chunks=(min(4096, next_tokens.shape[0]), 64),
+            dtype=next_tokens.dtype,
+            compressor=compressor,
         )
+        out_next[:] = next_tokens
+
+
 
 
 build_context_zarrs(

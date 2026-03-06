@@ -8,6 +8,7 @@ import torch
 import zarr
 import numpy as np
 
+from pathlib import Path
 from numcodecs import blosc  # noqa: F401
 from torch.utils.data import Dataset
 from zarr.storage import DirectoryStore
@@ -15,37 +16,17 @@ from zarr.storage import DirectoryStore
 
 
 
-class TokenDataset(Dataset):
-    def __init__(self, files):
-        self.arrays = [np.load(f, mmap_mode="r") for f in files]
-        self.idx = np.cumsum([0] + [a.shape[0] for a in self.arrays])
-
-    def __len__(self):
-        return self.idx[-1]
-
-    def __getitem__(self, i):
-        j = np.searchsorted(self.idx, i, side="right") - 1
-        k = i - self.idx[j]
-        x = self.arrays[j][k]          # (16,64)
-        return torch.tensor(x.reshape(-1), dtype=torch.long)  # 1024 tokens
-
-
-"""
 class MultiDirZarrTokenDataset(Dataset):
-    
-    '''
-    Many extracted Zarr dirs, each contains an array (N, 16, 64).
+    """
+    Many Zarr directories, each contains a root array shaped (N, 16, 64).
     Returns one sample flattened to (1024,) as torch.long.
-    '''
-    
-    def __init__(self, zarr_dirs: Sequence[str], array_path: str = "arr_0"):
-        
-        self.paths = list(zarr_dirs)
-        self.array_path = str(array_path)
+    """
+    def __init__(self, zarr_dirs: Sequence[str]):
+        self.paths = list(map(str, zarr_dirs))
 
         self.lens: list[int] = []
         for p in self.paths:
-            A = zarr.open(DirectoryStore(p), path=self.array_path, mode="r")
+            A = zarr.open(DirectoryStore(p), mode="r")  # root array
             self.lens.append(int(A.shape[0]))
 
         self.cum: list[int] = []
@@ -58,19 +39,19 @@ class MultiDirZarrTokenDataset(Dataset):
         return self.cum[-1] if self.cum else 0
 
     @staticmethod
-    @lru_cache(maxsize=2)
-    def _open_array(dir_path: str, array_path: str):
-        return zarr.open(DirectoryStore(dir_path), path=array_path, mode="r")
+    @lru_cache(maxsize=32)  # usually better than 2 when many files
+    def _open_array(dir_path: str):
+        return zarr.open(DirectoryStore(dir_path), mode="r")
 
     def __getitem__(self, idx: int) -> torch.Tensor:
         fi = bisect.bisect_right(self.cum, idx)
         prev = 0 if fi == 0 else self.cum[fi - 1]
         j = idx - prev
 
-        A = self._open_array(self.paths[fi], self.array_path)
+        A = self._open_array(self.paths[fi])
         x = A[j].reshape(-1)  # (16,64) -> (1024,)
-        return torch.from_numpy(x).long()
-"""
+        return torch.from_numpy(np.asarray(x, dtype=np.int64))  # safe dtype
+
 
 
 def lm_loss_next_token(logits: torch.Tensor, input_ids: torch.Tensor) -> torch.Tensor:
