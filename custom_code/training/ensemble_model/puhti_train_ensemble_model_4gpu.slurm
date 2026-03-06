@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=order_ensemble_model
-#SBATCH --account=project_2012747
+#SBATCH --account=project_2017808
 #SBATCH --partition=gputest
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=10
-#SBATCH --mem-per-cpu=8000
+#SBATCH --cpus-per-task=5
+#SBATCH --mem=64G
 #SBATCH --time=00:15:00
 #SBATCH --gres=gpu:v100:1
 #SBATCH --output=logs_ensemble_model/%x_%j.out
@@ -37,14 +37,12 @@ $PYTHON -c "import lightning; print('lightning:', lightning.__version__)"
 
 
 srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u train_Ensemble_Model_lightning.py \
-  --next64_path ../../data/ensemble_model/train/64tokens/next1_tokens_AMZN_2025-12-09_first228527.zarr \
-  --logits_path ../../data/ensemble_model/train/logits/logitss_AMZN_2025-12-09_cut_tenth_dense_f16.zarr \
-  --targets_path ../../data/ensemble_model/train/order_indices_pred_gt/order_idxs_AMZN_2025-12-09_cut_tenth_targets.zarr \
+  --train_dir /scratch/project_2012747/mars_data/ensemble_model/train/final \
+  --val_dir /scratch/project_2012747/mars_data/ensemble_model/val/final \
   --order_vocab_size 49152 \
   --batch_size 128 \
-  --num_workers 9 \
+  --num_workers 5 \
   --lr 2e-5 \
-  --max_steps 1000 \
-  --val_frac 0.01 \
+  --max_steps 2000 \
   --precision bf16-mixed \
   --default_root_dir \"$RUN_ROOT\""

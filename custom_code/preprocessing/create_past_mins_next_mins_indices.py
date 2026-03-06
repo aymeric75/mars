@@ -86,9 +86,9 @@ def create_min16_plus1_indices_from_feature_parquets(input_dir: str, output_dir:
         df_cut = df.loc[common_idx]
 
 
-        df_cut.to_parquet(out_dir / f"features_{stock}_{date}_cut.parquet")
-        past_cut.to_parquet(out_dir / f"past16_{stock}_{date}_cut.parquet")
-        nxt_cut.to_parquet(out_dir / f"next1_{stock}_{date}_cut.parquet")
+        df_cut.to_parquet(out_dir / f"{stock}_{date}_features-cut.parquet")
+        past_cut.to_parquet(out_dir / f"{stock}_{date}_past16-cut.parquet")
+        nxt_cut.to_parquet(out_dir / f"{stock}_{date}_next1-cut.parquet")
 
 
 

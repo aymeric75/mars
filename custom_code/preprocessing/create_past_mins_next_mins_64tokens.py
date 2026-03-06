@@ -80,7 +80,7 @@ def build_context_zarrs(
                 
         # past: (M, 16, 64)
         out_past = zarr.open(
-            output_dir / f"past16_tokens_{stock}-{date}.zarr",
+            output_dir / f"{stock}_{date}_past16-tokens.zarr",
             mode="w",
             shape=past_tokens.shape,
             chunks=(min(1024, past_tokens.shape[0]), 16, 64),
@@ -91,7 +91,7 @@ def build_context_zarrs(
         
         # next: (M, 64)
         out_next = zarr.open(
-            output_dir / f"next1_tokens_{stock}-{date}.zarr",
+            output_dir / f"{stock}_{date}-next1-tokens.zarr",
             mode="w",
             shape=next_tokens.shape,
             chunks=(min(4096, next_tokens.shape[0]), 64),

@@ -33,45 +33,24 @@ def save_checkpoint(model, optimizer, step: int, run_dir: str, val_loss: float):
     torch.save(ckpt, ckpt_path)
 
 
-
-
-
 class EnsembleDataModule(pl.LightningDataModule):
     def __init__(
         self,
         *,
-        next64_path: str,
-        logits_path: str,
-        targets_path: str,
+        train_dir: str,
+        val_dir: str,
         batch_size: int,
-        val_frac: float,
-        seed: int,
         num_workers: int,
     ):
         super().__init__()
-        self.next64_path = next64_path
-        self.logits_path = logits_path
-        self.targets_path = targets_path
-
+        self.train_dir = train_dir
+        self.val_dir = val_dir
         self.batch_size = int(batch_size)
-        self.val_frac = float(val_frac)
-        self.seed = int(seed)
         self.num_workers = int(num_workers)
 
     def setup(self, stage: str | None = None):
-        ds = EnsembleTrainDataset(
-            next64_path=self.next64_path,
-            logits_path=self.logits_path,
-            targets_path=self.targets_path,
-        )
-
-        n = len(ds)
-        n_val = max(1, int(n * self.val_frac))
-        g = torch.Generator().manual_seed(self.seed)
-        perm = torch.randperm(n, generator=g).tolist()
-
-        self.train_ds = Subset(ds, perm[n_val:])
-        self.val_ds = Subset(ds, perm[:n_val])
+        self.train_ds = EnsembleTrainDataset(data_dir=self.train_dir)
+        self.val_ds = EnsembleTrainDataset(data_dir=self.val_dir)
 
     def train_dataloader(self):
         return DataLoader(
@@ -92,8 +71,6 @@ class EnsembleDataModule(pl.LightningDataModule):
             pin_memory=True,
             drop_last=False,
         )
-
-
 
 
 
@@ -122,6 +99,7 @@ class EnsembleLightningModule(pl.LightningModule):
         return torch.optim.AdamW(self.parameters(), lr=self.lr)
 
     def on_validation_end(self):
+        
         # only rank 0 saves
         if not self.trainer.is_global_zero:
             return
@@ -151,16 +129,14 @@ def main():
     p = argparse.ArgumentParser()
 
     # data
-    p.add_argument("--next64_path", type=str, required=True)
-    p.add_argument("--logits_path", type=str, required=True)
-    p.add_argument("--targets_path", type=str, required=True)
+    p.add_argument("--train_dir", type=str, required=True)
+    p.add_argument("--val_dir", type=str, required=True)
 
     # hparams
     p.add_argument("--order_vocab_size", type=int, default=49152)
     p.add_argument("--lr", type=float, default=1e-4)
     p.add_argument("--batch_size", type=int, default=64)
     p.add_argument("--max_steps", type=int, default=10_000)
-    p.add_argument("--val_frac", type=float, default=0.01)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--num_workers", type=int, default=0)
     p.add_argument("--precision", default="bf16-mixed")
@@ -173,12 +149,9 @@ def main():
     pl.seed_everything(args.seed, workers=True)
 
     dm = EnsembleDataModule(
-        next64_path=args.next64_path,
-        logits_path=args.logits_path,
-        targets_path=args.targets_path,
+        train_dir=args.train_dir,
+        val_dir=args.val_dir,
         batch_size=args.batch_size,
-        val_frac=args.val_frac,
-        seed=args.seed,
         num_workers=args.num_workers,
     )
 
