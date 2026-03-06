@@ -1,6 +1,6 @@
 import lobdatamanager as ldm
 
-allas_storage = ldm.AllasStorage(".csc_creds.json", timeout=100, retries=3)
+allas_storage = ldm.AllasStorage(".boto3_credentials", timeout=100, retries=3)
 
 # list buckets for a specific project from allas_storage
 allas_storage.list_buckets("project_2012747")
@@ -10,4 +10,4 @@ s3_resource = allas_storage.get_s3_resource("project_2012747")
 
 
 
-# 
+#
