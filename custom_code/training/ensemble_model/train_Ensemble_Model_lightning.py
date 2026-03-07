@@ -9,6 +9,7 @@ import torch
 from lightning.pytorch.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader, Subset
 from pathlib import Path
+from lightning.pytorch.callbacks import ModelCheckpoint
 
 from market_simulation.models.ensemble_model import EnsembleModel
 from market_simulation.models.utils_ensemble_model import (
@@ -76,6 +77,7 @@ class EnsembleDataModule(pl.LightningDataModule):
 
 
 class EnsembleLightningModule(pl.LightningModule):
+    
     def __init__(self, order_vocab_size: int, lr: float):
         super().__init__()
         self.save_hyperparameters()
@@ -132,6 +134,8 @@ def main():
     p.add_argument("--train_dir", type=str, required=True)
     p.add_argument("--val_dir", type=str, required=True)
 
+    p.add_argument("--run_name", default=None)
+
     # hparams
     p.add_argument("--order_vocab_size", type=int, default=49152)
     p.add_argument("--lr", type=float, default=1e-4)
@@ -143,8 +147,13 @@ def main():
     p.add_argument("--default_root_dir", default="")
     args = p.parse_args()
 
+    
     run_dir = args.default_root_dir or "checkpoints_ensemble_model"
     os.makedirs(run_dir, exist_ok=True)
+    
+    run_name = args.run_name or f"bs={args.batch_size}_lr={args.lr:g}"
+
+
 
     pl.seed_everything(args.seed, workers=True)
 
@@ -160,15 +169,27 @@ def main():
         lr=args.lr,
     )
 
-    logger = TensorBoardLogger(save_dir=run_dir, name="tensorboard")
-
-
+    logger = TensorBoardLogger(
+        save_dir=run_dir,
+        name="tensorboard",
+        version=run_name,
+    )
+    
+    ckpt_cb = ModelCheckpoint(
+        dirpath=run_dir,
+        filename="step={step}-val={val_loss:.4f}",
+        monitor="val_loss",
+        mode="min",
+        save_top_k=3,
+        save_last=True,
+    )
+    
     
     trainer = pl.Trainer(
         default_root_dir=run_dir,
         logger=logger,
-        callbacks=[], #[ckpt_cb]
-        enable_checkpointing=False,
+        callbacks=[ckpt_cb],
+        enable_checkpointing=True,
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices="auto" if torch.cuda.is_available() else 1,
         strategy="ddp" if torch.cuda.is_available() else "auto",

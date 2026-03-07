@@ -8,7 +8,7 @@ import pandas as pd
 import pickle
 import numpy as np
 
-
+from datetime import datetime
 from pathlib import Path
 from tqdm import tqdm
 from dataclasses import dataclass
@@ -50,7 +50,7 @@ class Converters:
 
 
 
-with open("../converters_portable.json", "r", encoding="utf-8") as f:
+with open("converters_portable.json", "r", encoding="utf-8") as f:
     obj = json.load(f)
 
 #price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
@@ -81,7 +81,7 @@ converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lo
 
 
 
-data_dir = Path("../data")
+data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
 
 #for message_file in data_dir.glob("*_messages.parquet"):
 
@@ -92,7 +92,7 @@ def process_file(message_file):
     device="cpu"
     # Load the Order Model
     order_model = load_order_model(
-        ckpt_path="../step=step=3360-val=val_loss=3.7445.ckpt",
+        ckpt_path="step=step=3360-val=val_loss=3.7445.ckpt",
         device=device
     )
     order_model = order_model.to(device).eval()
@@ -235,7 +235,27 @@ def process_file(message_file):
 
 
 if __name__ == "__main__":
+
     files = list(data_dir.glob("*_messages.parquet"))
+    
+    # '/scratch/project_2012747/mars_data/order_model/test/raw/AMZN_2025-12-09_messages.parquet
+        
+    # Filtering the list
+    tickers = {"NFLX", "NVDA", "TSLA"}
+    start = datetime.fromisoformat("2025-12-09")
+    end = datetime.fromisoformat("2025-12-11")
+    
+    filtered = []
+    for f in files:
+        ticker, date_str, *_ = f.stem.split("_")
+        date = datetime.fromisoformat(date_str)
+    
+        if ticker in tickers and start <= date <= end:
+            filtered.append(f)
+
+
+    print("filtered")
+    print(filtered)
 
     with ProcessPoolExecutor() as ex:
-        list(ex.map(process_file, files))
+        list(ex.map(process_file, filtered))
