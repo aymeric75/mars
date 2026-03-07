@@ -30,7 +30,7 @@ from custom_code.preprocessing.order_model.messages_to_features import (
 
 
 
-from custom_code.testing.utils import load_order_model
+from custom_code.testing.utils import load_order_model, load_ensemble_model, load_order_batch_model
 
 SEQ_LEN = 1 # 1024
 TOKEN_DIM = 15
@@ -237,19 +237,19 @@ def process_file(message_file):
 if __name__ == "__main__":
 
     files = list(data_dir.glob("*_messages.parquet"))
-    
+
     # '/scratch/project_2012747/mars_data/order_model/test/raw/AMZN_2025-12-09_messages.parquet
-        
+
     # Filtering the list
     tickers = {"NFLX", "NVDA", "TSLA"}
     start = datetime.fromisoformat("2025-12-09")
     end = datetime.fromisoformat("2025-12-11")
-    
+
     filtered = []
     for f in files:
         ticker, date_str, *_ = f.stem.split("_")
         date = datetime.fromisoformat(date_str)
-    
+
         if ticker in tickers and start <= date <= end:
             filtered.append(f)
 
