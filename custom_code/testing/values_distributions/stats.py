@@ -30,7 +30,8 @@ from market_simulation.conf import C
 from market_simulation.states.order_state import OrderState, PredOrderInfo
 from market_simulation.utils.bin_converter import BinConverter
 
-from messages_to_features import make_exchange_and_orderstate, make_exchange, row_to_order, build_converters_from_samples, pass2_write_features
+from ...preprocessing.order_model.messages_to_features import make_exchange_and_orderstate, make_exchange, row_to_order, build_converters_from_samples, pass2_write_features
+exit()
 from utils import load_order_model
 
 SEQ_LEN = 1 # 1024
