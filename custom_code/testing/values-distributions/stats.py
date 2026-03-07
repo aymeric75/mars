@@ -1,6 +1,6 @@
-#---------------------------
-# call the different files
-#---------------------------
+""" Go through a day/stock, iterate usign the Market Engine and gather for each index
+    ground truth and predicted order index
+"""
 
 
 import torch
@@ -8,22 +8,9 @@ import json
 import pandas as pd
 from pathlib import Path
 
-messages = pd.read_parquet(Path("data/LOBSTER_META_2025-10-01_messages_10.parquet"))
-meta_df = pd.read_parquet(Path("data/LOBSTER_META_2025-10-01_meta_10.parquet"))
-snapshots = pd.read_parquet(Path("data/LOBSTER_META_2025-10-01_snapshots_10.parquet"))
-
-
-#print(messages) # 1 696 663
-
-#print(messages["Message_Type"].unique()) # [ 1  3  4  2  5 12]
-
-#print(messages[messages["Message_Type"] == 1]) # 813 114
-#print(messages[messages["Message_Type"] == 4]) # 64 065
-
-#print(messages[messages["Message_Type"] == 2]) # 1571
-
-
-#print(messages[messages["Message_Type"] == 3]) # 764 068
+messages = pd.read_parquet(Path("../data/LOBSTER_META_2025-10-01_messages_10.parquet"))
+meta_df = pd.read_parquet(Path("../data/LOBSTER_META_2025-10-01_meta_10.parquet"))
+snapshots = pd.read_parquet(Path("../data/LOBSTER_META_2025-10-01_snapshots_10.parquet"))
 
 
 #-----------------------------------------
@@ -233,6 +220,12 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
 
     # the feature vector
     feat = order_state.recent_orders[-1].to_vector()
+
+    if i == 101401:
+
+        print("ON EST ICI ")
+        exit()
+
     gt_indices[i] = feat[0]
 
     gt_type4[i] = True if order.tag == "type_4" else False
@@ -287,6 +280,7 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
         #print("CONCLUSION: NEAR END SNAPS SHOULD CORRESPOND TO GROUND TRUTH!!")
 
 
+# 101401
 
 import json
 import numpy as np

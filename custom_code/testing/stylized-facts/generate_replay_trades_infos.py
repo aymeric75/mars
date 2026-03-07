@@ -121,8 +121,6 @@ def build_replay_trade_infos(
 
         order = row_to_order(r, symbol=symbol, time_unit=time_unit, ex=ex)
 
-
-
         if order is None:
             continue
 
@@ -274,6 +272,8 @@ for (stock, date), files in pairs.items():
 
 
 CONVERTERS = None
+
+#
 
 
 def _init_worker(converters_json_path: str):
