@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name="market_simulation",
     version="0.0.1",
-    packages=["market_simulation", "mlib"],
+    packages=["market_simulation", "mlib", "custom_code"],
     description="An awesome package that does something",
     install_requires=[
         "pandas==2.2.3",
