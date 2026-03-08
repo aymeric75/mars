@@ -14,7 +14,17 @@ from mlib.core.trade_info import TradeInfo
 from mlib.core.lob_snapshot import LobSnapshot
 from market_simulation.utils import pkl_utils
 from market_simulation.utils.bin_converter import BinConverter
-from utils import Converters, make_exchange_and_orderstate, row_to_order
+
+from custom_code.preprocessing.order_model.messages_to_features import (
+    make_exchange_and_orderstate,
+    make_exchange, row_to_order,
+    build_converters_from_samples,
+    pass2_write_features,
+    Converters
+)
+
+
+
 
 from report_stylized_facts import get_minute_info
 
@@ -347,10 +357,21 @@ def main():
     data_dir = Path("/scratch/project_2012747/mars_data/order_model/train/raw")
     out_dir = Path("trade_infos")
 
+    # pat = re.compile(
+    #     r"(?P<stock>[A-Z]+)_(?P<date>\d{4}-\d{2}-\d{2})_"
+    #     r"(?P<type>messages|meta).parquet"
+    # )
+
+    allowed_stocks = {"AAPL", "GOOGL"}
+
+    start_date = date.fromisoformat("2025-11-06")
+    end_date = date.fromisoformat("2025-11-08")
+
     pat = re.compile(
         r"(?P<stock>[A-Z]+)_(?P<date>\d{4}-\d{2}-\d{2})_"
         r"(?P<type>messages|meta).parquet"
     )
+
 
     pairs = defaultdict(dict)
     for p in data_dir.glob("*.parquet"):
