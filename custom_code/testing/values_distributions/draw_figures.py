@@ -6,11 +6,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import glob, re
 
+from dataclasses import dataclass
 from pathlib import Path
 from collections import Counter
 
 from market_simulation.states.order_state import OrderState, PredOrderInfo
 from market_simulation.utils.bin_converter import BinConverter
+
+from custom_code.preprocessing.order_model.messages_to_features import (
+    build_converters_from_samples,
+)
 
 
 NUM_BINS_PRICE_LEVEL = 32
@@ -27,6 +32,7 @@ class Converters:
     lob_volume: BinConverter
 with open("converters_portable.json", "r", encoding="utf-8") as f:
     obj = json.load(f)
+
 price_minus_mid = []
 for bin_item in obj["state"]["price_level"]["bin_values"]:
     price_minus_mid.extend(bin_item["data"])
@@ -45,18 +51,15 @@ for bin_item in obj["state"]["lob_volume"]["bin_values"]:
 
 converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
 
-print(converter.price_level.bins)
-print(converter.order_volume.bins)
-print(converter.pred_order_volume.bins)
-print(converter.order_interval.bins)
+print(converters.price_level.bins)
+print(converters.order_volume.bins)
+print(converters.pred_order_volume.bins)
+print(converters.order_interval.bins)
 
-exit()
+#exit()
 
 data_folder = Path("jsons")
 
-
-days = []
-stocks = []
 
 
 
@@ -82,7 +85,7 @@ def rearrange_order_type(type_, price):
 
 
 
-def plot_feature_distribution(values_dico, feature_name, ax, gt_color="orange"):
+def plot_feature_distribution(values_dico, feature_name, ax, gt_color="orange", xtick_pos=None, xtick_labels=None):
     gt_values = []
     pred_values = []
 
@@ -109,12 +112,22 @@ def plot_feature_distribution(values_dico, feature_name, ax, gt_color="orange"):
     ax.bar(x + width/2, pred, width, label="Pred")
 
     ax.set_title(feature_name)
-    ax.set_xticks(x)
-    ax.set_xticklabels(classes)
+    if xtick_pos is not None and xtick_labels is not None:
+        ax.set_xticks(xtick_pos)
+        ax.set_xticklabels(xtick_labels)
+    else:
+        ax.set_xticks(x)
+        ax.set_xticklabels(classes)
 
+
+
+
+
+days = []
 
 
 values_dico = {}
+stock_days = {}
 
 # iterate over all stock/date present in jsons, and gather data into the "values" dict
 for file_gt in data_folder.glob("*order-indices-gt.json"):
@@ -122,10 +135,14 @@ for file_gt in data_folder.glob("*order-indices-gt.json"):
     # retrieve data stock name and date and store them
     stock = file_gt.stem.split("_")[0]
     day = file_gt.stem.split("_")[1]
-    if stock not in stocks:
-        stocks.append(stock)
+
+    if stock not in stock_days:
+        stock_days[stock] = []
+    stock_days[stock].append(day)
+
     if day not in days:
         days.append(day)
+
 
     # retrieve corresponding prediction file
     file_pred = Path(data_folder / file_gt.name.replace("-gt", "-pred"))
@@ -212,15 +229,49 @@ for file_gt in data_folder.glob("*order-indices-gt.json"):
         values_dico[day][stock][kk]["interval"]["predicted"] = pred_order_interval
 
 
+# print(stock_days)
+# exit()Value distributions of price, volume, time difference, type and side for LOBERT model
 
 
 # Create 2x2 figure
 fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+fig.suptitle("Value distributions of price, volume, time difference, type for MarS Model", fontsize=14)
+
+caption = "data gathered over: " + "; ".join(
+    f"{stock} ({', '.join(days)})" for stock, days in stock_days.items()
+)
+
+fig.text(0.5, -0.01, caption, ha="center", fontsize=10)
 
 features = ["type", "price", "interval", "volume"]
 
+converter_map = {
+    "price": converters.price_level,
+    "interval": converters.order_interval,
+    "volume": converters.order_volume,
+}
+
 for ax, feature in zip(axes.flat, features):
-    plot_feature_distribution(values_dico, feature, ax)
+    if feature in converter_map:
+        bins = converter_map[feature].bins
+        mid = len(bins) // 2
+
+        bin_first = bins[0]
+        bin_mid = bins[mid]
+        bin_last = bins[-1]
+        if feature in ["price", "volume"]:
+            bin_first = int(bin_first)
+            bin_mid = int(bin_mid)
+            bin_last = int(bin_last)
+        plot_feature_distribution(
+            values_dico,
+            feature,
+            ax,
+            xtick_pos=[0, mid, len(bins) - 1],
+            xtick_labels=[bin_first, bin_mid, bin_last],
+        )
+    else:
+        plot_feature_distribution(values_dico, feature, ax)
 
 axes[0,0].legend()
 

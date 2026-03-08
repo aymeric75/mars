@@ -1,7 +1,11 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_parquet("LOBSTER_META_2025-10-01_messages_10.parquet")
+df = pd.read_parquet("META_2025-10-01_messages.parquet")
+
+# 7268100
+
+# if tick is 0.0001
 
 print(df)
 
@@ -9,10 +13,10 @@ print(df)
 
 # print(df[(df["Message_Type"] == 4) & (df["Order"] == 376839)])
 
-print(df[(df["Message_Type"] == 4)])
-
-
-
+#print(df[(df["Message_Type"] == 4)])
+meta = pd.read_parquet("META_2025-10-01_meta.parquet")
+print(meta)
+exit()
 
 
 df["Mid_Price"] = (
