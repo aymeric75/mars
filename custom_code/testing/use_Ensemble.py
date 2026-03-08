@@ -23,7 +23,7 @@ def load_order_batch_model(ckpt_path: str, device: str = "cpu"):
 
 ob_model = load_order_batch_model(
     "/scratch/project_2012747/mars_runs/order_batch_model/31737330/val=val_loss=1.6047.ckpt",
-    device="cuda"
+    device="cpu"
 )
 
 
@@ -42,16 +42,8 @@ def load_ensemble_model(ckpt_path: str, order_vocab_size: int, device="cpu"):
     return model
 
 
-model = load_ensemble_model(
+ensemble_model = load_ensemble_model(
     ckpt_path="/scratch/project_2012747/mars_runs/ensemble_model/31731449/ckpt_step=0_val=3.307867.pt",
     order_vocab_size=49152,
-    device="cuda"
+    device="cpu"
 )
-
-
-
-
-# Then, the Ensemble Model take as input both the output of the Order Batch Model and the output of the Order Model
-
-
-
