@@ -10,11 +10,47 @@ from pathlib import Path
 from collections import Counter
 
 from market_simulation.states.order_state import OrderState, PredOrderInfo
+from market_simulation.utils.bin_converter import BinConverter
+
 
 NUM_BINS_PRICE_LEVEL = 32
 NUM_BINS_ORDER_VOLUME = 32
 NUM_BINS_ORDER_INTERVAL = 16
 NUM_BINS_LOB_VOLUME = 32
+
+@dataclass
+class Converters:
+    price_level: BinConverter
+    order_volume: BinConverter
+    pred_order_volume: BinConverter
+    order_interval: BinConverter
+    lob_volume: BinConverter
+with open("converters_portable.json", "r", encoding="utf-8") as f:
+    obj = json.load(f)
+price_minus_mid = []
+for bin_item in obj["state"]["price_level"]["bin_values"]:
+    price_minus_mid.extend(bin_item["data"])
+
+sizes = []
+for bin_item in obj["state"]["order_volume"]["bin_values"]:
+    sizes.extend(bin_item["data"])
+
+intervals = []
+for bin_item in obj["state"]["order_interval"]["bin_values"]:
+    intervals.extend(bin_item["data"])
+
+lob_vols = []
+for bin_item in obj["state"]["lob_volume"]["bin_values"]:
+    lob_vols.extend(bin_item["data"])
+
+converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
+
+print(converter.price_level.bins)
+print(converter.order_volume.bins)
+print(converter.pred_order_volume.bins)
+print(converter.order_interval.bins)
+
+exit()
 
 data_folder = Path("jsons")
 
@@ -119,9 +155,9 @@ for file_gt in data_folder.glob("*order-indices-gt.json"):
     for kk, vv in indices_pred.items():
 
         if kk not in indices_gt:
-            print("PROBLEME !!!")
-            print(kk)
-            exit()
+            #print("PROBLEME !!!")
+            #print(kk)
+            #exit()
             continue
 
 
