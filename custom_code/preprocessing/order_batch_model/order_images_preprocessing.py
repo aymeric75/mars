@@ -9,7 +9,7 @@ import zarr
 from numcodecs import Blosc
 from zarr.storage import ZipStore
 
-from utils_preproc import decode_order_index_df, past_index_around_60s_ns, build_image_zarr_chunked_from_lookback
+from custom_code.preprocessing.utils_preproc import decode_order_index_df, past_index_around_60s_ns, build_image_zarr_chunked_from_lookback
 
 
 """ from features .parquets files into *order-images.zarr.zip files holding the order images """
@@ -21,8 +21,8 @@ print("HELLO")
 
 
 # dir with all "*_features.parquet" files
-INPUT_DIR = Path("/scratch/project_2012747/mars_data/order_model/train/final")
-OUTPUT_DIR = Path("/scratch/project_2012747/mars_data/order_batch_model/train/raw")
+INPUT_DIR = Path("/scratch/project_2012747/mars_data/order_model/test/final")
+OUTPUT_DIR = Path("/scratch/project_2012747/mars_data/order_batch_model/test/raw")
 
 
 

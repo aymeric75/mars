@@ -9,6 +9,7 @@ from typing import Optional, Tuple, List
 from pathlib import Path
 from multiprocessing import Pool, cpu_count
 from collections import defaultdict
+from datetime import date
 
 from mlib.core.trade_info import TradeInfo
 from mlib.core.lob_snapshot import LobSnapshot
@@ -184,7 +185,7 @@ def build_replay_trade_infos(
 
                         total_transactions += 1
 
-                    if order.tag == "replay_exec":
+                    if order.tag == "type_4":
 
 
                         if not tmp_trade_infos:
@@ -325,7 +326,7 @@ def _init_worker(converters_json_path: str):
 
 
 def _process_pair(args):
-    stock, date, msg_path, meta_path, out_dir = args
+    stock, date_, msg_path, meta_path, out_dir = args
 
     messages_df = pd.read_parquet(msg_path)
     meta_df = pd.read_parquet(meta_path)
@@ -334,7 +335,7 @@ def _process_pair(args):
         messages_df,
         meta_df,
         symbol=stock,
-        day=date,
+        day=date_,
         conv=CONVERTERS,
         max_events=None,
     )
@@ -345,10 +346,10 @@ def _process_pair(args):
     for i, lst in enumerate(lists):
         pkl_utils.save_pkl_zstd(
             [(lst, start_lob), (lst, start_lob)],
-            out_dir / f"tradeInfos__replay_{stock}_{date}_{i}.zstd",
+            out_dir / f"tradeInfos__replay_{stock}_{date_}_{i}.zstd",
         )
 
-    return stock, date, len(lists)
+    return stock, date_, len(lists)
 
 
 def main():
@@ -383,14 +384,14 @@ def main():
 
 
     tasks = [
-        (stock, date, files["messages"], files["meta"], str(out_dir))
-        for (stock, date), files in pairs.items()
+        (stock, date_, files["messages"], files["meta"], str(out_dir))
+        for (stock, date_), files in pairs.items()
         if "messages" in files and "meta" in files
     ]
 
     with Pool(processes=cpu_count(), initializer=_init_worker, initargs=(converters_json,)) as pool:
-        for stock, date, n_lists in pool.imap_unordered(_process_pair, tasks, chunksize=1):
-            print(f"{stock} {date}: wrote {n_lists} outputs")
+        for stock, date_, n_lists in pool.imap_unordered(_process_pair, tasks, chunksize=1):
+            print(f"{stock} {date_}: wrote {n_lists} outputs")
 
 
 if __name__ == "__main__":

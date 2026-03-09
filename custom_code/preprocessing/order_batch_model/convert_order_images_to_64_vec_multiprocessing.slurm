@@ -46,7 +46,7 @@ python -c "import numpy, torch, pandas, pyarrow, pytorch_lightning, omegaconf; p
 # -------------------------
 # List of symbols
 # -------------------------
-SYMBOLS=('AMD' 'AMZN')
+SYMBOLS=('NFLX' 'NVDA' 'TSLA')
 
 #('AAPL'  'AMD' 'AMZN'  'ASML'  'AVGO'  'COST'  'GOOG_'  'GOOGL'  'INTC'  'META'  'MSFT'  'NFLX'  'NVDA'  'PLTR'  'TSLA') ['GOOGL', 'NVDA', 'PLTR', 'TSLA']
 
@@ -71,7 +71,7 @@ for SYMBOL in "${SYMBOLS[@]}"; do
 #SBATCH --mem=256G
 #SBATCH --gres=gpu:v100:1
 #SBATCH --cpus-per-task=1
-#SBATCH --time=03:00:00
+#SBATCH --time=05:00:00
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err
 

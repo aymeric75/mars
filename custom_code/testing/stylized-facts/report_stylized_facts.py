@@ -215,7 +215,7 @@ def get_minute_info(trade_infos: list[TradeInfo], start_lob: LobSnapshot) -> lis
         if isinstance(trade_info.order.time, pd.Timedelta):
             trade_info.order.time = start_lob.time + trade_info.order.time
 
-        if trade_info.transactions: # and trade_info.transactions[0].type != "C"
+        if trade_info.transactions and trade_info.transactions[0].type != "C":
             last_price = trade_info.transactions[0].price
             #print(last_price)
             trans_volume = sum([x.volume for x in trade_info.transactions])

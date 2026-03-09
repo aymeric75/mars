@@ -594,16 +594,16 @@ def process_one_file(args):
 def main():
 
 
-    data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
-    output_folder = "/scratch/project_2012747/mars_data/order_model/train/val"
+    data_folder = "/scratch/project_2012747/mars_data/order_model/test/"
+    output_folder = "/scratch/project_2012747/mars_data/order_model/train/test"
 
     # train dates
     #start = datetime.strptime("2025-11-03", "%Y-%m-%d").date()
     #end   = datetime.strptime("2025-11-06", "%Y-%m-%d").date()
     
     # val dates
-    start = datetime.strptime("2025-11-27", "%Y-%m-%d").date()
-    end   = datetime.strptime("2025-11-29", "%Y-%m-%d").date()
+    start = datetime.strptime("2025-12-09", "%Y-%m-%d").date()
+    end   = datetime.strptime("2025-12-11", "%Y-%m-%d").date()
 
     #data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
     #output_folder = "/scratch/project_2012747/mars_data/order_model/val/final"
@@ -701,7 +701,7 @@ def main():
 
 
 
-    with open("converters_portable.json", "r", encoding="utf-8") as f:
+    with open("../converters_portable.json", "r", encoding="utf-8") as f:
         obj = json.load(f)
 
     #price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
@@ -764,7 +764,7 @@ def main():
     }
 
 
-    some_list = ["AMD", "AMZN"]
+    some_list = ["NFLX", "NVDA", "TSLA"]
 
 
     # Filter paths

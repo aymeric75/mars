@@ -111,7 +111,16 @@ def plot_feature_distribution(values_dico, feature_name, ax, gt_color="orange", 
     ax.bar(x - width/2, gt, width, label="GT", color=gt_color)
     ax.bar(x + width/2, pred, width, label="Pred")
 
-    ax.set_title(feature_name)
+    
+    corres_names = {
+        
+        "price": "price / mid price distance (in ticks)",
+        "type": "Order Type",
+        "interval": "time interval between two orders (in seconds)",
+        "volume": "order volume (in shares)"
+    }
+
+    ax.set_title(corres_names[feature_name])
     if xtick_pos is not None and xtick_labels is not None:
         ax.set_xticks(xtick_pos)
         ax.set_xticklabels(xtick_labels)
