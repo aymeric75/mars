@@ -26,12 +26,19 @@ from custom_code.preprocessing.order_model.messages_to_features import (
     build_converters_from_samples,
     pass2_write_features
 )
-
-
-
-
+# from custom_code.preprocessing.order_batch_model.convert_order_images_to_64_vec import (
+#     find_best_checkpoint,
+#     load_model,
+# )
 from custom_code.testing.utils import load_order_model, load_ensemble_model, load_order_batch_model
+CKPT_DIR = Path("checkpoint_downsample_100")
 
+# best_ckpt = find_best_checkpoint(CKPT_DIR)
+# model, device = load_model(best_ckpt)
+# exit()
+
+
+device = "cpu"
 SEQ_LEN = 1 # 1024
 TOKEN_DIM = 15
 NUM_BINS_PRICE_LEVEL = 32
@@ -81,21 +88,29 @@ converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lo
 
 
 
-data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
+#data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
+data_dir = Path("../data")
 
 #for message_file in data_dir.glob("*_messages.parquet"):
 
 
 def process_file(message_file):
 
+    #-----------------------------------------
+    # Loop over the 3 files, at the same time
+    #-----------------------------------------
+    # device="cpu"
+    # # Load the Order Model
+    # order_model = load_order_model(
+    #     ckpt_path="step=step=3360-val=val_loss=3.7445.ckpt",
+    #     device=device
+    # )
+    # order_model = order_model.to(device).eval()
 
-    device="cpu"
-    # Load the Order Model
-    order_model = load_order_model(
-        ckpt_path="step=step=3360-val=val_loss=3.7445.ckpt",
-        device=device
-    )
-    order_model = order_model.to(device).eval()
+    # for the Ensemble mode:
+    # requires to load also the Order Batch Model and the VQGAN
+
+
 
     stock = message_file.stem.split("_")[0]
     day = message_file.stem.split("_")[1]
@@ -213,6 +228,9 @@ def process_file(message_file):
 
             batch_array = np.stack(batch_list, axis=0)
             X = torch.from_numpy(batch_array).to(device=device, dtype=torch.long)
+            print("X.shape")
+            print(X.shape)
+            exit()
             base_logits = order_model(X)
             logits_next = base_logits[:, -1, :]          # (49152,)
             probs_next  = torch.softmax(logits_next, 1) # (49152,)
@@ -257,5 +275,5 @@ if __name__ == "__main__":
     print("filtered")
     print(filtered)
 
-    with ProcessPoolExecutor() as ex:
-        list(ex.map(process_file, filtered))
+    with ProcessPoolExecutor(1) as ex:
+        list(ex.map(process_file, files))
