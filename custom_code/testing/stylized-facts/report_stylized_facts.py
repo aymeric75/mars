@@ -216,6 +216,7 @@ def get_minute_info(trade_infos: list[TradeInfo], start_lob: LobSnapshot) -> lis
             trade_info.order.time = start_lob.time + trade_info.order.time
 
         if trade_info.transactions and trade_info.transactions[0].type != "C":
+            #last_price = trade_info.transactions[0].price
             last_price = trade_info.transactions[0].price
             #print(last_price)
             trans_volume = sum([x.volume for x in trade_info.transactions])
@@ -344,8 +345,8 @@ def get_return_info(
         simulation_minutes = rollout_info.simulation_minutes
         assert len(replay_minutes) == len(simulation_minutes)
         num_minutes = len(replay_minutes)
-        print("num_minutesnum_minutes")
-        print(num_minutes)
+        # print("num_minutesnum_minutes")
+        # print(num_minutes)
 
 
         for source, minutes in [("Replay", replay_minutes), ("Simulation", simulation_minutes)]:

@@ -21,14 +21,90 @@ class BinConverter:
         self._create_bins(values, num_bins)
         self._create_sample_probs(values, num_sample_per_bin)
 
+    # def _create_bins(self, values: list[float], num_bins: int) -> None:
+    #     assert num_bins > 1
+    #     values.sort()
+    #     self.num_bins: int = num_bins
+    #     value_freq: Counter[float] = Counter(values)
+    #     avg_bin_sample_count = len(values) / num_bins
+
+    #     # extract single items that can occupy a single bin
+    #     single_item_bins: set[float] = set()
+    #     for value, count in value_freq.items():
+    #         if count > avg_bin_sample_count:
+    #             single_item_bins.add(value)
+
+    #     min_value = min(values)
+    #     if min_value in single_item_bins:
+    #         min_value = min_value - 1
+
+    #     # remove items that are already in single-item bins
+    #     values = [x for x in values if x not in single_item_bins]
+    #     assert values
+
+    #     num_values = len(values)
+    #     available_bins = num_bins - len(single_item_bins) + 1
+    #     cur_index = 0
+    #     bins: list[float] = [min_value, *list(single_item_bins)]
+    #     while available_bins > 0 and cur_index < num_values:
+    #         steps = (num_values - cur_index) // (available_bins - 1)
+    #         start_value = values[cur_index]
+    #         end_index = cur_index + steps
+    #         for end_index in range(cur_index + steps, num_values):
+    #             if values[end_index] != start_value:
+    #                 break
+    #         cur_index = end_index
+    #         available_bins -= 1
+    #         bins.append(values[cur_index] if cur_index < num_values else values[-1])
+    #     bins.sort()
+    #     assert len(bins) == self.num_bins + 1
+    #     self.bins = np.array(bins)
+
+
     def _create_bins(self, values: list[float], num_bins: int) -> None:
         assert num_bins > 1
         values.sort()
-        self.num_bins: int = num_bins
+        self.num_bins = num_bins
+
+        has_neg = values[0] < 0
+        has_pos = values[-1] > 0
+
+        # no sign crossing -> keep old behavior
+        if not (has_neg and has_pos):
+            self.bins = np.array(self._create_bins_one_side(values, num_bins))
+            return
+
+        neg_values = [x for x in values if x < 0]
+        pos_values = [x for x in values if x > 0]
+        zero_values = [x for x in values if x == 0]
+
+        # allocate bins roughly proportionally, but ensure both sides get at least 1
+        non_zero_count = len(neg_values) + len(pos_values)
+        neg_bins = max(1, round(num_bins * len(neg_values) / non_zero_count))
+        pos_bins = num_bins - neg_bins
+        if pos_bins == 0:
+            pos_bins = 1
+            neg_bins -= 1
+
+        neg_edges = self._create_bins_one_side(neg_values, neg_bins)
+        pos_edges = self._create_bins_one_side(pos_values, pos_bins)
+
+        # enforce zero as the separating boundary
+        # neg_edges includes leftmost edge and rightmost negative edge
+        # pos_edges includes leftmost positive edge and rightmost edge
+        bins = neg_edges[:-1] + [0.0] + pos_edges[1:]
+
+        assert len(bins) == self.num_bins + 1
+        self.bins = np.array(bins)
+
+
+    def _create_bins_one_side(self, values: list[float], num_bins: int) -> list[float]:
+        assert num_bins > 0
+        values = sorted(values)
+
         value_freq: Counter[float] = Counter(values)
         avg_bin_sample_count = len(values) / num_bins
 
-        # extract single items that can occupy a single bin
         single_item_bins: set[float] = set()
         for value, count in value_freq.items():
             if count > avg_bin_sample_count:
@@ -36,9 +112,8 @@ class BinConverter:
 
         min_value = min(values)
         if min_value in single_item_bins:
-            min_value = min_value - 1
+            min_value = min_value - 1e-12
 
-        # remove items that are already in single-item bins
         values = [x for x in values if x not in single_item_bins]
         assert values
 
@@ -46,6 +121,7 @@ class BinConverter:
         available_bins = num_bins - len(single_item_bins) + 1
         cur_index = 0
         bins: list[float] = [min_value, *list(single_item_bins)]
+
         while available_bins > 0 and cur_index < num_values:
             steps = (num_values - cur_index) // (available_bins - 1)
             start_value = values[cur_index]
@@ -56,9 +132,10 @@ class BinConverter:
             cur_index = end_index
             available_bins -= 1
             bins.append(values[cur_index] if cur_index < num_values else values[-1])
+
         bins.sort()
-        assert len(bins) == self.num_bins + 1
-        self.bins = np.array(bins)
+        assert len(bins) == num_bins + 1
+        return bins
 
     def _create_sample_probs(self, values: list[float], num_sample_per_bin: int = 100) -> None:
         def normalize(arr: np.ndarray) -> np.ndarray:
