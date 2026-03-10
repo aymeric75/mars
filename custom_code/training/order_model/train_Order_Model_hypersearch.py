@@ -6,6 +6,7 @@ import lightning.pytorch as pl
 import torch
 import numpy as np
 
+from pathlib import Path
 from torch.utils.data import DataLoader, Subset
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -49,14 +50,12 @@ class OrderBatchDataModule(pl.LightningDataModule):
 
     def setup(self, stage: str | None = None):
         self._train = RawMessagesTokenDataset(
-            parquet_dir=self.train_dir,
-            pattern=self.pattern,
+            message_files=list(Path(self.train_dir).glob("*messages.parquet")),
             seq_len=self.seq_len,
             cache_size=self.cache_size,
         )
         self._val = RawMessagesTokenDataset(
-            parquet_dir=self.val_dir,
-            pattern=self.pattern,
+            message_files=list(Path(self.val_dir).glob("*messages.parquet")),
             seq_len=self.seq_len,
             cache_size=self.cache_size,
         )

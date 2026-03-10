@@ -107,10 +107,15 @@ def compute_value(message_file, snapshot_file):
     print("len(predicted_list)")
     print(len(predicted_list))
     print(len(gt_list))
-
     
-    json.dump(filtered_gt, open(f"jsons/{stock}_{day}_order-indices-gt.json", "w"), default=lambda x: x.item())
-    json.dump(predicted_indices, open(f"jsons/{stock}_{day}_order-indices-pred.json", "w"), default=lambda x: x.item())
+    predicted_dico = {}
+    for i, ele in enumerate(predicted_list):
+        predicted_dico[i] = ele
+    gt_dico = {}
+    for i, ele in enumerate(gt_list):
+        gt_dico[i] = ele
+    json.dump(gt_dico, open(f"jsons/{stock}_{day}_order-indices-gt.json", "w"), default=lambda x: x.item())
+    json.dump(predicted_dico, open(f"jsons/{stock}_{day}_order-indices-pred.json", "w"), default=lambda x: x.item())
 
     
     return

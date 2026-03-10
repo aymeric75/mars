@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 import json
@@ -21,7 +20,8 @@ class Converters:
     pred_order_volume: BinConverter
     order_interval: BinConverter
     lob_volume: BinConverter
-with open("../converters_portable.json", "r", encoding="utf-8") as f:
+    
+with open("converters_portable.json", "r", encoding="utf-8") as f:
     obj = json.load(f)
 
 price_minus_mid = []
@@ -120,7 +120,7 @@ def from_messages_to_features(message_file, snapshot_file):
     create_mars_order_type_column(messages)
 
 
-    print(snapshots)
+    #print(snapshots)
 
 
     features = messages[["Time", "Mars_type", "Price", "Size"]].copy()

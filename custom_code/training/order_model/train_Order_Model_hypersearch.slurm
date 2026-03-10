@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=order_model_grid
 #SBATCH --account=project_2017808
-#SBATCH --partition=gpu
+#SBATCH --partition=gputest
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=2
+#SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
-#SBATCH --time=04:00:00
-#SBATCH --gres=gpu:v100:2
+#SBATCH --time=00:15:00
+#SBATCH --gres=gpu:v100:1
 #SBATCH --mem=256G
 #SBATCH --output=logs_order_model/%x_%j.out
 #SBATCH --error=logs_order_model/%x_%j.err
@@ -67,8 +67,8 @@ for LR in "${LRS[@]}"; do
     mkdir -p "$TORCH_HOME" "$HF_HOME" "$XDG_CACHE_HOME" "$TMPDIR"
 
     srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u train_Order_Model_hypersearch.py \
-      --train_dir /scratch/project_2012747/mars_data/order_model/train/final \
-      --val_dir /scratch/project_2012747/mars_data/order_model/val/final \
+      --train_dir /scratch/project_2012747/mars_data/order_model/train/raw \
+      --val_dir /scratch/project_2012747/mars_data/order_model/val/raw \
       --model_variant base \
       --K 1024 \
       --batch_size ${BS} \

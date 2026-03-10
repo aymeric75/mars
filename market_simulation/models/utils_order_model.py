@@ -9,6 +9,8 @@ import torch.nn.functional as F
 import zarr
 import pyarrow.parquet as pq
 
+import pandas as pd
+
 from collections import OrderedDict
 from functools import lru_cache
 from torch.utils.data import DataLoader, Dataset, Subset
@@ -77,9 +79,13 @@ class RawMessagesTokenDataset(Dataset):
 
         print("Building dataset index...")
 
+        print("message_files")
+        print(self.message_files)
+
         for file_idx, msg_path in enumerate(self.message_files):
 
             n_rows = self._count_rows(msg_path)
+            print(f"n_rows {n_rows}")
 
             n_windows = max(0, n_rows - seq_len + 1)
 
@@ -90,7 +96,7 @@ class RawMessagesTokenDataset(Dataset):
 
     def _count_rows(self, parquet_path):
         """Fast row count without loading full file."""
-        return pd.read_parquet(parquet_path, columns=[]).shape[0]
+        return pq.ParquetFile(parquet_path).metadata.num_rows
 
     def _snapshot_path(self, message_path):
         """
@@ -98,7 +104,7 @@ class RawMessagesTokenDataset(Dataset):
 
         Adjust if naming differs.
         """
-        return message_path.replace("messages", "book")
+        return message_path.replace("messages", "snapshots")
 
     def _load_features(self, file_idx):
 
