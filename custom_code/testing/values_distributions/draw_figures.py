@@ -51,36 +51,69 @@ for bin_item in obj["state"]["lob_volume"]["bin_values"]:
 
 converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
 
-print(converters.price_level.bins)
-print(converters.order_volume.bins)
-print(converters.pred_order_volume.bins)
-print(converters.order_interval.bins)
+# print(converters.price_level.bins)
+# # print(converters.order_volume.bins)
+# # print(converters.pred_order_volume.bins)
+# # print(converters.order_interval.bins)
 
-#exit()
+# print()
+# print()
+# print(converters.price_level.bin_values)
+
+
+messages = pd.read_parquet("../data/NFLX_2025-12-09_messages.parquet")
+# start_time = 34200000226319
+# end_time = 57599998528372
+# messages = df_[(df_["Time"] >= start_time) & (df_["Time"] <= end_time)]
+# en fct du Message_type puis de la direction, tu affecte soit 0(S), 1(B), 2(C)
+messages["Mars_type"] = 0
+# TYPE 2: cancel / delete
+messages.loc[messages["Message_Type"].isin([2, 3]), "Mars_type"] = 2
+# TYPE 1 : buy passive limit order
+messages.loc[
+    ((messages["Message_Type"] == 1) & (messages["Direction"] == -1)),
+    "Mars_type"
+] = 1
+# TYPE 3 : sell agressive order
+messages.loc[
+    ((messages["Message_Type"] == 4) & (messages["Direction"] == -1)),
+    "Mars_type"
+] = 3
+# TYPE 4 buy aggressive
+messages.loc[
+    ((messages["Message_Type"] == 4) & (messages["Direction"] == 1)),
+    "Mars_type"
+] = 4
+
+
 
 data_folder = Path("jsons")
 
 
-
-
-
-def rearrange_order_type(type_, price):
+def rearrange_order_type(type_, price, index_):
     """ look at the comments """
     # if cancel / delete
     if type_ == 2:
         return type_
-    # if sell order
-    if type_ == 0:
-        if price > 16:
-            return 0 # passive limit order
-        else:
-            return 3 # agressive
-    # if buy order
-    if type_ == 1:
-        if price < 16:
-            return 1 # passive limit order
-        else:
-            return 4 # agressive
+
+    # if price is 16, go take the
+    if price == 16:
+        return messages["Mars_type"].iloc[int(index_)]
+
+    else:
+
+        # if sell order
+        if type_ == 0:
+            if price > 16:
+                return 0 # passive limit order
+            else:
+                return 3 # agressive
+        # if buy order
+        if type_ == 1:
+            if price < 16:
+                return 1 # passive limit order
+            else:
+                return 4 # agressive
     return
 
 
@@ -111,9 +144,9 @@ def plot_feature_distribution(values_dico, feature_name, ax, gt_color="orange", 
     ax.bar(x - width/2, gt, width, label="GT", color=gt_color)
     ax.bar(x + width/2, pred, width, label="Pred")
 
-    
+
     corres_names = {
-        
+
         "price": "price / mid price distance (in ticks)",
         "type": "Order Type",
         "interval": "time interval between two orders (in seconds)",
@@ -156,6 +189,8 @@ for file_gt in data_folder.glob("*order-indices-gt.json"):
     # retrieve corresponding prediction file
     file_pred = Path(data_folder / file_gt.name.replace("-gt", "-pred"))
 
+
+
     # load ground truth indices
     with open(file_gt, "r") as f:
         indices_gt = json.load(f)
@@ -164,6 +199,9 @@ for file_gt in data_folder.glob("*order-indices-gt.json"):
     with open(file_pred, "r") as f:
         indices_pred = json.load(f)
 
+    # print(len(indices_gt))
+    # print(list(indices_gt.keys())[0])
+    # exit()# 1988223
 
     if day not in values_dico:
         values_dico[day] = {}
@@ -201,8 +239,8 @@ for file_gt in data_folder.glob("*order-indices-gt.json"):
         pred_order_interval = pred_order_infos.interval
 
 
-        gt_order_type = rearrange_order_type(gt_order_type, gt_order_price)
-        pred_order_type = rearrange_order_type(pred_order_type, pred_order_price)
+        gt_order_type = rearrange_order_type(gt_order_type, gt_order_price, kk)
+        pred_order_type = rearrange_order_type(pred_order_type, pred_order_price, kk)
 
 
         kk = int(kk)

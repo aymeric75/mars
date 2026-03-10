@@ -486,7 +486,7 @@ def pass2_write_features(
 
         #     # index  vol_ratio_slot  trans_ratio_slot   price_change_to_open    time_to_open     lob_volumes
         #     # f0     f1              f2                 f3                       f4             f5  f6  f7  f8  f9  f10  f11  f12  f13  f14
-        #     # 10624   9              0                  0                         2147          0   0   0   0   0    0    0    0    0    0
+        #     # 10624   0              0                  une valeur               2147          0   0   0   0   0    0    0    0    0    0
 
 
 
@@ -600,7 +600,7 @@ def main():
     # train dates
     #start = datetime.strptime("2025-11-03", "%Y-%m-%d").date()
     #end   = datetime.strptime("2025-11-06", "%Y-%m-%d").date()
-    
+
     # val dates
     start = datetime.strptime("2025-12-09", "%Y-%m-%d").date()
     end   = datetime.strptime("2025-12-11", "%Y-%m-%d").date()
@@ -773,21 +773,21 @@ def main():
         if p.name not in feature_as_messages
     ]
 
-        
 
-    
+
+
     filtered_paths = [
         f for f in filtered_paths
         if start <= datetime.strptime(f.stem.split('_')[1], "%Y-%m-%d").date() <= end
     ]
-    
-    
-    
+
+
+
     filtered_paths = [
         p for p in filtered_paths
         if any(keyword in p.name for keyword in some_list)
     ]
-    
+
 
     """
     filtered_paths = [

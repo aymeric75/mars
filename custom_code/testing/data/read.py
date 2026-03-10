@@ -1,69 +1,68 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_parquet("META_2025-10-01_messages.parquet")
-
-# 7268100
-
-# if tick is 0.0001
-
-print(df)
-
-# df["Time_seconds"] = df["Time"] / 1e9
-
-# print(df[(df["Message_Type"] == 4) & (df["Order"] == 376839)])
-
-#print(df[(df["Message_Type"] == 4)])
-meta = pd.read_parquet("META_2025-10-01_meta.parquet")
-print(meta)
-exit()
+df_ = pd.read_parquet("NFLX_2025-12-09_messages.parquet")
 
 
-df["Mid_Price"] = (
-    (df["Ask_Price_1"] + df["Bid_Price_1"]) / 2
-).where(
-    df["Ask_Price_1"].notna() & df["Bid_Price_1"].notna()
-)
+start_time = 34200000226319
+end_time = 57599998528372
+
+df = df_[(df_["Time"] >= start_time) & (df_["Time"] <= end_time)]
 
 
-valid_indices = df.index[df["Mid_Price"].notna()].tolist()
+# en fct du Message_type puis de la direction, tu affecte soit 0(S), 1(B), 2(C)
+df["Mars_type"] = 0
 
-#print(valid_indices)
-print(len(valid_indices)) # 1696627
+# TYPE 2: cancel / delete
+df.loc[df["Message_Type"].isin([2, 3]), "Mars_type"] = 2
+
+# TYPE 1 : buy passive limit order
+df.loc[
+    ((df["Message_Type"] == 1) & (df["Direction"] == -1)),
+    "Mars_type"
+] = 1
+
+# TYPE 3 : sell agressive order
+df.loc[
+    ((df["Message_Type"] == 4) & (df["Direction"] == -1)),
+    "Mars_type"
+] = 3
 
 
-# Est ce qu'on peut regrouper les Orders ?
+# TYPE 4 buy aggressive
 
+df.loc[
+    ((df["Message_Type"] == 4) & (df["Direction"] == 1)),
+    "Mars_type"
+] = 4
 
-print(df)
-
-
-# Get the starting timestamp (ns)
-start_time = df["Time"].iloc[0]
-
-# Compute minute index relative to start
-df["minute"] = ((df["Time"] - start_time) // 60_000_000_000).astype(int)
 
 print(df)
 
-# --- Detect mid price changes (ignore NaNs automatically) ---
-df["Mid_Change"] = df["Mid_Price"].diff().ne(0)
+print(df["Mars_type"].value_counts().sort_index())
 
-# Remove rows where mid price is NaN
-valid = df["Mid_Price"].notna()
 
-# Count changes per minute
-changes_per_minute = (
-    df[valid & df["Mid_Change"]]
-    .groupby("minute")
-    .size()
-)
 
-# --- Plot ---
+# print(df["Mars_type"].unique())
+import matplotlib.pyplot as plt
 plt.figure()
-plt.bar(changes_per_minute.index, changes_per_minute.values)
-plt.xlabel("Minute")
-plt.ylabel("Number of Mid Price Changes")
-plt.title("Mid Price Changes per Minute")
-plt.savefig("mid_price_changes_per_minute.png", dpi=300, bbox_inches="tight")
+
+plt.hist(df["Mars_type"], bins=[-0.5,0.5,1.5,2.5,3.5,4.5])
+
+plt.xticks([0,1,2,3,4])
+plt.xlabel("Mars_type")
+plt.ylabel("Count")
+plt.title("Histogram of Mars_type")
+
+plt.savefig("mars_type_histogram.png", dpi=300, bbox_inches="tight")
 plt.close()
+
+
+# ABSO check si le feature a tord
+
+
+# sell pass   buy pass
+# 525858 +    526832 = 1052690         # PASSIVE
+
+# cancel/delete   sell agres      buy agressive
+# 823127        + 80593         + 78172 = 981892
