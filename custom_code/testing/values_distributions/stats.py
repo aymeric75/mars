@@ -275,5 +275,5 @@ if __name__ == "__main__":
     print("filtered")
     print(filtered)
 
-    with ProcessPoolExecutor(1) as ex:
+    with ProcessPoolExecutor() as ex:
         list(ex.map(process_file, files))

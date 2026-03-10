@@ -28,4 +28,4 @@ export TMPDIR="$RUN_ROOT/tmp"
 
 mkdir -p "$RUN_ROOT" "$TORCH_HOME" "$HF_HOME" "$XDG_CACHE_HOME" "$TMPDIR"
 
-srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u report_stylized_facts.py"
+srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u create_rollout_info_list.py"

@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=testing
 #SBATCH --account=project_2017808
-#SBATCH --partition=test
+#SBATCH --partition=gputest
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=64G
-#SBATCH --time=00:15:00
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=256G
+#SBATCH --time=00:04:00
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err
 
@@ -28,4 +28,4 @@ export TMPDIR="$RUN_ROOT/tmp"
 
 mkdir -p "$RUN_ROOT" "$TORCH_HOME" "$HF_HOME" "$XDG_CACHE_HOME" "$TMPDIR"
 
-srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u draw_figures.py"
+srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u stats_no_market_engine.py"

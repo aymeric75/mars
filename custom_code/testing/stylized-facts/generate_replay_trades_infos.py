@@ -366,7 +366,7 @@ def main():
     allowed_stocks = {"AAPL", "GOOGL"}
 
     start_date = date.fromisoformat("2025-11-06")
-    end_date = date.fromisoformat("2025-11-08")
+    end_date = date.fromisoformat("2025-11-20")
 
     pat = re.compile(
         r"(?P<stock>[A-Z]+)_(?P<date>\d{4}-\d{2}-\d{2})_"

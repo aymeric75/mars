@@ -1,6 +1,10 @@
 import torch
+import json
 import pandas as pd
 import numpy as np
+from pathlib import Path
+from concurrent.futures import ProcessPoolExecutor
+
 from custom_code.testing.utils import load_order_model, load_ensemble_model, load_order_batch_model
 
 # a function that takes a feature file as input
@@ -9,6 +13,12 @@ from custom_code.testing.utils import load_order_model, load_ensemble_model, loa
 #    take the output (do the argmax and so forth see the stats.py file)
 
 def compute_value(feature_file):
+
+
+    stock = feature_file.stem.split("_")[0]
+    day = feature_file.stem.split("_")[1]
+
+    print(f"processing: {stock} and {day}")
 
     df = pd.read_parquet(feature_file)
 
@@ -19,7 +29,7 @@ def compute_value(feature_file):
     device="cuda"
     # Load the Order Model
     order_model = load_order_model(
-        ckpt_path="../step=step=3360-val=val_loss=3.7445.ckpt",
+        ckpt_path="step=step=3360-val=val_loss=3.7445.ckpt",
         device=device
     )
 
@@ -69,6 +79,47 @@ def compute_value(feature_file):
 
     print(len(predicted_list))
     print(len(gt_list))
+    
+    json.dump(filtered_gt, open(f"jsons/{stock}_{day}_order-indices-gt.json", "w"), default=lambda x: x.item())
+    json.dump(predicted_indices, open(f"jsons/{stock}_{day}_order-indices-pred.json", "w"), default=lambda x: x.item())
+
+    
     return
 
-compute_value("../data/NFLX_2025-12-09_features.parquet")
+
+
+
+
+
+
+
+
+
+if __name__ == "__main__":
+    
+    data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/final")
+
+    files = list(data_dir.glob("*_features.parquet"))
+
+    # '/scratch/project_2012747/mars_data/order_model/test/raw/AMZN_2025-12-09_messages.parquet
+
+
+    """
+    # Filtering the list
+    tickers = {"NFLX", "NVDA", "TSLA"}
+    start = datetime.fromisoformat("2025-12-09")
+    end = datetime.fromisoformat("2025-12-11")
+
+    filtered = []
+    for f in files:
+        ticker, date_str, *_ = f.stem.split("_")
+        date = datetime.fromisoformat(date_str)
+
+        if ticker in tickers and start <= date <= end:
+            filtered.append(f)
+    """
+
+    with ProcessPoolExecutor(1) as ex:
+        list(ex.map(compute_value, files))
+
+#compute_value("../data/NFLX_2025-12-09_features.parquet")
