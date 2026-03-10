@@ -2,15 +2,15 @@ import torch
 import json
 import pandas as pd
 import numpy as np
-<<<<<<< HEAD
+
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 
-=======
+
 
 from tqdm import tqdm
 from pathlib import Path
->>>>>>> b8695764112404eea58ede3017f117c4b2cfeb22
+
 from custom_code.testing.utils import load_order_model, load_ensemble_model, load_order_batch_model
 
 from custom_code.preprocessing.order_model.messages_to_features_no_engine import from_messages_to_features
@@ -24,16 +24,15 @@ from custom_code.preprocessing.order_model.messages_to_features_no_engine import
 def compute_value(message_file, snapshot_file):
 
 
-<<<<<<< HEAD
-    stock = feature_file.stem.split("_")[0]
-    day = feature_file.stem.split("_")[1]
+
+    feature_df = from_messages_to_features(message_file, snapshot_file)
+    feature_df = feature_df[(feature_df["Time"] >= 34200000226319) & (feature_df["Time"] <= 57599998528372)]
+
+    stock = message_file.stem.split("_")[0]
+    day = message_file.stem.split("_")[1]
 
     print(f"processing: {stock} and {day}")
 
-    df = pd.read_parquet(feature_file)
-=======
-    feature_df = from_messages_to_features(message_file, snapshot_file)
-    feature_df = feature_df[(feature_df["Time"] >= 34200000226319) & (feature_df["Time"] <= 57599998528372)]
 
 
     # RENAME COLS TO F0 ... F14
@@ -47,10 +46,6 @@ def compute_value(message_file, snapshot_file):
     feature_df[[f"f{i}" for i in range(4, 15)]] = feature_df[[f"f{i}" for i in range(4, 15)]].astype(int)
 
 
-    stock = message_file.stem.split("_")[0]
-    day = message_file.stem.split("_")[1]
->>>>>>> b8695764112404eea58ede3017f117c4b2cfeb22
-
     predicted_list = []
     gt_list = feature_df["f0"].tolist()
 
@@ -60,7 +55,7 @@ def compute_value(message_file, snapshot_file):
     for i, val in enumerate(gt_list):
         gt_dico[i] = val
 
-    device="cpu"
+    device="cuda"
     # Load the Order Model
     order_model = load_order_model(
         ckpt_path="step=step=3360-val=val_loss=3.7445.ckpt",
@@ -112,7 +107,7 @@ def compute_value(message_file, snapshot_file):
     print("len(predicted_list)")
     print(len(predicted_list))
     print(len(gt_list))
-<<<<<<< HEAD
+
     
     json.dump(filtered_gt, open(f"jsons/{stock}_{day}_order-indices-gt.json", "w"), default=lambda x: x.item())
     json.dump(predicted_indices, open(f"jsons/{stock}_{day}_order-indices-pred.json", "w"), default=lambda x: x.item())
@@ -131,11 +126,13 @@ def compute_value(message_file, snapshot_file):
 
 if __name__ == "__main__":
     
-    data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/final")
+    #data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/final")
 
-    files = list(data_dir.glob("*_features.parquet"))
+    #files = list(data_dir.glob("*_features.parquet"))
 
     # '/scratch/project_2012747/mars_data/order_model/test/raw/AMZN_2025-12-09_messages.parquet
+    
+
 
 
     """
@@ -153,17 +150,8 @@ if __name__ == "__main__":
             filtered.append(f)
     """
 
-    with ProcessPoolExecutor(1) as ex:
-        list(ex.map(compute_value, files))
+    #with ProcessPoolExecutor(1) as ex:
+    #    list(ex.map(compute_value, files))
 
-#compute_value("../data/NFLX_2025-12-09_features.parquet")
-=======
+    compute_value(Path("NFLX_2025-12-09_messages.parquet"), Path("NFLX_2025-12-09_snapshots.parquet"))
 
-    json.dump(gt_dico, open(f"jsons/{stock}_{day}_order-indices-gt.json", "w"), default=lambda x: x.item())
-    json.dump(predicted_list, open(f"jsons/{stock}_{day}_order-indices-pred.json", "w"), default=lambda x: x.item())
-
-    return
-
-#compute_value(Path("../data/NFLX_2025-12-09_features.parquet"))
-compute_value(Path("../data/NFLX_2025-12-09_messages.parquet"), Path("../data/NFLX_2025-12-09_snapshots.parquet"))
->>>>>>> b8695764112404eea58ede3017f117c4b2cfeb22

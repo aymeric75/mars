@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=testing
 #SBATCH --account=project_2012747
-#SBATCH --partition=test
+#SBATCH --partition=small
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=64G
-#SBATCH --time=00:15:00
+#SBATCH --mem=128G
+#SBATCH --time=01:15:00
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err
 
