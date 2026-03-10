@@ -11,7 +11,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from market_simulation.models.utils_order_model import (
-    ParquetFeaturesTokenDataset,
+    RawMessagesTokenDataset,
     build_model_from_variant,
     lm_loss_all_positions,
     unzip_zarr_zips,
@@ -25,8 +25,10 @@ class OrderBatchDataModule(pl.LightningDataModule):
         batch_size: int,
         num_workers: int,
         seed: int = 7,
-        pattern: str = "*_features.parquet",
+        pattern: str = "*_messages.parquet",
         feature_cols: int = 15,
+        seq_len: int = 1024,
+        cache_size: int = 4,
     ):
         super().__init__()
         self.train_dir = train_dir
@@ -36,6 +38,8 @@ class OrderBatchDataModule(pl.LightningDataModule):
         self.pattern = pattern
         self.feature_cols = int(feature_cols)
         self.seed = seed
+        self.seq_len = int(seq_len)
+        self.cache_size = int(cache_size)
         self._train = None
         self._val = None
 
@@ -44,17 +48,20 @@ class OrderBatchDataModule(pl.LightningDataModule):
         pass
 
     def setup(self, stage: str | None = None):
-        self._train = ParquetFeaturesTokenDataset(
+        self._train = RawMessagesTokenDataset(
             parquet_dir=self.train_dir,
             pattern=self.pattern,
-            feature_cols=self.feature_cols,
+            seq_len=self.seq_len,
+            cache_size=self.cache_size,
         )
-        self._val = ParquetFeaturesTokenDataset(
+        self._val = RawMessagesTokenDataset(
             parquet_dir=self.val_dir,
             pattern=self.pattern,
-            feature_cols=self.feature_cols,
+            seq_len=self.seq_len,
+            cache_size=self.cache_size,
         )
-    
+
+
     @staticmethod
     def seed_worker(worker_id: int):
         worker_seed = torch.initial_seed() % 2**32
@@ -71,13 +78,13 @@ class OrderBatchDataModule(pl.LightningDataModule):
             pin_memory=True,
             drop_last=True,
             persistent_workers=(self.num_workers > 0),
+            prefetch_factor=2 if self.num_workers > 0 else None,
         )
 
-    
+
     def val_dataloader(self):
-        
         g = torch.Generator()
-        g.manual_seed(self.seed)  # store seed in __init__
+        g.manual_seed(self.seed)
 
         return DataLoader(
             self._val,
@@ -85,9 +92,10 @@ class OrderBatchDataModule(pl.LightningDataModule):
             shuffle=True,
             num_workers=self.num_workers,
             worker_init_fn=self.seed_worker,
-            generator=g,  
+            generator=g,
             pin_memory=True,
             persistent_workers=(self.num_workers > 0),
+            prefetch_factor=2 if self.num_workers > 0 else None,
         )
 
 
@@ -121,7 +129,7 @@ class OrderLightningModule(pl.LightningModule):
         loss = lm_loss_all_positions(logits, X)
         self.log("val_loss", loss, on_step=False, sync_dist=False, prog_bar=False)
         return loss
-        
+
 
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters(), lr=self.lr)
@@ -131,8 +139,9 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--train_dir", required=True)
     p.add_argument("--val_dir", required=True)
-    p.add_argument("--pattern", default="*_features.parquet")
+    p.add_argument("--pattern", default="*_messages.parquet")
     p.add_argument("--feature_cols", type=int, default=15)
+    p.add_argument("--cache_size", type=int, default=4)
     p.add_argument("--model_variant", default="base", choices=["base", "small"])
     p.add_argument("--K", type=int, default=1024)
     p.add_argument("--batch_size", type=int, default=256)
@@ -147,7 +156,7 @@ def main():
     args = p.parse_args()
 
     pl.seed_everything(args.seed, workers=True)
-    
+
     dm = OrderBatchDataModule(
         train_dir=args.train_dir,
         val_dir=args.val_dir,
@@ -156,24 +165,26 @@ def main():
         num_workers=args.num_workers,
         pattern=args.pattern,
         feature_cols=args.feature_cols,
+        seq_len=args.K,
+        cache_size=args.cache_size,
     )
 
     model = OrderLightningModule(model_variant=args.model_variant, K=args.K, lr=args.lr)
-    
-        
+
+
     run_dir = args.run_root
     os.makedirs(run_dir, exist_ok=True)
-    
+
     run_name = args.run_name or f"bs={args.batch_size}_lr={args.lr:g}"
-    
+
     logger = TensorBoardLogger(
         save_dir=run_dir,
         name="tensorboard",
         version=run_name,   # <--- makes each run distinct in one TB logdir
     )
 
-    
-    
+
+
     ckpt_cb = ModelCheckpoint(
         dirpath=run_dir,                          # <--- checkpoints saved HERE
         filename="step={step}-val={val_loss:.4f}",
@@ -182,7 +193,7 @@ def main():
         save_top_k=3,
         save_last=True,
     )
-    
+
     trainer = pl.Trainer(
         default_root_dir=run_dir,
         logger=logger,
@@ -199,7 +210,7 @@ def main():
         enable_checkpointing=True,
         enable_progress_bar=False,
     )
-    
+
 
     trainer.fit(model, dm)
 
