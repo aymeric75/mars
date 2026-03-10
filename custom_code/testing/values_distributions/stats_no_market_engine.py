@@ -2,31 +2,65 @@ import torch
 import json
 import pandas as pd
 import numpy as np
+<<<<<<< HEAD
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 
+=======
+
+from tqdm import tqdm
+from pathlib import Path
+>>>>>>> b8695764112404eea58ede3017f117c4b2cfeb22
 from custom_code.testing.utils import load_order_model, load_ensemble_model, load_order_batch_model
+
+from custom_code.preprocessing.order_model.messages_to_features_no_engine import from_messages_to_features
+
 
 # a function that takes a feature file as input
 # , put f0 in a list
 # , call the Order Model, on the feature vector (in BATCHES)
 #    take the output (do the argmax and so forth see the stats.py file)
 
-def compute_value(feature_file):
+def compute_value(message_file, snapshot_file):
 
 
+<<<<<<< HEAD
     stock = feature_file.stem.split("_")[0]
     day = feature_file.stem.split("_")[1]
 
     print(f"processing: {stock} and {day}")
 
     df = pd.read_parquet(feature_file)
+=======
+    feature_df = from_messages_to_features(message_file, snapshot_file)
+    feature_df = feature_df[(feature_df["Time"] >= 34200000226319) & (feature_df["Time"] <= 57599998528372)]
+
+
+    # RENAME COLS TO F0 ... F14
+    cols = feature_df.columns.tolist()
+    start = cols.index("f0")
+    for i in range(start + 1, len(cols)):
+        cols[i] = f"f{i - start}"
+    feature_df.columns = cols
+
+    # CAST col from f4 to f14 as integer
+    feature_df[[f"f{i}" for i in range(4, 15)]] = feature_df[[f"f{i}" for i in range(4, 15)]].astype(int)
+
+
+    stock = message_file.stem.split("_")[0]
+    day = message_file.stem.split("_")[1]
+>>>>>>> b8695764112404eea58ede3017f117c4b2cfeb22
 
     predicted_list = []
-    gt_list = df["f0"].tolist()
+    gt_list = feature_df["f0"].tolist()
 
 
-    device="cuda"
+
+    gt_dico = {}
+    for i, val in enumerate(gt_list):
+        gt_dico[i] = val
+
+    device="cpu"
     # Load the Order Model
     order_model = load_order_model(
         ckpt_path="step=step=3360-val=val_loss=3.7445.ckpt",
@@ -35,8 +69,7 @@ def compute_value(feature_file):
 
     order_model = order_model.to(device).eval()
 
-
-    sub_df = df.loc[:, 'f0':'f14']
+    sub_df = feature_df.loc[:, 'f0':'f14']
 
     N = len(sub_df)
     seq_len = 1024
@@ -45,15 +78,15 @@ def compute_value(feature_file):
     import time
     prev = time.perf_counter()
 
-    for start in range(0, N - seq_len + 1, batch_size):
+    #for start in range(0, N - seq_len + 1, batch_size):
+    for start in tqdm(range(0, N - seq_len + 1, batch_size)):
 
+        # now = time.perf_counter()
+        # elapsed = now - prev
+        # print("elapsed:", elapsed)
+        # prev = now
 
-        now = time.perf_counter()
-        elapsed = now - prev
-        print("elapsed:", elapsed)
-        prev = now
-
-        print(start)
+        #print(start)
         # if start % 15000 == 0:
         #     print(start)
 
@@ -76,9 +109,10 @@ def compute_value(feature_file):
 
         predicted_list.extend(pred_id.tolist())
 
-
+    print("len(predicted_list)")
     print(len(predicted_list))
     print(len(gt_list))
+<<<<<<< HEAD
     
     json.dump(filtered_gt, open(f"jsons/{stock}_{day}_order-indices-gt.json", "w"), default=lambda x: x.item())
     json.dump(predicted_indices, open(f"jsons/{stock}_{day}_order-indices-pred.json", "w"), default=lambda x: x.item())
@@ -123,3 +157,13 @@ if __name__ == "__main__":
         list(ex.map(compute_value, files))
 
 #compute_value("../data/NFLX_2025-12-09_features.parquet")
+=======
+
+    json.dump(gt_dico, open(f"jsons/{stock}_{day}_order-indices-gt.json", "w"), default=lambda x: x.item())
+    json.dump(predicted_list, open(f"jsons/{stock}_{day}_order-indices-pred.json", "w"), default=lambda x: x.item())
+
+    return
+
+#compute_value(Path("../data/NFLX_2025-12-09_features.parquet"))
+compute_value(Path("../data/NFLX_2025-12-09_messages.parquet"), Path("../data/NFLX_2025-12-09_snapshots.parquet"))
+>>>>>>> b8695764112404eea58ede3017f117c4b2cfeb22
