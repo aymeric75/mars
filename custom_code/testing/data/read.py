@@ -56,13 +56,3 @@ plt.title("Histogram of Mars_type")
 
 plt.savefig("mars_type_histogram.png", dpi=300, bbox_inches="tight")
 plt.close()
-
-
-# ABSO check si le feature a tord
-
-
-# sell pass   buy pass
-# 525858 +    526832 = 1052690         # PASSIVE
-
-# cancel/delete   sell agres      buy agressive
-# 823127        + 80593         + 78172 = 981892
