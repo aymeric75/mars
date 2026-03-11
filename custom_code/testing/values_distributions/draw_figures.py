@@ -88,7 +88,7 @@ def serie_of_mars_type(message_file):
         "Mars_type"
     ] = 4
 
-    return messages["Message_Type"]
+    return messages["Mars_type"]
 
 
 data_folder = Path("jsons")
@@ -176,7 +176,7 @@ days = []
 values_dico = {}
 stock_days = {}
 
-data_path = Path("data")
+data_path = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
 
 # iterate over all stock/date present in jsons, and gather data into the "values" dict
 for file_gt in data_folder.glob("*order-indices-gt.json"):
