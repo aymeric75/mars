@@ -1,9 +1,9 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df_ = pd.read_parquet("NFLX_2025-12-09_messages.parquet")
-
-print(len(pd.read_parquet("NFLX_2025-12-09_messages.parquet")))
+df_ = pd.read_parquet("NFLX_2025-12-09_snapshots.parquet")
+print(df_.columns)
+#print(len(pd.read_parquet("NFLX_2025-12-09_messages.parquet")))
 
 # pd.read_parquet(parquet_path, columns=[]).shape[0]
 

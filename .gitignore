@@ -125,6 +125,8 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
+*.json
+
 *.parquet
 *.memmap
 
