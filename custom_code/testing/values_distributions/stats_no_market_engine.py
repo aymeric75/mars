@@ -100,10 +100,7 @@ def compute_value(tuple_of_paths):
     #     # print(base_logits)
     #     # print(base_logits.shape)
 
-<<<<<<< HEAD
-    print("len(predicted_list)")
-    print(len(predicted_list))
-    print(len(gt_list))
+
     
     predicted_dico = {}
     for i, ele in enumerate(predicted_list):
@@ -111,27 +108,12 @@ def compute_value(tuple_of_paths):
     gt_dico = {}
     for i, ele in enumerate(gt_list):
         gt_dico[i] = ele
-    json.dump(gt_dico, open(f"jsons/{stock}_{day}_order-indices-gt.json", "w"), default=lambda x: x.item())
-    json.dump(predicted_dico, open(f"jsons/{stock}_{day}_order-indices-pred.json", "w"), default=lambda x: x.item())
-=======
-    #     logits_next = base_logits[:, -1, :]          # (49152,)
-    #     probs_next  = torch.softmax(logits_next, 1) # (49152,)
-    #     pred_id = torch.argmax(probs_next, dim=1) #.item()
 
-    #     predicted_list.extend(pred_id.tolist())
-
-
-    # # predicted_dico
-
-    # for i, ele in enumerate(predicted_list):
-    #     predicted_dico[i] = ele
 
     predicted_dico = gt_dico
 
     json.dump(gt_dico, open(f"jsons/{stock}_{day}_order-indices-gt.json", "w"), default=lambda x: x.item())
     json.dump(predicted_dico, open(f"jsons/{stock}_{day}_order-indices-pred.json", "w"), default=lambda x: x.item())
-
->>>>>>> a388325a05023fbca9ae7afe1824458b8ebd9222
 
     return
 
@@ -146,13 +128,9 @@ def compute_value(tuple_of_paths):
 
 if __name__ == "__main__":
 
-    #data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/final")
+    data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
 
-    #files = list(data_dir.glob("*_features.parquet"))
-
-    # '/scratch/project_2012747/mars_data/order_model/test/raw/AMZN_2025-12-09_messages.parquet
-
-    data_dir = Path("data")
+    #data_dir = Path("data")
 
     list_of_pairs = []
 
@@ -163,7 +141,7 @@ if __name__ == "__main__":
 
     print(list_of_pairs)
 
-    with ProcessPoolExecutor(1) as ex:
+    with ProcessPoolExecutor() as ex:
        list(ex.map(compute_value, list_of_pairs))
 
     #compute_value(Path("NFLX_2025-12-09_messages.parquet"), Path("NFLX_2025-12-09_snapshots.parquet"))

@@ -11,6 +11,7 @@ import pyarrow.parquet as pq
 
 import pandas as pd
 
+from pathlib import Path
 from collections import OrderedDict
 from functools import lru_cache
 from torch.utils.data import DataLoader, Dataset, Subset
@@ -36,21 +37,6 @@ def make_train_val_loaders(ds, val_frac=0.01, seed=0, **dl_kwargs):
     return train_dl, val_dl
 
 
-def unzip_zarr_zips(train_dir="train", pattern="*.zarr.zip"):
-    """Unzip *.zarr.zip -> folders (once). Returns list of extracted *.zarr dirs."""
-    for zpath in sorted(glob.glob(os.path.join(train_dir, pattern))):
-        out_dir = zpath[:-4]  # strip ".zip" -> "... .zarr"
-        if os.path.isdir(out_dir) and os.listdir(out_dir):
-            continue
-        os.makedirs(out_dir, exist_ok=True)
-        with zipfile.ZipFile(zpath) as zf:
-            zf.extractall(out_dir)
-    return sorted(glob.glob(os.path.join(train_dir, pattern.replace(".zip", ""))))  # *.zarr dirs
-
-
-
-
-
 
 
 class RawMessagesTokenDataset(Dataset):
@@ -67,7 +53,20 @@ class RawMessagesTokenDataset(Dataset):
         seq_len,
         cache_size=4,
     ):
-        self.message_files = sorted(message_files)
+        
+                
+        self.message_files = []
+        
+        for msg_path in sorted(message_files):
+            snap_path = self._snapshot_path(msg_path)
+        
+            if snap_path.exists():
+                self.message_files.append(msg_path)
+            else:
+                print(f"Skipping {msg_path} (no snapshot file)")
+        
+        
+        
         self.seq_len = seq_len
         self.cache_size = cache_size
 
@@ -79,8 +78,8 @@ class RawMessagesTokenDataset(Dataset):
 
         print("Building dataset index...")
 
-        print("message_files")
-        print(self.message_files)
+        #print("message_files")
+        #print(self.message_files)
 
         for file_idx, msg_path in enumerate(self.message_files):
 
@@ -104,7 +103,7 @@ class RawMessagesTokenDataset(Dataset):
 
         Adjust if naming differs.
         """
-        return message_path.replace("messages", "snapshots")
+        return Path(str(message_path).replace("messages", "snapshots"))
 
     def _load_features(self, file_idx):
 
@@ -118,9 +117,18 @@ class RawMessagesTokenDataset(Dataset):
         snap_path = self._snapshot_path(msg_path)
 
         df = from_messages_to_features(msg_path, snap_path)
+    
+        # rename columns to f1 -> f14
+        cols = df.columns.tolist()
+        start = cols.index("f0")
+        for i in range(start + 1, len(cols)):
+            cols[i] = f"f{i - start}"
+        df.columns = cols
 
         # convert to numpy [N,15]
-        feats = df[[f"f{i}" for i in range(15)]].to_numpy(dtype=np.int64)
+        feats = df[cols].to_numpy(dtype=np.int16, copy=True)
+
+        del df
 
         # add to cache
         self.cache[msg_path] = feats
@@ -150,43 +158,6 @@ class RawMessagesTokenDataset(Dataset):
 
 
 
-
-
-class MultiDirZarrOrderDataset(Dataset):
-    """Dataset over many Zarr DirectoryStores."""
-
-    def __init__(self, zarr_dirs, seq_len=1024):
-        self.seq_len = int(seq_len)
-        self.paths = list(zarr_dirs)
-
-        self.lens = []
-        for p in self.paths:
-            X = zarr.open(DirectoryStore(p), path="X", mode="r")
-            self.lens.append(X.shape[0] - self.seq_len - 1)
-
-        self.cum = []
-        s = 0
-        for L in self.lens:
-            s += max(0, L)
-            self.cum.append(s)
-
-    def __len__(self):
-        return self.cum[-1] if self.cum else 0
-
-    @staticmethod
-    @lru_cache(maxsize=16)
-    def _open_X(dir_path):
-        store = DirectoryStore(dir_path)
-        return zarr.open(store=store, path="X", mode="r")
-
-    def __getitem__(self, idx):
-        fi = bisect.bisect_right(self.cum, idx)
-        prev = 0 if fi == 0 else self.cum[fi - 1]
-        j = idx - prev
-
-        X = self._open_X(self.paths[fi])
-        x = X[j : j + self.seq_len]  # (seq_len, features)
-        return torch.from_numpy(x).long()
 
 
 def lm_loss_all_positions(logits: torch.Tensor, X: torch.Tensor) -> torch.Tensor:

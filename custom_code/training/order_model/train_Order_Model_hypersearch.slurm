@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=order_model_grid
-#SBATCH --account=project_2017808
+#SBATCH --account=project_2018243
 #SBATCH --partition=gputest
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=10
+#SBATCH --cpus-per-task=4
 #SBATCH --time=00:15:00
 #SBATCH --gres=gpu:v100:1
 #SBATCH --mem=256G
@@ -47,7 +47,7 @@ echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES-}"
 
 # ---- Hyperparameter grid (edit freely) ----
 LRS=(1e-4 3e-4 1e-3)
-BSS=(32)  #(8 16)
+BSS=(2)  #(8 16)
 
 for LR in "${LRS[@]}"; do
   for BS in "${BSS[@]}"; do

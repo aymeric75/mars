@@ -29,7 +29,7 @@ class OrderBatchDataModule(pl.LightningDataModule):
         pattern: str = "*_messages.parquet",
         feature_cols: int = 15,
         seq_len: int = 1024,
-        cache_size: int = 4,
+        cache_size: int = 2,
     ):
         super().__init__()
         self.train_dir = train_dir
@@ -140,7 +140,7 @@ def main():
     p.add_argument("--val_dir", required=True)
     p.add_argument("--pattern", default="*_messages.parquet")
     p.add_argument("--feature_cols", type=int, default=15)
-    p.add_argument("--cache_size", type=int, default=4)
+    p.add_argument("--cache_size", type=int, default=2)
     p.add_argument("--model_variant", default="base", choices=["base", "small"])
     p.add_argument("--K", type=int, default=1024)
     p.add_argument("--batch_size", type=int, default=256)

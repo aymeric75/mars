@@ -354,8 +354,8 @@ def _process_pair(args):
 
 def main():
     converters_json = "converters_portable.json"
-    #data_dir = Path("/scratch/project_2012747/mars_data/experiments/stylized_facts")
-    data_dir = Path("some_data")
+    data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
+    #data_dir = Path("some_data")
     out_dir = Path("trade_infos")
 
     # pat = re.compile(
@@ -366,7 +366,7 @@ def main():
     allowed_stocks = {"AAPL", "META"}
 
     start_date = date.fromisoformat("2025-11-06")
-    end_date = date.fromisoformat("2025-11-20")
+    end_date = date.fromisoformat("2025-12-20")
 
     pat = re.compile(
         r"(?P<stock>[A-Z]+)_(?P<date>\d{4}-\d{2}-\d{2})_"
@@ -389,8 +389,8 @@ def main():
         for (stock, date_), files in pairs.items()
         if "messages" in files and "meta" in files
     ]
-    # cpu_count()
-    with Pool(processes=1, initializer=_init_worker, initargs=(converters_json,)) as pool:
+    # 
+    with Pool(processes=cpu_count(), initializer=_init_worker, initargs=(converters_json,)) as pool:
         for stock, date_, n_lists in pool.imap_unordered(_process_pair, tasks, chunksize=1):
             print(f"{stock} {date_}: wrote {n_lists} outputs")
 

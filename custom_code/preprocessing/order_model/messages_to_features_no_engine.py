@@ -94,6 +94,11 @@ def create_slots_columns(df):
     #df = df.drop(columns=["seconds_since_prev"])
 
 
+def bins_lob_volumes(df):
+    cols = [f"Ask_Size_{i}" for i in range(1, 6)] + [f"Bid_Size_{i}" for i in range(1, 6)]
+    for c in cols:
+        df[c] = df[c].apply(converters.lob_volume.get_bin_index)
+    
 
 def create_mid_price_column(df, snapshots):
     df["mid_price"] = (snapshots["Ask_Price_1"] + snapshots["Bid_Price_1"]) / 2
@@ -114,9 +119,19 @@ def add_lob_volumes(df, snapshots):
     df[cols] = snapshots[cols]
 
 def from_messages_to_features(message_file, snapshot_file):
-
-    messages = pd.read_parquet(message_file)
-    snapshots = pd.read_parquet(snapshot_file)
+    
+        
+    msg_cols = ["Time", "Message_Type", "Direction", "Price", "Size"]
+    snap_cols = [
+        "Ask_Price_1", "Bid_Price_1",
+        "Ask_Size_1", "Ask_Size_2", "Ask_Size_3", "Ask_Size_4", "Ask_Size_5",
+        "Bid_Size_1", "Bid_Size_2", "Bid_Size_3", "Bid_Size_4", "Bid_Size_5",
+    ]
+    
+    messages = pd.read_parquet(message_file, columns=msg_cols)
+    snapshots = pd.read_parquet(snapshot_file, columns=snap_cols)
+    
+    
     create_mars_order_type_column(messages)
 
 
@@ -149,9 +164,9 @@ def from_messages_to_features(message_file, snapshot_file):
     create_seconds_since_open(features)
 
     add_lob_volumes(features, snapshots)
-
+    
     features = features.drop(columns=["Mars_type", "Price", "Size"])
-
+    bins_lob_volumes(features)
 
     features = features.fillna(0)
 

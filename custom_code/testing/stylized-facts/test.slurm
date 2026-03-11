@@ -4,9 +4,9 @@
 #SBATCH --partition=small
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=8
 #SBATCH --mem=128G
-#SBATCH --time=03:15:00
+#SBATCH --time=02:15:00
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err
 
@@ -28,4 +28,4 @@ export TMPDIR="$RUN_ROOT/tmp"
 
 mkdir -p "$RUN_ROOT" "$TORCH_HOME" "$HF_HOME" "$XDG_CACHE_HOME" "$TMPDIR"
 
-srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u create_rollout_info_list.py"
+srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u generate_replay_trades_infos.py"

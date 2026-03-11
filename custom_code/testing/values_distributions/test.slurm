@@ -1,13 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=testing
 #SBATCH --account=project_2017808
-#SBATCH --partition=gputest
+#SBATCH --partition=small
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=64G
-#SBATCH --time=00:15:00
-#SBATCH --gres=gpu:v100:1
+#SBATCH --mem=256G
+#SBATCH --time=02:15:00
 #SBATCH --output=logs_tests/%x_%j.out
 #SBATCH --error=logs_tests/%x_%j.err
 

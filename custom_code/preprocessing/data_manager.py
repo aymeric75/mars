@@ -4,12 +4,12 @@ from collections import defaultdict
 from pathlib import Path
 
 base_dir =  Path("/scratch/project_2012747/mars_data") #Path().resolve().parent.parent
-dest_folder = Path(base_dir / "order_model/test/raw") #Path(base_dir / "order_model/test")
+dest_folder = Path(base_dir / "order_model/val/raw") #Path(base_dir / "order_model/test")
 
 pattern = "_snapshots"
 
-date1 = date(2025, 12, 3)
-date2 =  date(2025, 12, 12)
+date1 = date(2025, 11, 28)
+date2 =  date(2025, 12, 3)
 
 
 def order_by_date(items):
