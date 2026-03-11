@@ -51,46 +51,50 @@ for bin_item in obj["state"]["lob_volume"]["bin_values"]:
 
 converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
 
-# print(converters.price_level.bins)
-# # print(converters.order_volume.bins)
-# # print(converters.pred_order_volume.bins)
-# # print(converters.order_interval.bins)
-
-# print()
-# print()
-# print(converters.price_level.bin_values)
 
 
-messages = pd.read_parquet("../data/NFLX_2025-12-09_messages.parquet")
-# start_time = 34200000226319
-# end_time = 57599998528372
-# messages = df_[(df_["Time"] >= start_time) & (df_["Time"] <= end_time)]
-# en fct du Message_type puis de la direction, tu affecte soit 0(S), 1(B), 2(C)
-messages["Mars_type"] = 0
-# TYPE 2: cancel / delete
-messages.loc[messages["Message_Type"].isin([2, 3]), "Mars_type"] = 2
-# TYPE 1 : buy passive limit order
-messages.loc[
-    ((messages["Message_Type"] == 1) & (messages["Direction"] == -1)),
-    "Mars_type"
-] = 1
-# TYPE 3 : sell agressive order
-messages.loc[
-    ((messages["Message_Type"] == 4) & (messages["Direction"] == -1)),
-    "Mars_type"
-] = 3
-# TYPE 4 buy aggressive
-messages.loc[
-    ((messages["Message_Type"] == 4) & (messages["Direction"] == 1)),
-    "Mars_type"
-] = 4
 
+def serie_of_mars_type(message_file):
+    """ returns a pandas serie holding the order type
+        i.e.
+        0: passive sell
+        1: passive buy
+        2: cancel/delete
+        3: agressive sell
+        4: aggressive buy
+     """
+
+    messages = pd.read_parquet(message_file)
+    # start_time = 34200000226319
+    # end_time = 57599998528372
+    # messages = df_[(df_["Time"] >= start_time) & (df_["Time"] <= end_time)]
+    # en fct du Message_type puis de la direction, tu affecte soit 0(S), 1(B), 2(C)
+    messages["Mars_type"] = 0
+    # TYPE 2: cancel / delete
+    messages.loc[messages["Message_Type"].isin([2, 3]), "Mars_type"] = 2
+    # TYPE 1 : buy passive limit order
+    messages.loc[
+        ((messages["Message_Type"] == 1) & (messages["Direction"] == -1)),
+        "Mars_type"
+    ] = 1
+    # TYPE 3 : sell agressive order
+    messages.loc[
+        ((messages["Message_Type"] == 4) & (messages["Direction"] == -1)),
+        "Mars_type"
+    ] = 3
+    # TYPE 4 buy aggressive
+    messages.loc[
+        ((messages["Message_Type"] == 4) & (messages["Direction"] == 1)),
+        "Mars_type"
+    ] = 4
+
+    return messages["Message_Type"]
 
 
 data_folder = Path("jsons")
 
 
-def rearrange_order_type(type_, price, index_):
+def rearrange_order_type(type_, price, index_, mars_type):
     """ look at the comments """
     # if cancel / delete
     if type_ == 2:
@@ -98,7 +102,7 @@ def rearrange_order_type(type_, price, index_):
 
     # if price is 16, go take the
     if price == 16:
-        return messages["Mars_type"].iloc[int(index_)]
+        return mars_type
 
     else:
 
@@ -141,8 +145,9 @@ def plot_feature_distribution(values_dico, feature_name, ax, gt_color="orange", 
     x = np.arange(len(classes))
     width = 0.35
 
-    ax.bar(x - width/2, gt, width, label="GT", color=gt_color)
-    ax.bar(x + width/2, pred, width, label="Pred")
+    ax.bar(x, gt, width, label="GT", color=gt_color)
+    # ax.bar(x - width/2, gt, width, label="GT", color=gt_color)
+    # ax.bar(x + width/2, pred, width, label="Pred")
 
 
     corres_names = {
@@ -171,12 +176,20 @@ days = []
 values_dico = {}
 stock_days = {}
 
+data_path = Path("data")
+
 # iterate over all stock/date present in jsons, and gather data into the "values" dict
 for file_gt in data_folder.glob("*order-indices-gt.json"):
 
     # retrieve data stock name and date and store them
     stock = file_gt.stem.split("_")[0]
     day = file_gt.stem.split("_")[1]
+
+    message_path = data_path / Path(f"{stock}_{day}_messages.parquet")
+
+    mars_types = serie_of_mars_type(message_path)
+
+
 
     if stock not in stock_days:
         stock_days[stock] = []
@@ -239,8 +252,8 @@ for file_gt in data_folder.glob("*order-indices-gt.json"):
         pred_order_interval = pred_order_infos.interval
 
 
-        gt_order_type = rearrange_order_type(gt_order_type, gt_order_price, kk)
-        pred_order_type = rearrange_order_type(pred_order_type, pred_order_price, kk)
+        gt_order_type = rearrange_order_type(gt_order_type, gt_order_price, kk, mars_types.iloc[int(kk)])
+        pred_order_type = rearrange_order_type(pred_order_type, pred_order_price, kk, mars_types.iloc[int(kk)])
 
 
         kk = int(kk)
@@ -282,7 +295,8 @@ for file_gt in data_folder.glob("*order-indices-gt.json"):
 
 # Create 2x2 figure
 fig, axes = plt.subplots(2, 2, figsize=(12, 8))
-fig.suptitle("Value distributions of price, volume, time difference, type for MarS Model", fontsize=14)
+# for MarS
+fig.suptitle("Value distributions of price, volume, time difference, type", fontsize=14)
 
 caption = "data gathered over: " + "; ".join(
     f"{stock} ({', '.join(days)})" for stock, days in stock_days.items()
