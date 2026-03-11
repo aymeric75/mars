@@ -83,6 +83,20 @@ def build_replay_trade_infos(
 
     ex, order_state, _base_time = make_exchange_and_orderstate(symbol, day, conv)
 
+    # [42020, 42021]
+    #42022
+
+    dico_order_id_occurrences_type_4 = (
+        messages_df[messages_df["Message_Type"] == 4]["Order"]
+        .value_counts()
+        .to_dict()
+    )
+
+    dico_order_id_trade_infos = {}
+
+
+
+
 
     # Align meta System_Event_Code to each message row (same as pass2_write_features)
     meta = meta_df.sort_values("Time", kind="mergesort")
@@ -122,9 +136,12 @@ def build_replay_trade_infos(
 
     trade_infos_list = []
 
+    dico_trade_infos = {}
+
     for i, r in enumerate(
         tqdm(messages_df.itertuples(index=False), total=n, desc="replay", unit="msg", miniters=10000)
     ):
+
 
 
         if i == 0:
@@ -167,6 +184,8 @@ def build_replay_trade_infos(
 
             for trade_info in trade_infos:
 
+                dico_trade_infos[i] = trade_info
+
                 if trade_info.transactions:
 
                     for trans in trade_info.transactions:
@@ -188,6 +207,32 @@ def build_replay_trade_infos(
                     if order.tag == "type_4":
 
 
+                        to_add = False
+
+                        if r.Order not in dico_order_id_trade_infos:
+                            dico_order_id_trade_infos[r.Order] = []
+                        dico_order_id_trade_infos[r.Order].append(trade_info)
+
+                        if len(dico_order_id_trade_infos[r.Order]) == dico_order_id_occurrences_type_4[r.Order]:
+                            to_add = True
+                            transactions = []
+                            total_volume = 0
+                            len_dic = len(dico_order_id_trade_infos[r.Order])
+                            for ijijijij, trd_inf in enumerate(dico_order_id_trade_infos[r.Order]):
+                                if ijijijij == len_dic - 1:
+                                    break
+                                #print(k, v)
+                                total_volume += trd_inf.order.volume
+                                transactions.extend(trd_inf.transactions)
+                            trade_info.transactions = transactions
+                            #trade_info.order.volume = total_volume
+
+
+                        if not to_add:
+                            continue
+
+
+                        #
                         if not tmp_trade_infos:
                             tmp_trade_infos.append(trade_info)
                             time_zero_seq = order.time
@@ -235,51 +280,6 @@ def build_replay_trade_infos(
 
     return list_of_lists, start_lob
 
-
-
-"""
-with open("../preprocessing/converters.pkl", "rb") as f:
-    converters = pickle.load(f)
-
-
-
-# Directory containing the parquet files
-data_dir = Path("/scratch/project_2012747/mars_data/experiments/stylized_facts")
-
-# Regex pattern to extract stock, date, type, and optional suffix
-pattern = re.compile(
-    r"LOBSTER_(?P<stock>[A-Z]+)_(?P<date>\d{4}-\d{2}-\d{2})_(?P<type>messages|meta)_\d+\.parquet"
-)
-
-# Dictionary to collect pairs
-pairs = defaultdict(dict)
-
-# Iterate over complete pairs only
-for (stock, date), files in pairs.items():
-    if "messages" in files and "meta" in files:
-        messages_df = files["messages"]
-        meta_df = files["meta"]
-
-
-
-        list_of_replay_trade_infos_lists, start_lob = build_replay_trade_infos(
-            messages_df,
-            meta_df,
-            symbol=str(stock),
-            day=str(date),
-            conv=converters,
-            max_events=None
-        )
-
-
-        for i, list_ in enumerate(list_of_replay_trade_infos_lists):
-
-            pkl_utils.save_pkl_zstd(
-                [(list_, start_lob), (list_, start_lob)],
-                Path(f"trade_infos/tradeInfos__replay_{stock}_{date}_{i}.zstd")
-            )
-
-"""
 
 
 CONVERTERS = None
@@ -353,9 +353,9 @@ def _process_pair(args):
 
 
 def main():
-    converters_json = "/projappl/project_2012747/mars/MarS/custom_code/preprocessing/converters_portable.json"
+    converters_json = "converters_portable.json"
     #data_dir = Path("/scratch/project_2012747/mars_data/experiments/stylized_facts")
-    data_dir = Path("/scratch/project_2012747/mars_data/order_model/train/raw")
+    data_dir = Path("some_data")
     out_dir = Path("trade_infos")
 
     # pat = re.compile(
@@ -363,7 +363,7 @@ def main():
     #     r"(?P<type>messages|meta).parquet"
     # )
 
-    allowed_stocks = {"AAPL", "GOOGL"}
+    allowed_stocks = {"AAPL", "META"}
 
     start_date = date.fromisoformat("2025-11-06")
     end_date = date.fromisoformat("2025-11-20")
@@ -383,13 +383,14 @@ def main():
         pairs[key][m["type"]] = p
 
 
+
     tasks = [
         (stock, date_, files["messages"], files["meta"], str(out_dir))
         for (stock, date_), files in pairs.items()
         if "messages" in files and "meta" in files
     ]
-
-    with Pool(processes=cpu_count(), initializer=_init_worker, initargs=(converters_json,)) as pool:
+    # cpu_count()
+    with Pool(processes=1, initializer=_init_worker, initargs=(converters_json,)) as pool:
         for stock, date_, n_lists in pool.imap_unordered(_process_pair, tasks, chunksize=1):
             print(f"{stock} {date_}: wrote {n_lists} outputs")
 
