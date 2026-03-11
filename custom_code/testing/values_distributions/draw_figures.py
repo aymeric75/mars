@@ -88,7 +88,7 @@ def serie_of_mars_type(message_file):
         "Mars_type"
     ] = 4
 
-    return messages["Message_Type"]
+    return messages["Mars_type"]
 
 
 data_folder = Path("jsons")
@@ -189,8 +189,9 @@ for file_gt in data_folder.glob("*order-indices-gt.json"):
 
     mars_types = serie_of_mars_type(message_path)
 
+    print(mars_types.unique())
 
-
+    exit()
     if stock not in stock_days:
         stock_days[stock] = []
     stock_days[stock].append(day)
