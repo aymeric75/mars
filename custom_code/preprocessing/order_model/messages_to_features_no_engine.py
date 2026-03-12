@@ -146,7 +146,22 @@ def from_messages_to_features(message_file, snapshot_file):
     #     # 10624   0              0                  une valeur               2147          0   0   0   0   0    0    0    0    0    0
 
     create_mid_price_column(features, snapshots)
+        
+    
+    
+    start = (9*60*60 + 30*60) * 1_000_000_000   # 9:30 in ns
+    end = (16*60*60) * 1_000_000_000            # 16:00 in ns
+    features = features[(features["Time"] >= start) & (features["Time"] <= end)]
+    
     create_slots_columns(features)
+    
+    
+    print("BINS VALUES !!!!")
+    print(features["bin_price"].unique())
+    print(features["bin_vol"].unique())
+    print(features["bin_interval"].unique())
+    
+
 
     features["f0"] = (
         features["Mars_type"] * NUM_BINS_PRICE_LEVEL * NUM_BINS_ORDER_VOLUME * NUM_BINS_ORDER_INTERVAL

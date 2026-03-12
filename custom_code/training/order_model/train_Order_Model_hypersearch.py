@@ -14,8 +14,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from market_simulation.models.utils_order_model import (
     RawMessagesTokenDataset,
     build_model_from_variant,
-    lm_loss_all_positions,
-    unzip_zarr_zips,
+    lm_loss_all_positions
 )
 
 class OrderBatchDataModule(pl.LightningDataModule):

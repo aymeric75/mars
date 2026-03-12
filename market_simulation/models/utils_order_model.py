@@ -125,8 +125,9 @@ class RawMessagesTokenDataset(Dataset):
             cols[i] = f"f{i - start}"
         df.columns = cols
 
+        feature_cols = [f"f{i}" for i in range(15)]  # f0..f14
         # convert to numpy [N,15]
-        feats = df[cols].to_numpy(dtype=np.int16, copy=True)
+        feats = df[feature_cols].to_numpy(dtype=np.int16, copy=True)
 
         del df
 
