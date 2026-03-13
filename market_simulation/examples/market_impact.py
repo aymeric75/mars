@@ -5,6 +5,9 @@ from multiprocessing import Pool
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
+import time
+import torch
+import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -29,6 +32,45 @@ if TYPE_CHECKING:
     from mlib.core.trade_info import TradeInfo
 
 
+import numpy as np
+
+
+
+
+
+
+
+
+
+class LocalModelClient:
+    def __init__(self, model, device="cuda", temperature=1.0):
+        self.model = model.to(device)
+        self.model.eval()
+        self.device = device
+        self.temperature = temperature
+
+    def get_prediction(self, state: np.ndarray) -> np.ndarray:
+        # state is expected to be the token sequence used by the order model
+        x = torch.from_numpy(state).to(self.device)
+
+        # add batch dim if needed
+        #if x.ndim == 2:
+        x = x.unsqueeze(0)
+
+        with torch.no_grad():
+            # case 1: your model already has a sampling method
+            if hasattr(self.model, "sample"):
+                pred = self.model.sample(x, temperature=self.temperature)
+
+            # case 2: fallback if forward() returns logits
+            else:
+                logits = self.model(x)
+                pred = torch.argmax(logits, dim=-1)
+
+        return pred.detach().cpu().numpy().reshape(-1)
+
+
+
 def create_initialization_agent(
     symbol: str,
     seed: int,
@@ -49,9 +91,10 @@ def create_initialization_agent(
     Returns:
         BaseAgent: Configured noise agent for initialization phase
     """
+
     init_agent = NoiseAgent(
         symbol=symbol,
-        init_price=100000,
+        init_price=3000000,
         interval_seconds=1,
         start_time=start_time,
         end_time=end_time,
@@ -84,7 +127,7 @@ class RolloutTask(NamedTuple):
     twap_agent_target_volume: int
 
 
-def execute_single_simulation(task: RolloutTask) -> list[TradeInfo]:
+def execute_single_simulation(task: RolloutTask, converter, model_client) -> list[TradeInfo]:
     """Execute a single market simulation according to the provided task parameters.
 
     Sets up the market exchange, agents (including optional TWAP agent), and simulation
@@ -96,6 +139,8 @@ def execute_single_simulation(task: RolloutTask) -> list[TradeInfo]:
     Returns:
         list[TradeInfo]: Collection of trade information generated during simulation
     """
+
+
     exchange_config = create_exchange_config_without_call_auction(
         market_open=task.start_time,
         market_close=task.end_time,
@@ -104,9 +149,9 @@ def execute_single_simulation(task: RolloutTask) -> list[TradeInfo]:
     exchange = Exchange(exchange_config)
 
     # Set up the converter and model client for the background agent
-    converter_dir = Path(C.directory.input_root_dir) / C.order_model.converter_dir
-    converter = Converter(converter_dir)
-    model_client = ModelClient(model_name=C.model_serving.model_name, ip=C.model_serving.ip, port=C.model_serving.port)
+    # converter_dir = Path(C.directory.input_root_dir) / C.order_model.converter_dir
+    # converter = Converter(converter_dir)
+    # model_client = ModelClient(model_name=C.model_serving.model_name, ip=C.model_serving.ip, port=C.model_serving.port)
 
     # Create agents for different simulation phases
     init_agent = create_initialization_agent(
@@ -115,6 +160,7 @@ def execute_single_simulation(task: RolloutTask) -> list[TradeInfo]:
         start_time=task.start_time,
         end_time=task.init_end_time,
     )
+
     bg_agent = BackgroundAgent(
         symbol=task.symbol,
         converter=converter,
@@ -123,7 +169,7 @@ def execute_single_simulation(task: RolloutTask) -> list[TradeInfo]:
         model_client=model_client,
         init_agent=init_agent,
     )
-
+    print("ICI4 ")
     # Register simulation states to track orders and trades
     exchange.register_state(
         OrderState(
@@ -134,33 +180,67 @@ def execute_single_simulation(task: RolloutTask) -> list[TradeInfo]:
             converter=converter,
         )
     )
+
+    print("ICI5 ")
     exchange.register_state(TradeInfoState())
 
     # Configure simulation environment
     env = Env(exchange=exchange, description=f"{task.rollout_index}th rollout task")
     env.register_agent(init_agent)
     env.register_agent(bg_agent)
-
+    print("ICI6 ")
     # Add TWAP agent if specified in task configuration
-    if task.include_twap_agent:
-        twap_agent = TradingAgent(
-            symbol=task.symbol,
-            start_time=task.init_end_time,
-            target_volume=task.twap_agent_target_volume,
-            direction="B",  # Buy direction
-            max_passive_volume_ratio=0.9,
-            aggressive_price_change=0,
-            passive_seconds=10,
-            idle_seconds=5,
-            total_seconds=int((task.end_time - task.init_end_time).total_seconds()),
-        )
-        env.register_agent(twap_agent)
+    # if task.include_twap_agent:
+    #     twap_agent = TradingAgent(
+    #         symbol=task.symbol,
+    #         start_time=task.init_end_time,
+    #         target_volume=task.twap_agent_target_volume,
+    #         direction="B",  # Buy direction
+    #         max_passive_volume_ratio=0.9,
+    #         aggressive_price_change=0,
+    #         passive_seconds=10,
+    #         idle_seconds=5,
+    #         total_seconds=int((task.end_time - task.init_end_time).total_seconds()),
+    #     )
+    #     env.register_agent(twap_agent)
 
+    print("ICI7 ")
     # Initialize and run the simulation
     env.push_events(create_exchange_events(exchange_config))
+
+    has_taken_action = False
+
+
+    counter = 0
+    t=time.perf_counter()
+
     for observation in env.env():
+
+        # if isinstance(observation.agent, NoiseAgent):
+        #     action = observation.agent.get_action(observation)
+        # if isinstance(observation.agent, BackgroundAgent):
+        #     t=time.perf_counter()
+        #     counter += 1
+        #     #print("This is a TradingAgent")
+        #     #exit()
+
+        # if counter == 1000000:
+        #     print(time.perf_counter()-t)
+        #     exit()
+
         action = observation.agent.get_action(observation)
+
+        # if isinstance(observation.agent, BackgroundAgent):
+        #     print("AFTER ACTION")
+        #     print(action)
+        #     #exit()
+        #     print(time.perf_counter()-t)
+        #     t=time.perf_counter()
+
         env.step(action)
+
+    print("time after loop")
+    print(time.perf_counter()-t)
 
     # Extract and return trade information
     trade_infos: list[TradeInfo] = extract_trade_information(exchange, task.symbol, task.start_time, task.end_time)
@@ -168,7 +248,7 @@ def execute_single_simulation(task: RolloutTask) -> list[TradeInfo]:
     return trade_infos
 
 
-def execute_simulation_with_error_handling(task: RolloutTask) -> list[TradeInfo]:
+def execute_simulation_with_error_handling(task: RolloutTask, converter, model_client) -> list[TradeInfo]:
     """Execute a simulation with error handling to prevent process crashes.
 
     Wraps the main simulation execution function with exception handling to ensure
@@ -181,7 +261,7 @@ def execute_simulation_with_error_handling(task: RolloutTask) -> list[TradeInfo]
         list[TradeInfo]: Collection of trade information or empty list on error
     """
     try:
-        return execute_single_simulation(task)
+        return execute_single_simulation(task, converter, model_client)
     except Exception as _:
         logging.exception(f"Error in {task.rollout_index}th rollout task.")
         return []
@@ -196,6 +276,8 @@ def run_simulation(
     rollouts_path: Path,
     seed_for_init_state: int,
     volume_ratio: float,
+    converter,
+    model_client,
 ) -> None:
     """Run market impact simulations with and without trading agents.
 
@@ -233,11 +315,14 @@ def run_simulation(
     ]
 
     # Execute tasks sequentially in debug mode or in parallel otherwise
-    if C.debug.enable:
-        results = [execute_single_simulation(task) for task in tasks]
-    else:
-        with Pool(processes=16) as pool:
-            results = pool.map(execute_simulation_with_error_handling, tasks)
+    #if C.debug.enable:
+    results = [execute_single_simulation(task, converter, model_client) for task in tasks]
+    # else:
+    #     with Pool(processes=16) as pool:
+    #         results = pool.starmap(
+    #             execute_simulation_with_error_handling,
+    #             [(task, converter, model_client) for task in tasks],
+    #         )
 
     # Calculate target volume for TWAP agent based on average volume
     avg_volume = calculate_average_volume(results, init_end_time, end_time)
@@ -260,11 +345,14 @@ def run_simulation(
     ]
 
     # Execute TWAP agent simulations
-    if C.debug.enable:
-        trading_results = [execute_single_simulation(task) for task in trading_tasks]
-    else:
-        with Pool(processes=16) as pool:
-            trading_results = pool.map(execute_simulation_with_error_handling, trading_tasks)
+    #if C.debug.enable:
+    trading_results = [execute_single_simulation(task, converter, model_client) for task in trading_tasks]
+    # else:
+    #     with Pool(processes=16) as pool:
+    #         trading_results = pool.starmap(
+    #             execute_simulation_with_error_handling,
+    #             [(task, converter, model_client) for task in trading_tasks],
+    #         )
 
     # Save all simulation results
     pkl_utils.save_pkl_zstd((tasks + trading_tasks, results + trading_results), rollouts_path)
@@ -486,10 +574,55 @@ def visualize_rollouts(rollouts_path: Path) -> None:
 
 
 if __name__ == "__main__":
+
+
+    import json
+    from custom_code.testing.utils import load_order_model
+    from custom_code.preprocessing.order_model.messages_to_features import build_converters_from_samples
+
+
+
+
+
+    with open("converters_portable.json", "r", encoding="utf-8") as f:
+        obj = json.load(f)
+    #price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
+    price_minus_mid = []
+    for bin_item in obj["state"]["price_level"]["bin_values"]:
+        price_minus_mid.extend(bin_item["data"])
+    #sizes = blob["state"]["order_volume"]["bin_values"]["data"]
+    sizes = []
+    for bin_item in obj["state"]["order_volume"]["bin_values"]:
+        sizes.extend(bin_item["data"])
+    #intervals = blob["state"]["order_interval"]["bin_values"]["data"]
+    intervals = []
+    for bin_item in obj["state"]["order_interval"]["bin_values"]:
+        intervals.extend(bin_item["data"])
+    #lob_vols = blob["state"]["lob_volume"]["bin_values"]["data"]
+    lob_vols = []
+    for bin_item in obj["state"]["lob_volume"]["bin_values"]:
+        lob_vols.extend(bin_item["data"])
+
+    converter = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
+
+    # print(converter.price_level.bin_values)
+    # exit()
+
+    ########
+
+    raw_model = load_order_model(
+        ckpt_path="step=step=3360-val=val_loss=3.7445.ckpt",
+        device="cuda"
+    )
+    model_client = LocalModelClient(raw_model, device="cuda")
+
+
     # Set up output directory for simulation results
-    output_dir = Path(C.directory.output_root_dir) / "market-impact-example"
+    #output_dir = Path(C.directory.output_root_dir) / "market-impact-example"
+    output_dir = Path("market-impact-example")
     output_dir.mkdir(parents=True, exist_ok=True)
-    num_rollouts = 16
+    num_rollouts = 1 #16
+
 
     # Run multiple simulations with different seeds and volume ratios
     for seed in range(10):
@@ -499,10 +632,12 @@ if __name__ == "__main__":
                 symbol="000000",
                 start_time=Timestamp("2024-01-01 09:30:00"),
                 init_end_time=Timestamp("2024-01-01 10:00:00"),
-                end_time=Timestamp("2024-01-01 10:05:00"),
+                end_time=Timestamp("2024-01-01 10:00:04"), # ("2024-01-01 10:05:00"),
                 num_rollouts=num_rollouts,
                 rollouts_path=rollouts_path,
                 seed_for_init_state=seed,
                 volume_ratio=volume_ratio,
+                converter=converter,
+                model_client=model_client
             )
             visualize_rollouts(rollouts_path)

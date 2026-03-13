@@ -80,6 +80,7 @@ class NoiseAgent(BaseAgent):
             time=time,
             next_wakeup_time=next_wakeup_time,
         )
+
         return action
 
     def get_lob(self) -> LobSnapshot | None:

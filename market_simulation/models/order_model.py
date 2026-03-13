@@ -149,8 +149,6 @@ class OrderModel(nn.Module, PyTorchModelHubMixin):
     def tokenize(self, features: Tensor) -> Tensor:
         """Tokenize inputs."""
         order_features = features.reshape(features.size(0), -1)
-        print(f"self.num_max_orders {self.num_max_orders}")
-        print(f"order_features {order_features.shape}")
         assert order_features.size(1) == self.num_max_orders * 15
         inputs = self.order_info_tokenizer(order_features)
         assert inputs.size(0) == features.size(0)
