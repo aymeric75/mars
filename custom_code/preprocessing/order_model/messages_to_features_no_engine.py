@@ -169,6 +169,11 @@ def from_messages_to_features(message_file, snapshot_file):
         + features["bin_vol"] * NUM_BINS_ORDER_INTERVAL
         + features["bin_interval"])
 
+    print("max and min values")
+    print(features["f0"].max())
+
+    print(features["f0"].min())
+
     features = features.drop(columns=["bin_price", "bin_vol", "seconds_since_prev", "bin_interval"])
     features["vol_ratio_slot"] = 0
     features["trans_ratio_slot"] = 0
@@ -180,12 +185,15 @@ def from_messages_to_features(message_file, snapshot_file):
 
     add_lob_volumes(features, snapshots)
     
-    features = features.drop(columns=["Mars_type", "Price", "Size"])
+    features = features.drop(columns=["Time", "Mars_type", "Price", "Size"])
     bins_lob_volumes(features)
+    
+    print("featuresfeaturesfeaturesfeaturesfeatures")
+    print(features)
 
     features = features.fillna(0)
 
-    #print(features)
+    #print(features)    
 
     return features
 
