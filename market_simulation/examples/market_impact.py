@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import json
 import time
+import os
 
 #from multiprocessing import Pool
 import multiprocessing as mp
@@ -12,6 +13,8 @@ from typing import TYPE_CHECKING, NamedTuple
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+import ray
+
 from matplotlib import dates
 from pandas import Timestamp
 
@@ -30,6 +33,9 @@ from mlib.core.exchange_config import create_exchange_config_without_call_auctio
 
 from market_simulation.rollout.ray_model_client import RayModelClient
 from custom_code.preprocessing.order_model.messages_to_features import build_converters_from_samples
+
+from market_simulation.rollout.order_model_actor import OrderModelActor
+
 
 if TYPE_CHECKING:
     from mlib.core.base_agent import BaseAgent
@@ -278,7 +284,7 @@ def run_simulation(
         results = [execute_single_simulation(task) for task in tasks]
     else:
         ctx = mp.get_context("spawn")
-        with ctx.Pool(processes=16) as pool:
+        with ctx.Pool(processes=num_rollouts) as pool:
             results = pool.map(execute_simulation_with_error_handling, tasks)
 
     # Calculate target volume for TWAP agent based on average volume
@@ -306,7 +312,7 @@ def run_simulation(
         trading_results = [execute_single_simulation(task) for task in trading_tasks]
     else:
         ctx = mp.get_context("spawn")
-        with ctx.Pool(processes=16) as pool:
+        with ctx.Pool(processes=num_rollouts) as pool:
             results = pool.map(execute_simulation_with_error_handling, tasks)
 
     # Save all simulation results
@@ -531,28 +537,30 @@ def visualize_rollouts(rollouts_path: Path) -> None:
 if __name__ == "__main__":
 
     mp.set_start_method("spawn", force=True)
-
-    import ray
-    from market_simulation.rollout.order_model_actor import OrderModelActor
-
-    ray.init(ignore_reinit_error=True)
+    ctx = ray.init(namespace="mars", ignore_reinit_error=True)
+    os.environ["MARS_RAY_ADDRESS"] = ctx.address_info["address"]
 
     try:
-        ray.get_actor("order_model_actor")
+        ray.get_actor("order_model_actor", namespace="mars")
     except ValueError:
         OrderModelActor.options(
             name="order_model_actor",
-            lifetime="detached"
+            namespace="mars",
+            lifetime="detached",
         ).remote()
+
 
     # Set up output directory for simulation results
     output_dir = Path("market-impact-example") #Path(C.directory.output_root_dir) / "market-impact-example"
     output_dir.mkdir(parents=True, exist_ok=True)
-    num_rollouts = 16
+    num_rollouts = 4
 
     # Run multiple simulations with different seeds and volume ratios
-    for seed in range(10):
-        for volume_ratio in [0.1, 0.3, 0.5]:
+    # for seed in range(10):
+    #     for volume_ratio in [0.1, 0.3, 0.5]:
+
+    for seed in range(1):
+        for volume_ratio in [0.1]:
             rollouts_path = output_dir / f"rollouts-seed{seed}-volume_ratio{volume_ratio}.zstd"
             run_simulation(
                 symbol="000000",

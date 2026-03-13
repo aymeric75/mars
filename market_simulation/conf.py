@@ -42,7 +42,7 @@ class OrderModel(BaseModel):
 class DebugConfig(BaseModel):
     """Config for debug."""
 
-    enable: bool = True #False
+    enable: bool = False #
 
 
 class Conf(BaseSettings):
