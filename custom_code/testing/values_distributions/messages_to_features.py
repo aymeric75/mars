@@ -482,7 +482,7 @@ def pass2_write_features(
 
 
 
-
+        # index: encodes, type of the order, distance in ticks to mid price, volume, direction
 
         #     # index  vol_ratio_slot  trans_ratio_slot   price_change_to_open    time_to_open     lob_volumes
         #     # f0     f1              f2                 f3                       f4             f5  f6  f7  f8  f9  f10  f11  f12  f13  f14

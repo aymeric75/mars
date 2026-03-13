@@ -27,6 +27,14 @@ def compute_value(tuple_of_paths):
     message_file, snapshot_file = tuple_of_paths
 
     feature_df = from_messages_to_features(message_file, snapshot_file)
+
+    print(feature_df)
+
+    print(feature_df["f0"].max())
+    print(feature_df["f0"].min())
+    #print(feature_df["f0"].unique())
+
+    exit()
     #feature_df = feature_df[(feature_df["Time"] >= 34200000226319) & (feature_df["Time"] <= 57599998528372)]
 
     stock = message_file.stem.split("_")[0]
@@ -101,7 +109,7 @@ def compute_value(tuple_of_paths):
     #     # print(base_logits.shape)
 
 
-    
+
     predicted_dico = {}
     for i, ele in enumerate(predicted_list):
         predicted_dico[i] = ele
@@ -128,9 +136,9 @@ def compute_value(tuple_of_paths):
 
 if __name__ == "__main__":
 
-    data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
+    #data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
 
-    #data_dir = Path("data")
+    data_dir = Path("data")
 
     list_of_pairs = []
 

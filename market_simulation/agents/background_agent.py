@@ -70,6 +70,10 @@ class BackgroundAgent(BaseAgent):
             return action
 
         mid_price, state_vector, state = self.get_order_state()
+
+
+        # print(state_vector.shape)
+        # exit()
         predictions = self.model_client.get_prediction(state_vector)
         assert predictions.size == 1
         order_index = predictions[0]
