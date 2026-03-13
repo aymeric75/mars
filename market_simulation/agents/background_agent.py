@@ -1,3 +1,4 @@
+import time as time_
 import numpy as np
 import numpy.typing as npt
 from pandas import Timedelta, Timestamp
@@ -7,6 +8,10 @@ from market_simulation.states.order_state import Converter, OrderState, PredOrde
 from mlib.core.action import Action
 from mlib.core.base_agent import BaseAgent
 from mlib.core.observation import Observation
+
+from market_simulation.utils.avgtimer import AvgTimer
+
+pred_timer = AvgTimer("prediction")
 
 
 class BackgroundAgent(BaseAgent):
@@ -69,12 +74,13 @@ class BackgroundAgent(BaseAgent):
             self.planned_action = None
             return action
 
+
         mid_price, state_vector, state = self.get_order_state()
 
-
-        # print(state_vector.shape)
-        # exit()
+        #t0 = time_.perf_counter()
         predictions = self.model_client.get_prediction(state_vector)
+        #pred_timer.add(time_.perf_counter() - t0)
+
         assert predictions.size == 1
         order_index = predictions[0]
         pred_order = state.get_pred_order_info(order_index)

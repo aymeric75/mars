@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 import logging
 import pickle
 
@@ -10,7 +11,11 @@ from ray import serve
 
 from market_simulation.conf import C
 from market_simulation.models.order_model import OrderModel
+from custom_code.testing.utils import load_order_model
 
+from market_simulation.utils.avgtimer import AvgTimer
+
+forward_timer = AvgTimer("model_forward")
 
 @serve.deployment(
     num_replicas=1,
@@ -24,25 +29,52 @@ class OrderModelServing:
         self.temperature = C.model_serving.temperature
         logging.info(f"Order model initialized, with temperature: {self.temperature}.")
 
-    def _load_model(self) -> OrderModel:
-        repo_id = C.model_serving.repo_id
-        order_model = OrderModel.from_pretrained(C.model_serving.repo_id)
-        logging.info(f"Loaded model from {repo_id}.")
-        logging.info(f"Model configs: {order_model.num_layers}, {order_model.emb_dim}, {order_model.num_heads}")
+    # def _load_model(self) -> OrderModel:
+    #     repo_id = C.model_serving.repo_id
+    #     order_model = OrderModel.from_pretrained(C.model_serving.repo_id)
+    #     logging.info(f"Loaded model from {repo_id}.")
+    #     logging.info(f"Model configs: {order_model.num_layers}, {order_model.emb_dim}, {order_model.num_heads}")
+    #     if C.model_serving.fp16:
+    #         order_model.half()
+    #         logging.info("Model converted to half precision.")
+    #     return order_model
+
+
+
+    def _load_model(self):
+        model = load_order_model(
+            ckpt_path="step=step=3360-val=val_loss=3.7445.ckpt",
+            device="cuda",
+        )
         if C.model_serving.fp16:
-            order_model.half()
-            logging.info("Model converted to half precision.")
-        return order_model
+            model.half()
+        return model
+
+
 
     @serve.batch(max_batch_size=C.model_serving.max_batch_size)  # type: ignore
     async def batch_inference(self, requests: list[npt.NDArray[np.int32]]) -> list[npt.NDArray[np.int32]]:
         """Batch inference."""
+
         batch_size = len(requests)
         input_tensor = torch.from_numpy(np.asarray(requests)).cuda()
         input_tensor = input_tensor.reshape((batch_size, C.order_model.seq_len, C.order_model.token_dim))
+        # preprocess
+
+        t0 = time.perf_counter()
+
         logging.info(f"batch size: {batch_size}, input shape: {input_tensor.shape}")
         with torch.no_grad():
             output_tensor: np.ndarray = self.model.sample(input_tensor, self.temperature).int().cpu().reshape((batch_size, -1)).numpy()
+
+        #forward_timer.add(time.perf_counter() - t0)
+
+        dt = time.perf_counter() - t0
+
+        with open("model_forward.log", "a") as f:
+            f.write(f"{dt:.6f},{batch_size}\n")
+
+
         logging.info(f"output shape: {output_tensor.shape}")
 
         results: list[npt.NDArray[np.int32]] = []
@@ -50,6 +82,11 @@ class OrderModelServing:
             output = output_tensor[i]
             arr = np.array([output], dtype=np.int32)
             results.append(pickle.dumps(arr))  # type: ignore
+
+        # postprocess
+
+
+
         return results
 
     async def __call__(self, request) -> list[npt.NDArray[np.int32]]:  # noqa: ANN001
