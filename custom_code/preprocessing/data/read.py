@@ -3,14 +3,15 @@ import matplotlib.pyplot as plt
 
 df = pd.read_parquet("LOBSTER_META_2025-10-01_messages_10.parquet")
 
-#print(df)
+print(df)
 
+
+exit()
 # df["Time_seconds"] = df["Time"] / 1e9
 
 # print(df[(df["Message_Type"] == 4) & (df["Order"] == 376839)])
 
 print(df[(df["Message_Type"] == 4)])
-
 print(df[(df["Order"] == 263583)])
 
 #print(df.iloc[105:109])

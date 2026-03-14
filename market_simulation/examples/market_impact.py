@@ -559,8 +559,8 @@ if __name__ == "__main__":
     # for seed in range(10):
     #     for volume_ratio in [0.1, 0.3, 0.5]:
 
-    for seed in range(1):
-        for volume_ratio in [0.1]:
+    for seed in range(2):
+        for volume_ratio in [0.5]:
             rollouts_path = output_dir / f"rollouts-seed{seed}-volume_ratio{volume_ratio}.zstd"
             run_simulation(
                 symbol="000000",
