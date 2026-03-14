@@ -566,7 +566,7 @@ if __name__ == "__main__":
                 symbol="000000",
                 start_time=Timestamp("2024-01-01 09:30:00"),
                 init_end_time=Timestamp("2024-01-01 10:00:00"),
-                end_time=Timestamp("2024-01-01 10:02:30"),
+                end_time=Timestamp("2024-01-01 10:05:00"),
                 num_rollouts=num_rollouts,
                 rollouts_path=rollouts_path,
                 seed_for_init_state=seed,
