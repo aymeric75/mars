@@ -47,7 +47,7 @@ echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES-}"
 
 # ---- Hyperparameter grid (edit freely) ----
 LRS=(1e-4 3e-4 1e-3)
-BSS=(2)  #(8 16)
+BSS=(4)  #(8 16)
 
 for LR in "${LRS[@]}"; do
   for BS in "${BSS[@]}"; do
@@ -67,8 +67,8 @@ for LR in "${LRS[@]}"; do
     mkdir -p "$TORCH_HOME" "$HF_HOME" "$XDG_CACHE_HOME" "$TMPDIR"
 
     srun --kill-on-bad-exit=1 bash -lc "time $PYTHON -u train_Order_Model_hypersearch.py \
-      --train_dir /scratch/project_2012747/mars_data/order_model/train/raw \
-      --val_dir /scratch/project_2012747/mars_data/order_model/val/raw \
+      --train_dir /scratch/project_2012747/mars_data/order_model/train/raw_tmp \
+      --val_dir /scratch/project_2012747/mars_data/order_model/val/raw_tmp \
       --model_variant base \
       --K 1024 \
       --batch_size ${BS} \

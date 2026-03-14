@@ -21,10 +21,12 @@ class OrderModelActor:
         self.temperature = C.model_serving.temperature
 
     def predict(self, arr: npt.NDArray[np.int32]) -> npt.NDArray[np.int32]:
-        x = torch.from_numpy(arr).cuda()
+        x = torch.from_numpy(arr.copy()).cuda()
         x = x.reshape((1, C.order_model.seq_len, C.order_model.token_dim))
 
         with torch.no_grad():
-            out = self.model.sample(x, self.temperature).int().cpu().reshape((1, -1)).numpy()
+            out = self.model.sample(x, self.temperature).int().cpu().numpy().reshape(-1)
+            #out = self.model.sample(x, self.temperature).int().cpu().reshape((1, -1)).numpy()
 
-        return out[0]
+        #return out[0]
+        return out.astype(np.int32)

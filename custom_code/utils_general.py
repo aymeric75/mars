@@ -147,21 +147,3 @@ end = time.perf_counter()
 elapsed = end - start__
 print(f"Elapsed time: {elapsed} seconds")
 
-
-
-# et, une fois que tu as une putain d'image ?
-
-#     ==>
-
-
-
-
-
-
-
-####################################################################################################################
-###### SORTIR DE LA BOUCLE:                                                            #############################
-##########   exemple: pour le stats.py                                                 #############################
-######################     en gros tu veux récup, un order_index à chaque fois,
-#########################      simple: le features PUIS,    order_model() en batch sur le
-####################################################################################################################

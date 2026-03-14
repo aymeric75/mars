@@ -58,6 +58,11 @@ class OrderBatchDataModule(pl.LightningDataModule):
             seq_len=self.seq_len,
             cache_size=self.cache_size,
         )
+    
+    def collate_tokens(self, batch):
+        batch = [x.contiguous().clone() for x in batch]
+        return torch.stack(batch, dim=0)
+
 
 
     @staticmethod
@@ -72,6 +77,7 @@ class OrderBatchDataModule(pl.LightningDataModule):
             self._train,
             batch_size=self.batch_size,
             shuffle=True,
+            collate_fn=self.collate_tokens,
             num_workers=self.num_workers,
             pin_memory=True,
             drop_last=True,
@@ -88,6 +94,7 @@ class OrderBatchDataModule(pl.LightningDataModule):
             self._val,
             batch_size=self.batch_size,
             shuffle=True,
+            collate_fn=self.collate_tokens,
             num_workers=self.num_workers,
             worker_init_fn=self.seed_worker,
             generator=g,

@@ -284,7 +284,7 @@ def run_simulation(
         results = [execute_single_simulation(task) for task in tasks]
     else:
         ctx = mp.get_context("spawn")
-        with ctx.Pool(processes=num_rollouts) as pool:
+        with ctx.Pool(processes=min(4, os.cpu_count() - 1)) as pool:
             results = pool.map(execute_simulation_with_error_handling, tasks)
 
     # Calculate target volume for TWAP agent based on average volume
@@ -312,8 +312,8 @@ def run_simulation(
         trading_results = [execute_single_simulation(task) for task in trading_tasks]
     else:
         ctx = mp.get_context("spawn")
-        with ctx.Pool(processes=num_rollouts) as pool:
-            results = pool.map(execute_simulation_with_error_handling, tasks)
+        with ctx.Pool(processes=min(4, os.cpu_count() - 1)) as pool:
+            trading_results = pool.map(execute_simulation_with_error_handling, trading_tasks)
 
     # Save all simulation results
     pkl_utils.save_pkl_zstd((tasks + trading_tasks, results + trading_results), rollouts_path)
@@ -566,7 +566,7 @@ if __name__ == "__main__":
                 symbol="000000",
                 start_time=Timestamp("2024-01-01 09:30:00"),
                 init_end_time=Timestamp("2024-01-01 10:00:00"),
-                end_time=Timestamp("2024-01-01 10:05:00"),
+                end_time=Timestamp("2024-01-01 10:02:30"),
                 num_rollouts=num_rollouts,
                 rollouts_path=rollouts_path,
                 seed_for_init_state=seed,

@@ -43,23 +43,21 @@ class OrderTokenizer(nn.Module, PyTorchModelHubMixin):
     def forward(self, features: Tensor) -> Tensor:
         """Tokenize inputs."""
         
-        print("featuresfeaturesfeatures 1111111111111111111111")
-        print(features)
+
         
         batch_size = features.size(0)
         dtype = next(self.parameters()).dtype
         assert features.size(1) == self.num_max_orders * self.dim_order
         features = features.reshape((batch_size, self.num_max_orders, self.dim_order))
         features = features.reshape((batch_size * self.num_max_orders, self.dim_order))
-        print("featuresfeaturesfeatures 22222222222222222222222222222222222")
-        print(features)
+
         (order_type, price_level, pred_order_volume, order_interval) = self.split_order_index(
             features[:, 0],
             self.num_bins_price_level,
             self.num_bins_pred_order_volume,
             self.num_bins_order_interval,
         )
-        print(f"order_type is {order_type}")
+
         embs = [
             self.emb_order_type(order_type),
             self.emb_price_level(price_level),
@@ -82,9 +80,7 @@ class OrderTokenizer(nn.Module, PyTorchModelHubMixin):
         num_bins_order_interval: int = 16,
     ) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         """Split order index into order_type, price level, pred_order_volume, and order_interval."""
-        print(f"order_index is {order_index}")
-        print(f"num_bins_price_level is {num_bins_price_level}")
-        print(f"num_bins_order_interval is {num_bins_order_interval}")
+
         order_type = order_index // (num_bins_price_level * num_bins_pred_order_volume * num_bins_order_interval)
         price_level = (order_index % (num_bins_price_level * num_bins_pred_order_volume * num_bins_order_interval)) // (
             num_bins_pred_order_volume * num_bins_order_interval

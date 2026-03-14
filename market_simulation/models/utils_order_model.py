@@ -82,12 +82,12 @@ class RawMessagesTokenDataset(Dataset):
         #print(self.message_files)
 
         for file_idx, msg_path in enumerate(self.message_files):
-
-            n_rows = self._count_rows(msg_path)
-            print(f"n_rows {n_rows}")
-
+        
+            feats = self._load_features(file_idx)
+            n_rows = len(feats)
+            print(f"feature rows {n_rows}")
+        
             n_windows = max(0, n_rows - seq_len + 1)
-
             for start in range(n_windows):
                 self.index.append((file_idx, start))
 
@@ -118,16 +118,21 @@ class RawMessagesTokenDataset(Dataset):
 
         df = from_messages_to_features(msg_path, snap_path)
     
+        print("dfffff")
+        print(df)
+    
         # rename columns to f1 -> f14
         cols = df.columns.tolist()
         start = cols.index("f0")
         for i in range(start + 1, len(cols)):
             cols[i] = f"f{i - start}"
         df.columns = cols
+        print("df.columns")
+        print(df.columns)
 
         feature_cols = [f"f{i}" for i in range(15)]  # f0..f14
         # convert to numpy [N,15]
-        feats = df[feature_cols].to_numpy(dtype=np.int16, copy=True)
+        feats = df[feature_cols].to_numpy(dtype=np.int32, copy=True)
 
         del df
 
@@ -138,6 +143,9 @@ class RawMessagesTokenDataset(Dataset):
         if len(self.cache) > self.cache_size:
             self.cache.popitem(last=False)
 
+        print("featsfeats")
+        print(feats)
+
         return feats
 
     def __len__(self):
@@ -146,11 +154,8 @@ class RawMessagesTokenDataset(Dataset):
     def __getitem__(self, idx):
 
         file_idx, start = self.index[idx]
-
         feats = self._load_features(file_idx)
-
         seq = feats[start : start + self.seq_len]
-
         return torch.tensor(seq, dtype=torch.long)
 
 
