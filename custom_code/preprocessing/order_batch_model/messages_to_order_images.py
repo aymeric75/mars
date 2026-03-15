@@ -86,12 +86,9 @@ def create_mars_order_type_column(messages):
 
 
 def create_slots_columns(df):
-    # cur_order.price - mid_price
+    """ """
     df["bin_price"] = (df["Price"] - df["mid_price"]).apply(converters.price_level.get_bin_index)
     df["bin_vol"] = df["Size"].apply(converters.order_volume.get_bin_index)
-    df["seconds_since_prev"] = df["Time"].diff() / 1e9
-    df["bin_interval"] =  df["seconds_since_prev"].apply(converters.order_interval.get_bin_index)
-    #df = df.drop(columns=["seconds_since_prev"])
 
 
 def bins_lob_volumes(df):
@@ -119,7 +116,14 @@ def add_lob_volumes(df, snapshots):
     df[cols] = snapshots[cols]
 
 def from_messages_to_features(message_file, snapshot_file):
+    """
+    Input: a message parquet file and corresponding snapshot file
 
+    Output: a features dataframe holding for each order:
+        Time (in ns), MarS type (0: sell, 1: buy, 2: sell)
+        bin price (0-31)
+        bin vol (0-31)
+    """
 
     msg_cols = ["Time", "Message_Type", "Direction", "Price", "Size"]
     snap_cols = [
@@ -131,91 +135,54 @@ def from_messages_to_features(message_file, snapshot_file):
     messages = pd.read_parquet(message_file, columns=msg_cols)
     snapshots = pd.read_parquet(snapshot_file, columns=snap_cols)
 
-
+    #  0(S), 1(B), 2(C)
     create_mars_order_type_column(messages)
-
-
-    #print(snapshots)
-
-
     features = messages[["Time", "Mars_type", "Price", "Size"]].copy()
 
-
-    #     # index  vol_ratio_slot  trans_ratio_slot   price_change_to_open    time_to_open     lob_volumes
-    #     # f0     f1              f2                 f3                       f4             f5  f6  f7  f8  f9  f10  f11  f12  f13  f14
-    #     # 10624   0              0                  une valeur               2147          0   0   0   0   0    0    0    0    0    0
-
     create_mid_price_column(features, snapshots)
-
-
 
     start = (9*60*60 + 30*60) * 1_000_000_000   # 9:30 in ns
     end = (16*60*60) * 1_000_000_000            # 16:00 in ns
     features = features[(features["Time"] >= start) & (features["Time"] <= end)]
 
     create_slots_columns(features)
-
-
-    print("BINS VALUES !!!!")
-    print(features["bin_price"].unique())
-    print(features["bin_vol"].unique())
-    print(features["bin_interval"].unique())
-
-
-
-    features["f0"] = (
-        features["Mars_type"] * NUM_BINS_PRICE_LEVEL * NUM_BINS_ORDER_VOLUME * NUM_BINS_ORDER_INTERVAL
-        + features["bin_price"] * NUM_BINS_ORDER_VOLUME * NUM_BINS_ORDER_INTERVAL
-        + features["bin_vol"] * NUM_BINS_ORDER_INTERVAL
-        + features["bin_interval"])
-
-    print("max and min values")
-    print(features["f0"].max())
-
-    print(features["f0"].min())
-
-    features = features.drop(columns=["bin_price", "bin_vol", "seconds_since_prev", "bin_interval"])
-    features["vol_ratio_slot"] = 0
-    features["trans_ratio_slot"] = 0
-
-
-    create_price_change_to_open(features)
-    features = features.drop(columns=["mid_price"])
-    create_seconds_since_open(features)
-
-    add_lob_volumes(features, snapshots)
-
-    features = features.drop(columns=["Time", "Mars_type", "Price", "Size"])
-    bins_lob_volumes(features)
-
-    print("featuresfeaturesfeaturesfeaturesfeatures")
-    print(features)
+    features = features.drop(columns=["Price", "Size", "mid_price"])
 
     features = features.fillna(0)
 
-    #print(features)
+    features[["Mars_type", "bin_price", "bin_vol"]] = features[["Mars_type", "bin_price", "bin_vol"]].astype("int32")
+    features["Time"] = features["Time"].astype("int64")
 
     return features
 
-# from_messages_to_features("../data/LOBSTER_AAPL_2025-10-29_messages_10.parquet", "../data/LOBSTER_AAPL_2025-10-29_snapshots_10.parquet")
+
+#print(from_messages_to_features("../data/LOBSTER_AAPL_2025-10-29_messages_10.parquet", "../data/LOBSTER_AAPL_2025-10-29_snapshots_10.parquet"))
 
 
 
+def retrieve_chunk_last_16min(message_file, index):
+    """
+    test if present (index) - 16min exists
+    """
 
-# NUM_BINS_PRICE_LEVEL = 32
-# NUM_BINS_ORDER_VOLUME = 32
-# NUM_BINS_ORDER_INTERVAL = 16
-# NUM_BINS_LOB_VOLUME = 32
+    msg_cols = ["Time", "Message_Type", "Direction", "Price", "Size"]
+    messages = pd.read_parquet(message_file, columns=msg_cols)
+
+    t = messages['Time'].to_numpy()
+    m = 60_000_000_000
+    b = np.searchsorted(t, t[index] - np.arange(16, -1, -1)*m)
+
+    enough_history = b[0] > 0
+
+    if not enough_history:
+        raise Exception("Not enough historical data available (16 minutes required)")
+
+    chunks = [messages.iloc[b[k]:b[k+1]] for k in range(16)]
+
+    return chunks
 
 
-# f0
-# order_type * (self.num_bins_price_level * self.num_bins_pred_order_volume * self.num_bins_order_interval)
-# + price_slot * (self.num_bins_pred_order_volume * self.num_bins_order_interval)
-# + volume_slot * self.num_bins_order_interval
-# + interval_slot
+chunks = retrieve_chunk_last_16min("../data/LOBSTER_AAPL_2025-10-29_messages_10.parquet", 15000)
 
 
-# une fois que tu as f0..
-
-
-#
+print(chunks)
