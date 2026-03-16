@@ -43,9 +43,7 @@ class OrderBatchDataModule(pl.LightningDataModule):
         self._train = None
         self._val = None
 
-    def prepare_data(self):
-        # nothing to unzip anymore
-        pass
+
 
     def setup(self, stage: str | None = None):
         self._train = RawMessagesTokenDataset(
@@ -118,8 +116,18 @@ class OrderLightningModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         X = batch
+
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats()
+        
         logits = self(X)
         loss = lm_loss_all_positions(logits, X)
+    
+        if torch.cuda.is_available() and batch_idx == 0:
+            peak = torch.cuda.max_memory_allocated() / 1024**2
+            reserved = torch.cuda.max_memory_reserved() / 1024**2
+            print(f"\nGPU memory — allocated: {peak:.1f} MB | reserved: {reserved:.1f} MB\n")
+        
         self.log(
             "train_loss",
             loss,
@@ -146,7 +154,7 @@ def main():
     p.add_argument("--val_dir", required=True)
     p.add_argument("--pattern", default="*_messages.parquet")
     p.add_argument("--feature_cols", type=int, default=15)
-    p.add_argument("--cache_size", type=int, default=2)
+    p.add_argument("--cache_size", type=int, default=8)
     p.add_argument("--model_variant", default="base", choices=["base", "small"])
     p.add_argument("--K", type=int, default=1024)
     p.add_argument("--batch_size", type=int, default=256)
@@ -213,7 +221,7 @@ def main():
         limit_val_batches=10,
         deterministic=True,
         enable_checkpointing=True,
-        enable_progress_bar=False,
+        enable_progress_bar=True,
     )
 
 

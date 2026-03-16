@@ -60,6 +60,7 @@ class BinConverter:
         assert len(bins) == self.num_bins + 1
         self.bins = np.array(bins)
 
+    """
 
     def _create_bins(self, values: list[float], num_bins: int) -> None:
         assert num_bins > 1
@@ -136,6 +137,8 @@ class BinConverter:
         bins.sort()
         assert len(bins) == num_bins + 1
         return bins
+
+    """
 
     def _create_sample_probs(self, values: list[float], num_sample_per_bin: int = 100) -> None:
         def normalize(arr: np.ndarray) -> np.ndarray:

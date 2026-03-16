@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=order_model_grid
 #SBATCH --account=project_2018243
-#SBATCH --partition=gputest
+#SBATCH --partition=gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4
-#SBATCH --time=00:15:00
+#SBATCH --time=02:15:00
 #SBATCH --gres=gpu:v100:1
 #SBATCH --mem=256G
 #SBATCH --output=logs_order_model/%x_%j.out
@@ -74,8 +74,8 @@ for LR in "${LRS[@]}"; do
       --batch_size ${BS} \
       --lr ${LR} \
       --max_steps 4000 \
-      --num_workers 2 \
-      --precision bf16-mixed \
+      --num_workers 4 \
+      --precision 32-true \
       --run_root ${TB_ROOT} \
       --run_name ${RUN_NAME}"
 
