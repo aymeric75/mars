@@ -1,6 +1,4 @@
-# train_Order_Batch_Model_lightning.py
 import argparse
-import glob
 import os
 import torch
 import lightning.pytorch as pl
@@ -8,12 +6,14 @@ import lightning.pytorch as pl
 from pathlib import Path
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 
 from market_simulation.models.order_batch_model import OrderBatchModel
-from market_simulation.models.utils_order_batch_model import MultiDirZarrTokenDataset, lm_loss_next_token
-
-
+from market_simulation.models.utils_order_batch_model import (
+    OnlineMessageTokenDataset,
+    VQRuntimeConfig,
+    lm_loss_next_token,
+)
 
 
 class OrderBatchDataModule(pl.LightningDataModule):
@@ -24,6 +24,8 @@ class OrderBatchDataModule(pl.LightningDataModule):
         pattern: str,
         batch_size: int,
         num_workers: int,
+        cache_size: int,
+        vq_runtime: VQRuntimeConfig,
     ):
         super().__init__()
         self.train_dir = train_dir
@@ -31,18 +33,25 @@ class OrderBatchDataModule(pl.LightningDataModule):
         self.pattern = pattern
         self.batch_size = int(batch_size)
         self.num_workers = int(num_workers)
-
+        self.cache_size = int(cache_size)
+        self.vq_runtime = vq_runtime
         self._train = None
         self._val = None
 
     def setup(self, stage: str | None = None):
-        train_dirs = sorted(Path(self.train_dir).glob(self.pattern))
-        val_dirs   = sorted(Path(self.val_dir).glob(self.pattern))
+        train_files = sorted(Path(self.train_dir).glob(self.pattern))
+        val_files = sorted(Path(self.val_dir).glob(self.pattern))
+        self._train = OnlineMessageTokenDataset(
+            message_files=[str(p) for p in train_files],
+            cache_size=self.cache_size,
+            vq_runtime=self.vq_runtime,
+        )
+        self._val = OnlineMessageTokenDataset(
+            message_files=[str(p) for p in val_files],
+            cache_size=self.cache_size,
+            vq_runtime=self.vq_runtime,
+        )
 
-        self._train = MultiDirZarrTokenDataset([str(p) for p in train_dirs])
-        self._val   = MultiDirZarrTokenDataset([str(p) for p in val_dirs])
-        
-        
     def train_dataloader(self):
         return DataLoader(
             self._train,
@@ -66,14 +75,10 @@ class OrderBatchDataModule(pl.LightningDataModule):
         )
 
 
-
-
-
 class OrderBatchLightningModule(pl.LightningModule):
     def __init__(self, emb_dim: int, num_layers: int, num_heads: int, vocab_size: int, lr: float):
         super().__init__()
         self.save_hyperparameters()
-
         self.model = OrderBatchModel(
             emb_dim=int(emb_dim),
             num_layers=int(num_layers),
@@ -83,10 +88,10 @@ class OrderBatchLightningModule(pl.LightningModule):
         self.lr = float(lr)
 
     def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
-        return self.model(input_ids)  # (B,T,V)
+        return self.model(input_ids)
 
     def training_step(self, batch, batch_idx):
-        input_ids = batch  # (B,1024)
+        input_ids = batch
         logits = self(input_ids)
         loss = lm_loss_next_token(logits, input_ids)
         self.log("train_loss", loss, on_step=True, on_epoch=False, sync_dist=True)
@@ -103,65 +108,58 @@ class OrderBatchLightningModule(pl.LightningModule):
         return torch.optim.AdamW(self.parameters(), lr=self.lr)
 
 
-
-
-
 class PrintCkptFilename(pl.Callback):
     def on_validation_end(self, trainer, pl_module):
         for cb in trainer.callbacks:
             if isinstance(cb, ModelCheckpoint):
-                fp = cb.format_checkpoint_name(
-                    metrics=trainer.callback_metrics,
-                    filename=cb.filename,
-                )
-                # fp may already be absolute depending on Lightning version/config
+                fp = cb.format_checkpoint_name(metrics=trainer.callback_metrics, filename=cb.filename)
                 full = fp if os.path.isabs(fp) else os.path.join(cb.dirpath, fp)
-                print(">> checkpoint dirpath:", cb.dirpath)
-                print(">> checkpoint full path:", full)
+                print(" >> checkpoint dirpath:", cb.dirpath)
+                print(" >> checkpoint full path:", full)
 
 
 
 def main():
     p = argparse.ArgumentParser()
-    # Hypersearch-style output control (like order_model hypersearch)
     p.add_argument("--run_root", default="checkpoints_batch_order_model")
     p.add_argument("--run_name", default=None)
-    
-    p.add_argument("--train_dir", default="/scratch/project_2012747/mars_data/order_batch_model/train/final")
-    p.add_argument("--val_dir", type=str, default="/scratch/project_2012747/mars_data/order_batch_model/val/final", required=True)
-    p.add_argument("--pattern", default="*.zarr")
+    p.add_argument("--train_dir", default="/scratch/project_2012747/mars_data/train")
+    p.add_argument("--val_dir", default="/scratch/project_2012747/mars_data/val")
+    p.add_argument("--pattern", default="*messages*.parquet")
     p.add_argument("--batch_size", type=int, default=16)
-
-    p.add_argument("--emb_dim", type=int, default=128) #default=768)
-    p.add_argument("--num_layers", type=int, default=4) #default=12)
-    p.add_argument("--num_heads", type=int, default=4) #default=12)
+    p.add_argument("--cache_size", type=int, default=2)
+    p.add_argument("--emb_dim", type=int, default=128)
+    p.add_argument("--num_layers", type=int, default=4)
+    p.add_argument("--num_heads", type=int, default=4)
     p.add_argument("--vocab_size", type=int, default=8192)
-
     p.add_argument("--lr", type=float, default=1e-4)
     p.add_argument("--max_steps", type=int, default=1000)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--num_workers", type=int, default=0)
     p.add_argument("--precision", default="bf16-mixed", choices=["32-true", "16-mixed", "bf16-mixed"])
-    p.add_argument("--default_root_dir", default="")
+    p.add_argument("--latent_diffusion_root", default="../../../third_party/latent_diffusion")
+    p.add_argument("--taming_root", default="../../../third_party/taming-transformers")
+    p.add_argument("--vq_ckpt_dir", default="./")
     args = p.parse_args()
-    
-    
+
     run_root = args.run_root
     os.makedirs(run_root, exist_ok=True)
-    
-    # default run_name if not provided (keep it short but informative)
     run_name = args.run_name or f"bs={args.batch_size}_lr={args.lr:g}"
-    
     run_dir = os.path.join(run_root, run_name)
     os.makedirs(run_dir, exist_ok=True)
-    
+
     print("PWD =", os.getcwd())
     print("run_root =", os.path.abspath(run_root))
     print("run_name =", run_name)
-    print("run_dir  =", os.path.abspath(run_dir))
-
+    print("run_dir =", os.path.abspath(run_dir))
 
     pl.seed_everything(args.seed, workers=True)
+
+    vq_runtime = VQRuntimeConfig(
+        ckpt_dir=args.vq_ckpt_dir,
+        latent_diffusion_root=args.latent_diffusion_root,
+        taming_root=args.taming_root,
+    )
 
     dm = OrderBatchDataModule(
         train_dir=args.train_dir,
@@ -169,6 +167,8 @@ def main():
         pattern=args.pattern,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
+        cache_size=args.cache_size,
+        vq_runtime=vq_runtime,
     )
 
     model = OrderBatchLightningModule(
@@ -178,14 +178,8 @@ def main():
         vocab_size=args.vocab_size,
         lr=args.lr,
     )
-    
-    logger = TensorBoardLogger(
-        save_dir=run_root,
-        name="tensorboard",
-        version=run_name,   # distinct TB run per hyperparam combo
-    )
-    
-    
+
+    logger = TensorBoardLogger(save_dir=run_root, name="tensorboard", version=run_name)
     ckpt_cb = ModelCheckpoint(
         dirpath=run_dir,
         filename="step={step}-val={val_loss:.4f}",
@@ -212,8 +206,6 @@ def main():
         enable_progress_bar=False,
         deterministic=True,
     )
-    
-
 
     trainer.fit(model, dm)
 

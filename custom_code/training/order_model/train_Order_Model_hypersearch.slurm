@@ -5,9 +5,9 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4
-#SBATCH --time=02:15:00
+#SBATCH --time=00:45:00
 #SBATCH --gres=gpu:v100:1
-#SBATCH --mem=256G
+#SBATCH --mem=64G
 #SBATCH --output=logs_order_model/%x_%j.out
 #SBATCH --error=logs_order_model/%x_%j.err
 
