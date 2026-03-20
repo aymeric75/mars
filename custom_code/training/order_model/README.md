@@ -7,7 +7,7 @@ Training set: 3-11-2025 -> 10-11-2025
 Eval set: 17-11-2025 -> 19-11-2025
 
 
-## train data sampling
+## Train data sampling
 
 Each training sample is a sliding window of length `K` taken from one `*_messages.parquet` file after filtering to market hours only (`09:30` to `16:00`).
 
@@ -39,4 +39,26 @@ So the training order is:
 - limited to `train_num_samples` if this argument is set
 
 
-## eval data sampling
+## Eval data sampling
+
+Validation samples are built from the validation `*_messages.parquet` files in the same way as training samples:
+
+- each sample is a sliding window of length `K`
+- for one file with `N` valid rows, this gives `N - K + 1` possible windows
+- sample `i` corresponds to rows `[i : i + K]`
+
+Unlike training, validation does not use the custom chunk-based sampler.
+
+Instead, the validation `DataLoader` reads the validation dataset directly with a standard batching scheme:
+
+- by default, `shuffle_val=False`
+- so validation windows are read in dataset order
+- that means the loader goes through the validation files in sorted order, and inside each file it goes through window starts `0, 1, 2, ...`
+
+So validation sampling is deterministic by default:
+
+- no chunking
+- no random reordering
+- no partial sampling limit like `train_num_samples`
+
+If `shuffle_val=True` is enabled, then the validation windows are shuffled at the `DataLoader` level before batching, but this is disabled by default.
