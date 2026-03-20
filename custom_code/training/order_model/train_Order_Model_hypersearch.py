@@ -109,6 +109,8 @@ class OrderBatchDataModule(pl.LightningDataModule):
         shuffle_val: bool = False,
         train_num_samples: int | None = None,
         train_chunk_size: int = 2048,
+        val_num_samples: int | None = None,
+        val_chunk_size: int | None = None,
     ):
         super().__init__()
         self.train_dir = train_dir
@@ -123,6 +125,8 @@ class OrderBatchDataModule(pl.LightningDataModule):
         self.shuffle_val = bool(shuffle_val)
         self.train_num_samples = None if train_num_samples is None else int(train_num_samples)
         self.train_chunk_size = int(train_chunk_size)
+        self.val_num_samples = 10 * self.batch_size if val_num_samples is None else int(val_num_samples)
+        self.val_chunk_size = self.train_chunk_size if val_chunk_size is None else int(val_chunk_size)
         self._train = None
         self._val = None
 
@@ -176,17 +180,21 @@ class OrderBatchDataModule(pl.LightningDataModule):
 
 
     def val_dataloader(self):
-        g = torch.Generator()
-        g.manual_seed(self.seed)
+        batch_sampler = ChunkShuffleBatchSampler(
+            self._val,
+            batch_size=self.batch_size,
+            num_samples=self.val_num_samples,
+            chunk_size=self.val_chunk_size,
+            seed=self.seed,
+            drop_last=False,
+        )
 
         return DataLoader(
             self._val,
-            batch_size=self.batch_size,
-            shuffle=self.shuffle_val,
+            shuffle=False,
+            batch_sampler=batch_sampler,
             collate_fn=self.collate_tokens,
             num_workers=self.num_workers,
-            worker_init_fn=self.seed_worker,
-            generator=g,
             pin_memory=True,
             persistent_workers=(self.num_workers > 0),
             prefetch_factor=2 if self.num_workers > 0 else None,
@@ -300,6 +308,8 @@ def main():
     p.add_argument("--shuffle_val", action=argparse.BooleanOptionalAction, default=False)
     p.add_argument("--train_num_samples", type=int, default=None)
     p.add_argument("--train_chunk_size", type=int, default=2048)
+    p.add_argument("--val_num_samples", type=int, default=None)
+    p.add_argument("--val_chunk_size", type=int, default=None)
     p.add_argument("--model_variant", default="base", choices=["base", "small"])
     p.add_argument("--K", type=int, default=1024)
     p.add_argument("--batch_size", type=int, default=256)
@@ -336,6 +346,8 @@ def main():
         shuffle_val=args.shuffle_val,
         train_num_samples=args.train_num_samples,
         train_chunk_size=args.train_chunk_size,
+        val_num_samples=args.val_num_samples,
+        val_chunk_size=args.val_chunk_size,
     )
 
     model = OrderLightningModule(model_variant=args.model_variant, K=args.K, lr=args.lr)
@@ -376,7 +388,6 @@ def main():
         precision=args.precision,
         log_every_n_steps=4,
         val_check_interval=120,
-        limit_val_batches=10,
         deterministic=args.deterministic,
         enable_checkpointing=True,
         enable_progress_bar=False,

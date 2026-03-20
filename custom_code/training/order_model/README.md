@@ -47,18 +47,20 @@ Validation samples are built from the validation `*_messages.parquet` files in t
 - for one file with `N` valid rows, this gives `N - K + 1` possible windows
 - sample `i` corresponds to rows `[i : i + K]`
 
-Unlike training, validation does not use the custom chunk-based sampler.
+Validation uses the same `ChunkShuffleBatchSampler` as training, but with validation-specific settings.
 
-Instead, the validation `DataLoader` reads the validation dataset directly with a standard batching scheme:
+The validation sampler:
 
-- by default, `shuffle_val=False`
-- so validation windows are read in dataset order
-- that means the loader goes through the validation files in sorted order, and inside each file it goes through window starts `0, 1, 2, ...`
+- splits validation windows into chunks
+- shuffles the chunks with a fixed seed
+- shuffles the windows inside each chunk
+- stops after `val_num_samples` windows
+- keeps the last partial batch if needed (`drop_last=False`)
 
 So validation sampling is deterministic by default:
 
-- no chunking
-- no random reordering
-- no partial sampling limit like `train_num_samples`
+- same seed
+- same sampled subset
+- same order at every validation check
 
-If `shuffle_val=True` is enabled, then the validation windows are shuffled at the `DataLoader` level before batching, but this is disabled by default.
+By default, if `val_num_samples` is not set, validation uses `10 * batch_size` windows.
