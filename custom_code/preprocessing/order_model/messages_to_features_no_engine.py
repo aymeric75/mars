@@ -57,47 +57,34 @@ converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lo
 
 #  0(S), 1(B), 2(C)
 def create_mars_order_type_column(messages):
-    messages["Mars_type"] = 0
-    # TYPE 2: cancel / delete
-    messages.loc[messages["Message_Type"].isin([2, 3]), "Mars_type"] = 2
-
-    # BUY PASSIVE ORDER
-    messages.loc[
-        ((messages["Message_Type"] == 1) & (messages["Direction"] == -1)),
-        "Mars_type"
-    ] = 1
-
-    # SELL PASSIVE ORDER
-    messages.loc[
-        ((messages["Message_Type"] == 1) & (messages["Direction"] == 1)),
-        "Mars_type"
-    ] = 0
-    # BUY AGRESSIVE ORDER
-    messages.loc[
-        ((messages["Message_Type"] == 4) & (messages["Direction"] == 1)),
-        "Mars_type"
-    ] = 1
-
-    # SELL AGRESSIVE ORDER
-    messages.loc[
-        ((messages["Message_Type"] == 4) & (messages["Direction"] == -1)),
-        "Mars_type"
-    ] = 0
-
-
+    message_type = messages["Message_Type"]
+    direction = messages["Direction"]
+    messages["Mars_type"] = np.select(
+        [
+            message_type.isin([2, 3]),
+            ((message_type == 1) & (direction == -1)) | ((message_type == 4) & (direction == 1)),
+        ],
+        [2, 1],
+        default=0,
+    )
 def create_slots_columns(df):
     # cur_order.price - mid_price
-    df["bin_price"] = (df["Price"] - df["mid_price"]).apply(converters.price_level.get_bin_index)
-    df["bin_vol"] = df["Size"].apply(converters.order_volume.get_bin_index)
+    price_minus_mid = (df["Price"] - df["mid_price"]).to_numpy()
+    df["bin_price"] = converters.price_level.get_bin_indices(price_minus_mid)
+
+    size_values = df["Size"].to_numpy()
+    df["bin_vol"] = converters.order_volume.get_bin_indices(size_values)
+
     df["seconds_since_prev"] = df["Time"].diff() / 1e9
-    df["bin_interval"] =  df["seconds_since_prev"].apply(converters.order_interval.get_bin_index)
+    interval_values = df["seconds_since_prev"].to_numpy()
+    df["bin_interval"] = converters.order_interval.get_bin_indices(interval_values)
     #df = df.drop(columns=["seconds_since_prev"])
 
 
 def bins_lob_volumes(df):
     cols = [f"Ask_Size_{i}" for i in range(1, 6)] + [f"Bid_Size_{i}" for i in range(1, 6)]
-    for c in cols:
-        df[c] = df[c].apply(converters.lob_volume.get_bin_index)
+    lob_values = df[cols].to_numpy()
+    df[cols] = converters.lob_volume.get_bin_indices(lob_values)
 
 
 def create_mid_price_column(df, snapshots):
@@ -131,37 +118,18 @@ def from_messages_to_features(message_file, snapshot_file):
     messages = pd.read_parquet(message_file, columns=msg_cols)
     snapshots = pd.read_parquet(snapshot_file, columns=snap_cols)
 
-
-    create_mars_order_type_column(messages)
-
-
-    #print(snapshots)
-
-
-    features = messages[["Time", "Mars_type", "Price", "Size"]].copy()
-
-
-    #     # index  vol_ratio_slot  trans_ratio_slot   price_change_to_open    time_to_open     lob_volumes
-    #     # f0     f1              f2                 f3                       f4             f5  f6  f7  f8  f9  f10  f11  f12  f13  f14
-    #     # 10624   0              0                  une valeur               2147          0   0   0   0   0    0    0    0    0    0
-
-    create_mid_price_column(features, snapshots)
-
-
-
     start = (9*60*60 + 30*60) * 1_000_000_000   # 9:30 in ns
     end = (16*60*60) * 1_000_000_000            # 16:00 in ns
-    features = features[(features["Time"] >= start) & (features["Time"] <= end)]
+    time_mask = (messages["Time"] >= start) & (messages["Time"] <= end)
+
+    messages = messages.loc[time_mask].copy()
+    snapshots = snapshots.loc[time_mask].copy()
+
+    create_mars_order_type_column(messages)
+    features = messages[["Time", "Mars_type", "Price", "Size"]].copy()
+    create_mid_price_column(features, snapshots)
 
     create_slots_columns(features)
-
-
-    print("BINS VALUES !!!!")
-    print(features["bin_price"].unique())
-    print(features["bin_vol"].unique())
-    print(features["bin_interval"].unique())
-
-
 
     features["f0"] = (
         features["Mars_type"] * NUM_BINS_PRICE_LEVEL * NUM_BINS_ORDER_VOLUME * NUM_BINS_ORDER_INTERVAL
@@ -169,15 +137,10 @@ def from_messages_to_features(message_file, snapshot_file):
         + features["bin_vol"] * NUM_BINS_ORDER_INTERVAL
         + features["bin_interval"])
 
-    print("max and min values")
-    print(features["f0"].max())
-
-    print(features["f0"].min())
 
     features = features.drop(columns=["bin_price", "bin_vol", "seconds_since_prev", "bin_interval"])
     features["vol_ratio_slot"] = 0
     features["trans_ratio_slot"] = 0
-
 
     create_price_change_to_open(features)
     features = features.drop(columns=["mid_price"])
@@ -187,9 +150,6 @@ def from_messages_to_features(message_file, snapshot_file):
 
     features = features.drop(columns=["Time", "Mars_type", "Price", "Size"])
     bins_lob_volumes(features)
-
-    print("featuresfeaturesfeaturesfeaturesfeatures")
-    print(features)
 
     features = features.fillna(0)
 

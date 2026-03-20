@@ -174,6 +174,11 @@ class BinConverter:
         index = min(index, self.num_bins - 1)  # trim value > bins[-1]
         return index
 
+    def get_bin_indices(self, values: np.ndarray) -> np.ndarray:
+        """Vectorized version of get_bin_index for arrays."""
+        indices = np.digitize(values, self.bins, right=True) - 1
+        return np.clip(indices, 0, self.num_bins - 1)
+
 
 def _test_bin_converter() -> None:
     import logging

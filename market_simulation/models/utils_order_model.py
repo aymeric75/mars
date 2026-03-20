@@ -6,7 +6,6 @@ import zipfile
 import numpy as np
 import torch
 import torch.nn.functional as F
-import zarr
 import pyarrow.parquet as pq
 
 import pandas as pd
@@ -15,7 +14,7 @@ from pathlib import Path
 from collections import OrderedDict
 from functools import lru_cache
 from torch.utils.data import DataLoader, Dataset, Subset
-from zarr.storage import DirectoryStore
+
 
 
 from custom_code.preprocessing.order_model.messages_to_features_no_engine import (
@@ -73,29 +72,36 @@ class RawMessagesTokenDataset(Dataset):
         # LRU cache: file -> feature numpy array
         self.cache = OrderedDict()
 
-        # map global idx -> (file_idx, start_row)
-        self.index = []
+        # Compact index: keep only window counts per file and cumulative totals.
+        # This avoids materializing one Python tuple per possible training window.
+        self.window_counts = []
+        self.cumulative_windows = []
+        total_windows = 0
 
         print("Building dataset index...")
 
-        #print("message_files")
-        #print(self.message_files)
-
         for file_idx, msg_path in enumerate(self.message_files):
-        
-            feats = self._load_features(file_idx)
-            n_rows = len(feats)
+            n_rows = self._count_feature_rows(msg_path)
             print(f"feature rows {n_rows}")
         
             n_windows = max(0, n_rows - seq_len + 1)
-            for start in range(n_windows):
-                self.index.append((file_idx, start))
+            self.window_counts.append(n_windows)
+            total_windows += n_windows
+            self.cumulative_windows.append(total_windows)
 
-        print(f"Total windows: {len(self.index)}")
+        self.total_windows = total_windows
+        print(f"Total windows: {self.total_windows}")
 
     def _count_rows(self, parquet_path):
         """Fast row count without loading full file."""
         return pq.ParquetFile(parquet_path).metadata.num_rows
+
+    def _count_feature_rows(self, message_path):
+        """Count rows that survive the market-hours filter."""
+        start = (9 * 60 * 60 + 30 * 60) * 1_000_000_000
+        end = (16 * 60 * 60) * 1_000_000_000
+        times = pd.read_parquet(message_path, columns=["Time"])["Time"]
+        return int(((times >= start) & (times <= end)).sum())
 
     def _snapshot_path(self, message_path):
         """
@@ -118,17 +124,12 @@ class RawMessagesTokenDataset(Dataset):
 
         df = from_messages_to_features(msg_path, snap_path)
     
-        print("dfffff")
-        print(df)
-    
         # rename columns to f1 -> f14
         cols = df.columns.tolist()
         start = cols.index("f0")
         for i in range(start + 1, len(cols)):
             cols[i] = f"f{i - start}"
         df.columns = cols
-        print("df.columns")
-        print(df.columns)
 
         feature_cols = [f"f{i}" for i in range(15)]  # f0..f14
         # convert to numpy [N,15]
@@ -143,17 +144,25 @@ class RawMessagesTokenDataset(Dataset):
         if len(self.cache) > self.cache_size:
             self.cache.popitem(last=False)
 
-        print("featsfeats")
-        print(feats)
-
         return feats
 
+    def prefetch_file(self, file_idx: int):
+        if self.cache_size <= 0:
+            return
+        self._load_features(file_idx)
+
     def __len__(self):
-        return len(self.index)
+        return self.total_windows
 
     def __getitem__(self, idx):
+        if idx < 0:
+            idx += self.total_windows
+        if idx < 0 or idx >= self.total_windows:
+            raise IndexError(f"Index {idx} out of range for dataset of size {self.total_windows}")
 
-        file_idx, start = self.index[idx]
+        file_idx = bisect.bisect_right(self.cumulative_windows, idx)
+        prev_total = 0 if file_idx == 0 else self.cumulative_windows[file_idx - 1]
+        start = idx - prev_total
         feats = self._load_features(file_idx)
         seq = feats[start : start + self.seq_len]
         return torch.tensor(seq, dtype=torch.long)

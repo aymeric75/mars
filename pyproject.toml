@@ -1,103 +1,85 @@
-[tool.pyright]
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
 
+[project]
+name = "market-simulation"
+version = "0.0.1"
+description = "MarS market simulation"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "pandas==2.2.3",
+    "numpy",
+    "matplotlib",
+    "seaborn==0.13.2",
+    "scipy==1.15.2",
+    "tqdm",
+    "ruamel.yaml==0.18.6",
+    "pydantic==2.10.3",
+    "pydantic-settings==2.8.1",
+    "python-dotenv==1.0.1",
+    "rich==13.9.4",
+    "zstandard==0.23.0",
+    "ray[serve]==2.44.0",
+    "torch==2.6.0",
+    "torchvision==0.21.0",
+    "torchaudio==2.6.0",
+    "transformers==4.50.0",
+    "streamlit==1.40.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy==1.15.0",
+    "pre-commit==4.2.0",
+    "types-protobuf==5.29.1.20250315",
+    "types-requests==2.32.0.20250306",
+    "tqdm-stubs==0.2.1",
+    "ipython==9.0.2",
+    "ruff==0.11.2",
+    "pandas-stubs==2.2.3.250308",
+]
+train = [
+    "lightning",
+    "pyarrow",
+    "zarr",
+    "numcodecs",
+    "datasets",
+    "omegaconf",
+    "pysindy",
+]
+
+[tool.setuptools]
+packages = ["market_simulation", "mlib", "custom_code"]
+
+[tool.pyright]
 reportGeneralTypeIssues = false
 reportUnknownVariableType = false
 reportUnknownArgumentType = false
 reportUnknownMemberType = false
-
-
 ignore = [".git", ".eggs", "tmp"]
 
 [tool.mypy]
 exclude = [".git", ".eggs", "tmp"]
-
 ignore_missing_imports = true
 
 [tool.ruff]
-
 unsafe-fixes = true
 line-length = 150
 indent-width = 4
 target-version = "py312"
-
 exclude = [".git", ".eggs", "tmp"]
-
 
 [tool.ruff.lint]
 select = ["ALL"]
-
 ignore = [
-    "D403",
-    "D415",
-    "D100",    # missing docstring in public module
-    "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed in
-    "S301",    # pickle and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue
-    "RET504",  # Unnecessary assignment to {name} before return statement
-    "BLE001",  # Do not catch blind exception: {name}
-    "G004",    # Logging statement uses f-string
-    "ERA001",  # Found commented-out code
-    "D104",    # Missing docstring in public package
-    "ISC001",  # Implicitly concatenated string literals on one line
-    "COM812",  # Trailing comma missing
-    "TD003",   # Missing issue link on the line following this TODO
-    "FIX002",  # Line contains TODO, consider resolving the issue
-    "PIE790",  # Unnecessary pass statement
-    "S101",    # Use of assert detected
-    "D107",    # Missing docstring in __init__
-    "EM101",   # Exception must not use a string literal, assign to variable first
-    "SIM108",  # Use ternary operator {contents} instead of if-else-block
-    "TRY003",  # Avoid specifying long messages outside the exception class
-    "D105",    # Missing docstring in magic method
-    "PGH003",  # Use specific rule codes when ignoring type issues
-    "SIM103",  # Return the condition {condition} directly
-    "EM102",   # Exception must not use an f-string literal, assign to variable first
-    "PLR2004", # Magic value used in comparison, consider replacing {value} with a constant variable
-    "PT018",   # Assertion should be broken down into multiple parts
-    "PLR1711", # Useless return statement at end of function
-    "RET501",  # Do not explicitly return None in function if it is the only possible return value
-    "RUF015",  # Prefer next({iterable}) over single element slice
-    "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
-    "C901",    # {name} is too complex ({complexity} > {max_complexity})
-    "PLR0912", # Too many branches ({branches} > {max_branches})
-    "NPY002",  # Replace legacy np.random.{method_name} call with np.random.Generator
-    "DTZ001",  # datetime.datetime() called without a tzinfo argument
-    "S113",    # Probable use of {module} call without timeout
-    "PERF401", # Use {message_str} to create a transformed list
-    "S105",    # Possible hardcoded password assigned to: "{}"
-    "FA100",   # Add from __future__ import annotations to simplify {name}
-    "TRY300",  # Consider moving this statement to an else block
-    "LOG015",  # {}() call on root logger
-    "ARG002",  # Unused method argument: {name}
-    "A002",    # Function argument {name} is shadowing a Python builtin
-    "A001",    # Variable {name} is shadowing a Python builtin
-    # all rules: https://docs.astral.sh/ruff/rules/
+    "D403","D415","D100","ANN401","S301","RET504","BLE001","G004","ERA001",
+    "D104","ISC001","COM812","TD003","FIX002","PIE790","S101","D107","EM101",
+    "SIM108","TRY003","D105","PGH003","SIM103","EM102","PLR2004","PT018",
+    "PLR1711","RET501","RUF015","S311","C901","PLR0912","NPY002","DTZ001",
+    "S113","PERF401","S105","FA100","TRY300","LOG015","ARG002","A002","A001",
 ]
-
-fixable = [
-    "I001",    # Import block is un-sorted or un-formatted
-    "Q000",    # Single quotes found but double quotes preferred
-    "COM812",  # Trailing comma missing
-    "D202",    # No blank lines allowed after function docstring (found {num_lines})
-    "F541",    # f-string without any placeholders
-    "TD",      # flake8-todos (TD)
-    "TCH",     # flake8-type-checking (TCH)
-    "F811",    # Redefinition of unused {name} from {row}
-    "PLR2044", # Line with empty comment
-    "D209",    # Multi-line docstring closing quotes should be on a separate line
-    "C400",    # Unnecessary generator (rewrite using list())
-    "C401",    # Unnecessary generator (rewrite using set())
-    "C402",    # Unnecessary generator (rewrite as a dict comprehension)
-    "C416",    # Unnecessary {obj_type} comprehension (rewrite using {obj_type}())
-    "ANN201",  # Missing return type annotation for public function {name}
-    "ANN202",  # Missing return type annotation for private function {name}
-    "ANN204",  # Missing return type annotation for special method {name}
-    "ANN205",  # Missing return type annotation for staticmethod {name}
-    "ANN206",  # Missing return type annotation for classmethod {name}
-    "UP006",   # Use {to} instead of {from} for type annotation
-    "UP007",   # Use X | Y for type annotations
-    "RSE102",  # Unnecessary parentheses on raised exception
-]
-
 
 [tool.ruff.lint.pylint]
 max-args = 15
@@ -105,12 +87,7 @@ max-branches = 20
 max-returns = 15
 
 [tool.ruff.lint.mccabe]
-max-complexity = 20 # max length of function name
+max-complexity = 20
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
-
-[dependency-groups]
-dev = [
-    "mypy>=1.19.1",
-]
