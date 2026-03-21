@@ -69,8 +69,8 @@ By default, if `val_num_samples` is not set, validation uses `10 * batch_size` w
 ## Results
 
 <p align="center">
-  <img src="./train_loss.png" alt="Training loss across runs" width="48%" />
-  <img src="./val_loss.png" alt="Evaluation loss across runs" width="48%" />
+  <img src="./train_loss.png" alt="Training loss across runs" width="24%" />
+  <img src="./val_loss.png" alt="Evaluation loss across runs" width="24%" />
 </p>
 
 Very short takeaways:
