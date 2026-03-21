@@ -19,7 +19,7 @@ echo $RUN_ROOT
 
 
 LRS=(1e-4 3e-4)
-BSS=(2)
+BSS=(2 4 8)
 
 for LR in "${LRS[@]}"; do
   for BS in "${BSS[@]}"; do
@@ -35,13 +35,13 @@ for LR in "${LRS[@]}"; do
       --train_dir "$TRAIN_DIR" \
       --val_dir "$VAL_DIR" \
       --cache_size 2 \
-      --train_num_samples "$((4000 * BS))" \
+      --train_num_samples "$((20000 * BS))" \
       --train_chunk_size 2048 \
       --model_variant base \
       --K 1024 \
       --batch_size "$BS" \
       --lr "$LR" \
-      --max_steps 4000 \
+      --max_steps 20000 \
       --num_workers 2 \
       --precision bf16-mixed \
       --matmul_precision high \

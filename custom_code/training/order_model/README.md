@@ -13,7 +13,7 @@ Each training sample is a sliding window of length `K` taken from one `*_message
 
 For one file with `N` valid rows, the dataset creates:
 
-`N - K + 1`
+`N - K + 1`![![alt text](image-1.png)](image.png)
 
 possible windows, with stride `1`.
 
@@ -64,3 +64,20 @@ So validation sampling is deterministic by default:
 - same order at every validation check
 
 By default, if `val_num_samples` is not set, validation uses `10 * batch_size` windows.
+
+
+## Results
+
+### Training loss
+
+![Training loss across runs](./train_loss.png)
+
+### Evaluation loss
+
+![Evaluation loss across runs](./val_loss.png)
+
+Very short takeaways:
+
+- `bs=8, lr=1e-4` gives the best validation loss on these runs, with `bs=4, lr=1e-4` close behind.
+- Training loss decreases well for the smaller learning rates, but validation remains relatively high and noisy, which suggests limited generalization so far.
+- To improve: run longer sweeps around `lr=1e-4`, try a bit more regularization, and evaluate on a larger / more diverse validation period.

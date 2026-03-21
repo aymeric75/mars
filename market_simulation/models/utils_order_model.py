@@ -51,6 +51,7 @@ class RawMessagesTokenDataset(Dataset):
         message_files,
         seq_len,
         cache_size=4,
+        chunk_size=2048,
     ):
         
                 
@@ -68,22 +69,26 @@ class RawMessagesTokenDataset(Dataset):
         
         self.seq_len = seq_len
         self.cache_size = cache_size
+        self.chunk_size = int(chunk_size)
 
-        # LRU cache: file -> feature numpy array
+        # LRU cache: (file_idx, chunk_start) -> feature numpy array
         self.cache = OrderedDict()
 
         # Compact index: keep only window counts per file and cumulative totals.
         # This avoids materializing one Python tuple per possible training window.
         self.window_counts = []
         self.cumulative_windows = []
+        self.market_start_rows = []
+        self.market_row_counts = []
         total_windows = 0
 
         print("Building dataset index...")
 
         for file_idx, msg_path in enumerate(self.message_files):
-            n_rows = self._count_feature_rows(msg_path)
+            market_start, n_rows = self._market_hours_bounds(msg_path)
             print(f"feature rows {n_rows}")
-        
+            self.market_start_rows.append(market_start)
+            self.market_row_counts.append(n_rows)
             n_windows = max(0, n_rows - seq_len + 1)
             self.window_counts.append(n_windows)
             total_windows += n_windows
@@ -96,12 +101,20 @@ class RawMessagesTokenDataset(Dataset):
         """Fast row count without loading full file."""
         return pq.ParquetFile(parquet_path).metadata.num_rows
 
-    def _count_feature_rows(self, message_path):
-        """Count rows that survive the market-hours filter."""
+    def _market_hours_bounds(self, message_path):
+        """Return the raw start row and number of rows inside market hours."""
         start = (9 * 60 * 60 + 30 * 60) * 1_000_000_000
         end = (16 * 60 * 60) * 1_000_000_000
         times = pd.read_parquet(message_path, columns=["Time"])["Time"]
-        return int(((times >= start) & (times <= end)).sum())
+        time_mask = (times >= start) & (times <= end)
+        matching = np.flatnonzero(time_mask.to_numpy(copy=False))
+
+        if matching.size == 0:
+            return 0, 0
+
+        market_start = int(matching[0])
+        market_rows = int(matching[-1] - matching[0] + 1)
+        return market_start, market_rows
 
     def _snapshot_path(self, message_path):
         """
@@ -111,18 +124,32 @@ class RawMessagesTokenDataset(Dataset):
         """
         return Path(str(message_path).replace("messages", "snapshots"))
 
-    def _load_features(self, file_idx):
+    def _load_feature_chunk(self, file_idx, chunk_start):
+        cache_key = (int(file_idx), int(chunk_start))
+
+        if cache_key in self.cache:
+            self.cache.move_to_end(cache_key)
+            return self.cache[cache_key]
 
         msg_path = self.message_files[file_idx]
-
-        # cache hit
-        if msg_path in self.cache:
-            self.cache.move_to_end(msg_path)
-            return self.cache[msg_path]
-
         snap_path = self._snapshot_path(msg_path)
+        market_start = self.market_start_rows[file_idx]
+        market_rows = self.market_row_counts[file_idx]
 
-        df = from_messages_to_features(msg_path, snap_path)
+        if chunk_start < 0 or chunk_start >= market_rows:
+            raise IndexError(f"Chunk start {chunk_start} out of range for file {file_idx}")
+
+        include_prev = chunk_start > 0
+        raw_start = market_start + chunk_start - (1 if include_prev else 0)
+        chunk_rows = min(self.chunk_size + self.seq_len - 1, market_rows - chunk_start)
+        raw_rows = chunk_rows + (1 if include_prev else 0)
+
+        df = from_messages_to_features(
+            msg_path,
+            snap_path,
+            start_row=raw_start,
+            num_rows=raw_rows,
+        )
     
         # rename columns to f1 -> f14
         cols = df.columns.tolist()
@@ -134,22 +161,24 @@ class RawMessagesTokenDataset(Dataset):
         feature_cols = [f"f{i}" for i in range(15)]  # f0..f14
         # convert to numpy [N,15]
         feats = df[feature_cols].to_numpy(dtype=np.int32, copy=True)
+        if include_prev:
+            feats = feats[1:]
 
         del df
 
         # add to cache
-        self.cache[msg_path] = feats
-        self.cache.move_to_end(msg_path)
+        self.cache[cache_key] = feats
+        self.cache.move_to_end(cache_key)
 
         if len(self.cache) > self.cache_size:
             self.cache.popitem(last=False)
 
         return feats
 
-    def prefetch_file(self, file_idx: int):
+    def prefetch_chunk(self, file_idx: int, chunk_start: int):
         if self.cache_size <= 0:
             return
-        self._load_features(file_idx)
+        self._load_feature_chunk(file_idx, chunk_start)
 
     def __len__(self):
         return self.total_windows
@@ -163,8 +192,10 @@ class RawMessagesTokenDataset(Dataset):
         file_idx = bisect.bisect_right(self.cumulative_windows, idx)
         prev_total = 0 if file_idx == 0 else self.cumulative_windows[file_idx - 1]
         start = idx - prev_total
-        feats = self._load_features(file_idx)
-        seq = feats[start : start + self.seq_len]
+        chunk_start = (start // self.chunk_size) * self.chunk_size
+        offset = start - chunk_start
+        feats = self._load_feature_chunk(file_idx, chunk_start)
+        seq = feats[offset : offset + self.seq_len]
         return torch.tensor(seq, dtype=torch.long)
 
 

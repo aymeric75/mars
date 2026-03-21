@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import json
+import pyarrow.parquet as pq
 from dataclasses import dataclass
 from market_simulation.utils.bin_converter import BinConverter
 from custom_code.preprocessing.order_model.messages_to_features import (
@@ -105,7 +106,42 @@ def add_lob_volumes(df, snapshots):
     cols = [f"Ask_Size_{i}" for i in range(1, 6)] + [f"Bid_Size_{i}" for i in range(1, 6)]
     df[cols] = snapshots[cols]
 
-def from_messages_to_features(message_file, snapshot_file):
+def _read_parquet_row_slice(parquet_path, columns, start_row=None, num_rows=None, batch_size=65536):
+    if start_row is None:
+        return pd.read_parquet(parquet_path, columns=columns)
+
+    if num_rows is None or num_rows <= 0:
+        return pd.DataFrame(columns=columns)
+
+    stop_row = start_row + num_rows
+    parquet_file = pq.ParquetFile(parquet_path)
+    batches = []
+    seen_rows = 0
+
+    for batch in parquet_file.iter_batches(columns=columns, batch_size=batch_size):
+        batch_len = len(batch)
+        batch_start = seen_rows
+        batch_stop = seen_rows + batch_len
+
+        if batch_stop <= start_row:
+            seen_rows = batch_stop
+            continue
+
+        if batch_start >= stop_row:
+            break
+
+        take_start = max(start_row, batch_start) - batch_start
+        take_stop = min(stop_row, batch_stop) - batch_start
+        batches.append(batch.slice(take_start, take_stop - take_start))
+        seen_rows = batch_stop
+
+    if not batches:
+        return pd.DataFrame(columns=columns)
+
+    return pd.concat([batch.to_pandas() for batch in batches], ignore_index=True)
+
+
+def from_messages_to_features(message_file, snapshot_file, start_row=None, num_rows=None):
 
 
     msg_cols = ["Time", "Message_Type", "Direction", "Price", "Size"]
@@ -115,8 +151,8 @@ def from_messages_to_features(message_file, snapshot_file):
         "Bid_Size_1", "Bid_Size_2", "Bid_Size_3", "Bid_Size_4", "Bid_Size_5",
     ]
 
-    messages = pd.read_parquet(message_file, columns=msg_cols)
-    snapshots = pd.read_parquet(snapshot_file, columns=snap_cols)
+    messages = _read_parquet_row_slice(message_file, columns=msg_cols, start_row=start_row, num_rows=num_rows)
+    snapshots = _read_parquet_row_slice(snapshot_file, columns=snap_cols, start_row=start_row, num_rows=num_rows)
 
     start = (9*60*60 + 30*60) * 1_000_000_000   # 9:30 in ns
     end = (16*60*60) * 1_000_000_000            # 16:00 in ns

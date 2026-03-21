@@ -64,13 +64,13 @@ class ChunkShuffleBatchSampler(BatchSampler):
                 break
 
             file_idx, start, chunk_len = self.chunk_starts[chunk_id]
-            self.dataset.prefetch_file(file_idx)
+            self.dataset.prefetch_chunk(file_idx, start)
 
             if pos + 1 < len(chunk_order):
                 next_chunk_id = chunk_order[pos + 1]
-                next_file_idx = self.chunk_starts[next_chunk_id][0]
-                if next_file_idx != file_idx:
-                    self.dataset.prefetch_file(next_file_idx)
+                next_file_idx, next_start, _ = self.chunk_starts[next_chunk_id]
+                if next_file_idx != file_idx or next_start != start:
+                    self.dataset.prefetch_chunk(next_file_idx, next_start)
 
             file_base = 0 if file_idx == 0 else self.dataset.cumulative_windows[file_idx - 1]
             local_order = torch.randperm(chunk_len, generator=generator).tolist()
@@ -137,11 +137,13 @@ class OrderBatchDataModule(pl.LightningDataModule):
             message_files=list(Path(self.train_dir).glob("*messages.parquet")),
             seq_len=self.seq_len,
             cache_size=self.cache_size,
+            chunk_size=self.train_chunk_size,
         )
         self._val = RawMessagesTokenDataset(
             message_files=list(Path(self.val_dir).glob("*messages.parquet")),
             seq_len=self.seq_len,
             cache_size=self.cache_size,
+            chunk_size=self.train_chunk_size,
         )
     
     def collate_tokens(self, batch):
@@ -353,13 +355,19 @@ def main():
     model = OrderLightningModule(model_variant=args.model_variant, K=args.K, lr=args.lr)
 
 
-    run_dir = args.run_root
+    run_name = args.run_name or f"bs={args.batch_size}_lr={args.lr:g}"
+    run_root = args.run_root
+    os.makedirs(run_root, exist_ok=True)
+    run_dir = os.path.join(run_root, "tensorboard", run_name)
     os.makedirs(run_dir, exist_ok=True)
 
-    run_name = args.run_name or f"bs={args.batch_size}_lr={args.lr:g}"
+    # Keep one checkpoint per hyperparameter config when rerunning the same run_name.
+    for filename in os.listdir(run_dir):
+        if filename.endswith(".ckpt"):
+            os.remove(os.path.join(run_dir, filename))
 
     logger = TensorBoardLogger(
-        save_dir=run_dir,
+        save_dir=run_root,
         name="tensorboard",
         version=run_name,   # <--- makes each run distinct in one TB logdir
     )
@@ -371,8 +379,8 @@ def main():
         filename="step={step}-val={val_loss:.4f}",
         monitor="val_loss",
         mode="min",
-        save_top_k=3,
-        save_last=True,
+        save_top_k=1,
+        save_last=False,
     )
 
     progress_cb = TextProgressCallback(print_every_n_steps=20)
