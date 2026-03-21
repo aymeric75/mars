@@ -82,7 +82,12 @@ Very short takeaways:
 - To improve: run longer sweeps around `lr=1e-4`, try a bit more regularization, and evaluate on a larger / more diverse validation period.
 
 <p align="center">
-<img src="../../testing/values_distributions/all_distributions_3_2856.png" alt="Training loss across runs" width="50%" />
+<img src="../../testing/values_distributions/all_distributions_3_2856.png" alt="distributions of values" width="50%" />
 </p>
 
 Above is the distributions of values for one day one stock (AVGO 2025-11-18) of different order metrics: type (0/1: passive sell/buy, 2:cancel/delete, 3/4: aggressive sell/buy), distance from mid price (in ticks), time interval between two consecutive orders (in s), volume (in shares). The orange bars are the ground truth, the blue bar are the predicted orders with the model of 3.2856 eval loss.
+
+
+<p align="center">
+<img src="../../testing/values_distributions/all_distributions_5_0585.png" alt="distributions of values" width="50%" />
+</p>

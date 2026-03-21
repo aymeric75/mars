@@ -15,8 +15,8 @@ DEVICE = "cuda"
 SEQ_LEN = 1024
 BATCH_SIZE = 15
 ORDER_MODEL_CKPT = (
-    "../../../mars_runs/order_model/tensorboard/bs=8_lr=1e-4/"
-    "step=step=13920-val=val_loss=3.2856.ckpt"
+    "../../../mars_runs/order_model/tensorboard/bs=2_lr=3e-4/"
+    "step=step=3120-val=val_loss=5.0585.ckpt"
 )
 
 
