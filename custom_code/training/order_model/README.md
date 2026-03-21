@@ -80,3 +80,7 @@ Very short takeaways:
 - Training loss decreases well for the smaller learning rates, but validation remains relatively high and noisy, which suggests limited generalization so far.
 - TensorBoard typically shows the last selected value on the curve, not the best value reached during training.
 - To improve: run longer sweeps around `lr=1e-4`, try a bit more regularization, and evaluate on a larger / more diverse validation period.
+
+<p align="center">
+<img src="../../testing/values_distributions/all_distributions_3_2856.png" alt="Training loss across runs" width="24%" />
+</p>

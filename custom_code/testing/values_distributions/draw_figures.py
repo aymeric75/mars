@@ -9,8 +9,9 @@ import glob, re
 from dataclasses import dataclass
 from pathlib import Path
 from collections import Counter
+from itertools import islice
+from tqdm import tqdm
 
-from market_simulation.states.order_state import OrderState, PredOrderInfo
 from market_simulation.utils.bin_converter import BinConverter
 
 from custom_code.preprocessing.order_model.messages_to_features import (
@@ -22,6 +23,7 @@ NUM_BINS_PRICE_LEVEL = 32
 NUM_BINS_ORDER_VOLUME = 32
 NUM_BINS_ORDER_INTERVAL = 16
 NUM_BINS_LOB_VOLUME = 32
+CHUNK_SIZE = 50_000
 
 @dataclass
 class Converters:
@@ -121,23 +123,47 @@ def rearrange_order_type(type_, price, index_, mars_type):
     return
 
 
+def decode_order_indices(order_indices, type_divisor, price_divisor, interval_mod):
+    order_type = order_indices // type_divisor
+    price = (order_indices % type_divisor) // price_divisor
+    volume = (order_indices % price_divisor) // interval_mod
+    interval = order_indices % interval_mod
+    return order_type, price, volume, interval
+
+
+def rearrange_order_type_batch(order_type, price, mars_type):
+    out = order_type.copy()
+
+    price_eq_mid = price == 16
+    out[price_eq_mid] = mars_type[price_eq_mid]
+
+    active_mask = ~price_eq_mid & (order_type != 2)
+    sell_mask = active_mask & (order_type == 0)
+    buy_mask = active_mask & (order_type == 1)
+
+    out[sell_mask] = np.where(price[sell_mask] > 16, 0, 3)
+    out[buy_mask] = np.where(price[buy_mask] < 16, 1, 4)
+    return out
+
+
+def update_counter_from_array(counter, values, minlength):
+    bincounts = np.bincount(values, minlength=minlength)
+    for idx, count in enumerate(bincounts):
+        if count:
+            counter[idx] += int(count)
+
+
 
 def plot_feature_distribution(values_dico, feature_name, ax, gt_color="orange", xtick_pos=None, xtick_labels=None):
-    gt_values = []
-    pred_values = []
+    gt_counts = Counter()
+    pred_counts = Counter()
 
-    #
-    for day, stock_dico in values_dico.items():
-        for keys, spec_values in stock_dico.items():
-            gt_values_tmp = [v[feature_name]["ground_truth"] for v in spec_values.values()]
-            gt_values.extend(gt_values_tmp)
-            pred_values_tmp = [v[feature_name]["predicted"] for v in spec_values.values()]
-            pred_values.extend(pred_values_tmp)
+    for stock_dico in values_dico.values():
+        for feature_counts in stock_dico.values():
+            gt_counts.update(feature_counts[feature_name]["ground_truth"])
+            pred_counts.update(feature_counts[feature_name]["predicted"])
 
-    gt_counts = Counter(gt_values)
-    pred_counts = Counter(pred_values)
-
-    classes = sorted(set(gt_values) | set(pred_values))
+    classes = sorted(set(gt_counts) | set(pred_counts))
 
     gt = [gt_counts.get(c, 0) for c in classes]
     pred = [pred_counts.get(c, 0) for c in classes]
@@ -145,9 +171,8 @@ def plot_feature_distribution(values_dico, feature_name, ax, gt_color="orange", 
     x = np.arange(len(classes))
     width = 0.35
 
-    ax.bar(x, gt, width, label="GT", color=gt_color)
-    # ax.bar(x - width/2, gt, width, label="GT", color=gt_color)
-    # ax.bar(x + width/2, pred, width, label="Pred")
+    ax.bar(x - width / 2, gt, width, label="GT", color=gt_color)
+    ax.bar(x + width / 2, pred, width, label="Pred", color="blue")
 
 
     corres_names = {
@@ -176,7 +201,7 @@ days = []
 values_dico = {}
 stock_days = {}
 
-data_path = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
+data_path = Path("../../../data/test")
 
 # iterate over all stock/date present in jsons, and gather data into the "values" dict
 for file_gt in data_folder.glob("*order-indices-gt.json"):
@@ -187,11 +212,8 @@ for file_gt in data_folder.glob("*order-indices-gt.json"):
 
     message_path = data_path / Path(f"{stock}_{day}_messages.parquet")
 
-    mars_types = serie_of_mars_type(message_path)
+    mars_types = serie_of_mars_type(message_path).to_numpy()
 
-    print(mars_types.unique())
-
-    exit()
     if stock not in stock_days:
         stock_days[stock] = []
     stock_days[stock].append(day)
@@ -212,7 +234,6 @@ for file_gt in data_folder.glob("*order-indices-gt.json"):
     # load predicted indices
     with open(file_pred, "r") as f:
         indices_pred = json.load(f)
-
     # print(len(indices_gt))
     # print(list(indices_gt.keys())[0])
     # exit()# 1988223
@@ -220,7 +241,12 @@ for file_gt in data_folder.glob("*order-indices-gt.json"):
     if day not in values_dico:
         values_dico[day] = {}
     if stock not in values_dico[day]:
-        values_dico[day][stock] = {}
+        values_dico[day][stock] = {
+            "type": {"ground_truth": Counter(), "predicted": Counter()},
+            "price": {"ground_truth": Counter(), "predicted": Counter()},
+            "volume": {"ground_truth": Counter(), "predicted": Counter()},
+            "interval": {"ground_truth": Counter(), "predicted": Counter()},
+        }
 
 
 
@@ -229,65 +255,49 @@ for file_gt in data_folder.glob("*order-indices-gt.json"):
     # + volume_slot * self.num_bins_order_interval
     # + interval_slot
 
+    type_divisor = NUM_BINS_PRICE_LEVEL * NUM_BINS_ORDER_VOLUME * NUM_BINS_ORDER_INTERVAL
+    price_divisor = NUM_BINS_ORDER_VOLUME * NUM_BINS_ORDER_INTERVAL
+    interval_mod = NUM_BINS_ORDER_INTERVAL
+    feature_counts = values_dico[day][stock]
+    pred_items = iter(indices_pred.items())
+    num_chunks = (len(indices_pred) + CHUNK_SIZE - 1) // CHUNK_SIZE
 
-    for kk, vv in indices_pred.items():
+    for _ in tqdm(
+        range(num_chunks),
+        desc=f"{stock} {day}",
+        unit="chunk",
+    ):
+        batch = list(islice(pred_items, CHUNK_SIZE))
+        if not batch:
+            break
 
-        if kk not in indices_gt:
-            #print("PROBLEME !!!")
-            #print(kk)
-            #exit()
+        aligned_batch = [(int(kk), indices_gt[kk], vv) for kk, vv in batch if kk in indices_gt]
+        if not aligned_batch:
             continue
 
+        idx = np.fromiter((item[0] for item in aligned_batch), dtype=np.int64, count=len(aligned_batch))
+        gt_indices = np.fromiter((item[1] for item in aligned_batch), dtype=np.int64, count=len(aligned_batch))
+        pred_indices = np.fromiter((item[2] for item in aligned_batch), dtype=np.int64, count=len(aligned_batch))
 
-        gt_order_infos = OrderState.get_pred_order_info_static(indices_gt[kk], NUM_BINS_PRICE_LEVEL, NUM_BINS_ORDER_VOLUME, NUM_BINS_ORDER_INTERVAL)
-        gt_order_type = PredOrderInfo.get_index_from_type(gt_order_infos.order_type)
-        gt_order_price = gt_order_infos.price
-        gt_order_volume = gt_order_infos.volume
-        gt_order_interval = gt_order_infos.interval
+        gt_order_type, gt_order_price, gt_order_volume, gt_order_interval = decode_order_indices(
+            gt_indices, type_divisor, price_divisor, interval_mod
+        )
+        pred_order_type, pred_order_price, pred_order_volume, pred_order_interval = decode_order_indices(
+            pred_indices, type_divisor, price_divisor, interval_mod
+        )
 
+        mars_type = mars_types[idx]
+        gt_order_type = rearrange_order_type_batch(gt_order_type, gt_order_price, mars_type)
+        pred_order_type = rearrange_order_type_batch(pred_order_type, pred_order_price, mars_type)
 
-        pred_order_infos = OrderState.get_pred_order_info_static(vv, NUM_BINS_PRICE_LEVEL, NUM_BINS_ORDER_VOLUME, NUM_BINS_ORDER_INTERVAL)
-        pred_order_type = PredOrderInfo.get_index_from_type(pred_order_infos.order_type)
-        pred_order_price = pred_order_infos.price
-        pred_order_volume = pred_order_infos.volume
-        pred_order_interval = pred_order_infos.interval
-
-
-        gt_order_type = rearrange_order_type(gt_order_type, gt_order_price, kk, mars_types.iloc[int(kk)])
-        pred_order_type = rearrange_order_type(pred_order_type, pred_order_price, kk, mars_types.iloc[int(kk)])
-
-
-        kk = int(kk)
-
-        values_dico[day][stock][kk] = {}
-
-        values_dico[day][stock][kk]["type"] = {}
-        values_dico[day][stock][kk]["type"]["ground_truth"] = gt_order_type
-        values_dico[day][stock][kk]["type"]["predicted"] = pred_order_type
-
-
-        #  types:
-        # 0: new sell,
-        # 1: new buy,
-        # 2: cancel,
-        # 3: agressive sell,
-        # 4: agressive buy
-
-        # if
-        # type_, price, mid_price
-
-
-        values_dico[day][stock][kk]["price"] = {}
-        values_dico[day][stock][kk]["price"]["ground_truth"] = gt_order_price
-        values_dico[day][stock][kk]["price"]["predicted"] = pred_order_price
-
-        values_dico[day][stock][kk]["volume"] = {}
-        values_dico[day][stock][kk]["volume"]["ground_truth"] = gt_order_volume
-        values_dico[day][stock][kk]["volume"]["predicted"] = pred_order_volume
-
-        values_dico[day][stock][kk]["interval"] = {}
-        values_dico[day][stock][kk]["interval"]["ground_truth"] = gt_order_interval
-        values_dico[day][stock][kk]["interval"]["predicted"] = pred_order_interval
+        update_counter_from_array(feature_counts["type"]["ground_truth"], gt_order_type, minlength=5)
+        update_counter_from_array(feature_counts["type"]["predicted"], pred_order_type, minlength=5)
+        update_counter_from_array(feature_counts["price"]["ground_truth"], gt_order_price, minlength=NUM_BINS_PRICE_LEVEL)
+        update_counter_from_array(feature_counts["price"]["predicted"], pred_order_price, minlength=NUM_BINS_PRICE_LEVEL)
+        update_counter_from_array(feature_counts["volume"]["ground_truth"], gt_order_volume, minlength=NUM_BINS_ORDER_VOLUME)
+        update_counter_from_array(feature_counts["volume"]["predicted"], pred_order_volume, minlength=NUM_BINS_ORDER_VOLUME)
+        update_counter_from_array(feature_counts["interval"]["ground_truth"], gt_order_interval, minlength=NUM_BINS_ORDER_INTERVAL)
+        update_counter_from_array(feature_counts["interval"]["predicted"], pred_order_interval, minlength=NUM_BINS_ORDER_INTERVAL)
 
 
 # print(stock_days)

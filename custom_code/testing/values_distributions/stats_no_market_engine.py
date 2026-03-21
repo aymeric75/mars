@@ -1,20 +1,28 @@
-import torch
-import time
 import json
-import pandas as pd
+from functools import lru_cache
+from pathlib import Path
+
 import numpy as np
+import torch
 
-from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
-
-
-
 from tqdm import tqdm
-from pathlib import Path
 
-from custom_code.testing.utils import load_order_model, load_ensemble_model, load_order_batch_model
-
+from custom_code.testing.utils import load_order_model
 from custom_code.preprocessing.order_model.messages_to_features_no_engine import from_messages_to_features
+
+DEVICE = "cuda"
+SEQ_LEN = 1024
+BATCH_SIZE = 15
+ORDER_MODEL_CKPT = (
+    "../../../mars_runs/order_model/tensorboard/bs=8_lr=1e-4/"
+    "step=step=13920-val=val_loss=3.2856.ckpt"
+)
+
+
+@lru_cache(maxsize=1)
+def get_order_model():
+    return load_order_model(ckpt_path=ORDER_MODEL_CKPT, device=DEVICE).eval()
 
 
 # a function that takes a feature file as input
@@ -23,19 +31,9 @@ from custom_code.preprocessing.order_model.messages_to_features_no_engine import
 #    take the output (do the argmax and so forth see the stats.py file)
 
 def compute_value(tuple_of_paths):
-
     message_file, snapshot_file = tuple_of_paths
 
     feature_df = from_messages_to_features(message_file, snapshot_file)
-
-    print(feature_df)
-
-    print(feature_df["f0"].max())
-    print(feature_df["f0"].min())
-    #print(feature_df["f0"].unique())
-
-    exit()
-    #feature_df = feature_df[(feature_df["Time"] >= 34200000226319) & (feature_df["Time"] <= 57599998528372)]
 
     stock = message_file.stem.split("_")[0]
     day = message_file.stem.split("_")[1]
@@ -55,70 +53,42 @@ def compute_value(tuple_of_paths):
     # print(feature_df)
     # exit()
 
-    # GROUND TRUTH DICO
-    gt_list = feature_df["f0"].tolist()
-    gt_dico = {}
-    for i, val in enumerate(gt_list):
-        gt_dico[i] = val
+    sub_df = feature_df.loc[:, "f0":"f14"]
+    values = np.ascontiguousarray(sub_df.to_numpy(dtype=np.int64, copy=True))
+    n_rows = len(values)
 
+    if n_rows < SEQ_LEN:
+        print(f"skipping {stock} {day}: only {n_rows} rows")
+        return
 
-    # PREDICTED DICO
+    window_count = n_rows - SEQ_LEN + 1
+    windows = np.lib.stride_tricks.sliding_window_view(values, SEQ_LEN, axis=0)
+    windows = np.transpose(windows, (0, 2, 1))
+
+    order_model = get_order_model()
     predicted_list = []
-    predicted_dico = {}
 
-    # device="cpu"
-    # # Load the Order Model
-    # order_model = load_order_model(
-    #     ckpt_path="step=step=3360-val=val_loss=3.7445.ckpt",
-    #     device=device
-    # )
-
-    # order_model = order_model.to(device).eval()
-    # sub_df = feature_df.loc[:, 'f0':'f14']
-
-    # N = len(sub_df)
-    # seq_len = 1024
-    # batch_size = 15
-
-    # prev = time.perf_counter()
-
-
-    # #for start in range(0, N - seq_len + 1, batch_size):
-    # for start in tqdm(range(0, N - seq_len + 1, batch_size)):
-
-    #     # now = time.perf_counter()
-    #     # elapsed = now - prev
-    #     # print("elapsed:", elapsed)
-    #     # prev = now
-
-    #     #print(start)
-    #     # if start % 15000 == 0:
-    #     #     print(start)
-
-    #     batch = []
-    #     for b in range(batch_size):
-    #         i = start + b
-    #         if i + seq_len > N:
-    #             break
-    #         batch.append(sub_df[i:i + seq_len])
-
-    #     batch = np.stack(batch)   # shape (B, 1024, 15)
-    #     X = torch.from_numpy(batch).to(device=device, dtype=torch.long)
-    #     base_logits = order_model(X)
-    #     # print(base_logits)
-    #     # print(base_logits.shape)
-
+    with torch.inference_mode():
+        for start in tqdm(range(0, window_count, BATCH_SIZE)):
+            batch = np.ascontiguousarray(windows[start:start + BATCH_SIZE])
+            x = torch.from_numpy(batch).to(device=DEVICE, dtype=torch.long, non_blocking=True)
+            logits_next = order_model(x)[:, -1, :]
+            pred_id = torch.argmax(logits_next, dim=1)
+            predicted_list.extend(pred_id.cpu().tolist())
 
 
     predicted_dico = {}
     for i, ele in enumerate(predicted_list):
         predicted_dico[i] = ele
+
+    gt_list = feature_df["f0"].tolist()[SEQ_LEN - 1:]
     gt_dico = {}
     for i, ele in enumerate(gt_list):
         gt_dico[i] = ele
 
+    assert len(gt_dico) == len(predicted_dico)
 
-    predicted_dico = gt_dico
+    # predicted_dico = gt_dico
 
     json.dump(gt_dico, open(f"jsons/{stock}_{day}_order-indices-gt.json", "w"), default=lambda x: x.item())
     json.dump(predicted_dico, open(f"jsons/{stock}_{day}_order-indices-pred.json", "w"), default=lambda x: x.item())
@@ -137,8 +107,7 @@ def compute_value(tuple_of_paths):
 if __name__ == "__main__":
 
     #data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
-
-    data_dir = Path("data")
+    data_dir = Path("../../../data/test")
 
     list_of_pairs = []
 
@@ -147,9 +116,13 @@ if __name__ == "__main__":
         if snap_path.exists():
             list_of_pairs.append((message_file, snap_path))
 
-    print(list_of_pairs)
 
-    with ProcessPoolExecutor() as ex:
+    list_of_pairs = [next(t for t in list_of_pairs if "AVGO" in str(t[0]))]
+
+
+    #list_of_pairs = list_of_pairs[:2]
+
+    with ProcessPoolExecutor(1) as ex:
        list(ex.map(compute_value, list_of_pairs))
 
     #compute_value(Path("NFLX_2025-12-09_messages.parquet"), Path("NFLX_2025-12-09_snapshots.parquet"))
