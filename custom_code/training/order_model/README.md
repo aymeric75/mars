@@ -82,5 +82,5 @@ Very short takeaways:
 - To improve: run longer sweeps around `lr=1e-4`, try a bit more regularization, and evaluate on a larger / more diverse validation period.
 
 <p align="center">
-<img src="../../testing/values_distributions/all_distributions_3_2856.png" alt="Training loss across runs" width="24%" />
+<img src="../../testing/values_distributions/all_distributions_3_2856.png" alt="Training loss across runs" width="50%" />
 </p>
