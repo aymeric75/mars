@@ -78,6 +78,7 @@ By default, if `val_num_samples` is not set, validation uses `10 * batch_size` w
 
 Very short takeaways:
 
-- `bs=8, lr=1e-4` gives the best validation loss on these runs, with `bs=4, lr=1e-4` close behind.
+- `bs=8, lr=1e-4` reaches the best validation loss on these runs (`3.2856`), with `bs=4, lr=1e-4` close behind (`3.7609`).
 - Training loss decreases well for the smaller learning rates, but validation remains relatively high and noisy, which suggests limited generalization so far.
+- TensorBoard typically shows the last selected value on the curve, not the best value reached during training.
 - To improve: run longer sweeps around `lr=1e-4`, try a bit more regularization, and evaluate on a larger / more diverse validation period.
