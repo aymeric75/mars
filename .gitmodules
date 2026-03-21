@@ -1,0 +1,6 @@
+[submodule "third_party/latent_diffusion"]
+	path = third_party/latent_diffusion
+	url = https://github.com/CompVis/latent-diffusion
+[submodule "third_party/taming-transformers"]
+	path = third_party/taming-transformers
+	url = https://github.com/CompVis/taming-transformers
