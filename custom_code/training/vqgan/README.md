@@ -30,6 +30,13 @@ By default, the script can fine-tune from a pretrained VQ checkpoint through:
 
 If `--init_ckpt` is omitted, the model is initialized from the local `vq-f4` config and trained from scratch.
 
+Official pretrained `vq-f4` weights can be obtained from the CompVis latent-diffusion model zoo:
+
+- model zoo page: https://github.com/CompVis/latent-diffusion?tab=readme-ov-file#model-zoo
+- direct archive: https://ommer-lab.com/files/latent-diffusion/vq-f4.zip
+
+After downloading and extracting `vq-f4.zip`, point `--init_ckpt` to the extracted checkpoint file.
+
 The architecture config used by default is:
 
 `third_party/latent_diffusion/models/first_stage_models/vq-f4/config.yaml`

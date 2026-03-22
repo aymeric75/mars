@@ -17,7 +17,7 @@ CONVERTERS_JSON="$PROJECT_ROOT/custom_code/preprocessing/converters_portable.jso
 VQ_CONFIG="$PROJECT_ROOT/third_party/latent_diffusion/models/first_stage_models/vq-f4/config.yaml"
 
 # Point this to the pretrained VQ checkpoint you want to fine-tune from.
-INIT_CKPT="${INIT_CKPT:-}"
+INIT_CKPT="$PROJECT_ROOT/third_party/latent_diffusion/models/first_stage_models/vq-f4/model.ckpt"
 
 LRS=(4.5e-6 1e-5)
 BSS=(8 16)

@@ -1,4 +1,5 @@
 import argparse
+import inspect
 import json
 import os
 import random
@@ -341,13 +342,160 @@ class TextProgressCallback(Callback):
                     )
 
 
+class ManualOptimizationVQWrapper(pl.LightningModule):
+    def __init__(self, model: pl.LightningModule):
+        super().__init__()
+        self.model = model
+        self.automatic_optimization = False
+        self._loss_accepts_predicted_indices = "predicted_indices" in inspect.signature(self.model.loss.forward).parameters
+
+    def forward(self, *args, **kwargs):
+        return self.model(*args, **kwargs)
+
+    def _call_loss(
+        self,
+        qloss,
+        x,
+        xrec,
+        optimizer_idx: int,
+        split: str,
+        predicted_indices=None,
+    ):
+        kwargs = {
+            "last_layer": self.model.get_last_layer(),
+            "split": split,
+        }
+        if self._loss_accepts_predicted_indices and predicted_indices is not None:
+            kwargs["predicted_indices"] = predicted_indices
+        return self.model.loss(
+            qloss,
+            x,
+            xrec,
+            optimizer_idx,
+            self.global_step,
+            **kwargs,
+        )
+
+    def training_step(self, batch, batch_idx):
+        opt_ae, opt_disc = self.optimizers()
+        x = self.model.get_input(batch, self.model.image_key)
+        xrec, qloss, ind = self.model(x, return_pred_indices=True)
+
+        self.toggle_optimizer(opt_ae)
+        opt_ae.zero_grad()
+        aeloss, log_dict_ae = self._call_loss(
+            qloss,
+            x,
+            xrec,
+            optimizer_idx=0,
+            split="train",
+            predicted_indices=ind,
+        )
+        self.manual_backward(aeloss)
+        opt_ae.step()
+        self.untoggle_optimizer(opt_ae)
+
+        self.toggle_optimizer(opt_disc)
+        opt_disc.zero_grad()
+        discloss, log_dict_disc = self._call_loss(
+            qloss,
+            x,
+            xrec,
+            optimizer_idx=1,
+            split="train",
+        )
+        self.manual_backward(discloss)
+        opt_disc.step()
+        self.untoggle_optimizer(opt_disc)
+
+        self.log_dict(log_dict_ae, prog_bar=False, logger=True, on_step=True, on_epoch=True)
+        self.log_dict(log_dict_disc, prog_bar=False, logger=True, on_step=True, on_epoch=True)
+        return aeloss.detach()
+
+    def validation_step(self, batch, batch_idx):
+        x = self.model.get_input(batch, self.model.image_key)
+        xrec, qloss, ind = self.model(x, return_pred_indices=True)
+
+        aeloss, log_dict_ae = self._call_loss(
+            qloss,
+            x,
+            xrec,
+            optimizer_idx=0,
+            split="val",
+            predicted_indices=ind,
+        )
+        discloss, log_dict_disc = self._call_loss(
+            qloss,
+            x,
+            xrec,
+            optimizer_idx=1,
+            split="val",
+            predicted_indices=ind,
+        )
+
+        self.log("val/rec_loss", log_dict_ae["val/rec_loss"], prog_bar=True, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+        self.log("val/aeloss", aeloss, prog_bar=True, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+        self.log("val/disc_loss", discloss, prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+
+        log_dict_ae = dict(log_dict_ae)
+        log_dict_disc = dict(log_dict_disc)
+        log_dict_ae.pop("val/rec_loss", None)
+        self.log_dict(log_dict_ae, prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+        self.log_dict(log_dict_disc, prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+
+        if getattr(self.model, "use_ema", False):
+            with self.model.ema_scope():
+                xrec_ema, qloss_ema, ind_ema = self.model(x, return_pred_indices=True)
+                aeloss_ema, log_dict_ae_ema = self._call_loss(
+                    qloss_ema,
+                    x,
+                    xrec_ema,
+                    optimizer_idx=0,
+                    split="val_ema",
+                    predicted_indices=ind_ema,
+                )
+                discloss_ema, log_dict_disc_ema = self._call_loss(
+                    qloss_ema,
+                    x,
+                    xrec_ema,
+                    optimizer_idx=1,
+                    split="val_ema",
+                    predicted_indices=ind_ema,
+                )
+                self.log("val_ema/rec_loss", log_dict_ae_ema["val_ema/rec_loss"], prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+                self.log("val_ema/aeloss", aeloss_ema, prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+                self.log("val_ema/disc_loss", discloss_ema, prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+                log_dict_ae_ema = dict(log_dict_ae_ema)
+                log_dict_disc_ema = dict(log_dict_disc_ema)
+                log_dict_ae_ema.pop("val_ema/rec_loss", None)
+                self.log_dict(log_dict_ae_ema, prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+                self.log_dict(log_dict_disc_ema, prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+
+    def configure_optimizers(self):
+        return self.model.configure_optimizers()
+
+    def on_train_batch_end(self, outputs, batch, batch_idx):
+        self.model.on_train_batch_end(outputs, batch, batch_idx)
+
+
 def _instantiate_vq_model(config_path: Path, init_ckpt: str | None, learning_rate: float):
     cfg = OmegaConf.load(str(config_path))
-    if init_ckpt:
-        cfg.model.params.ckpt_path = str(init_ckpt)
+    cfg.model.params.ckpt_path = None
     model = instantiate_from_config(cfg.model)
+    if init_ckpt:
+        ckpt = torch.load(str(init_ckpt), map_location="cpu", weights_only=False)
+        state_dict = ckpt.get("state_dict", ckpt)
+        missing, unexpected = model.load_state_dict(state_dict, strict=False)
+        print(
+            f"Restored from {init_ckpt} with {len(missing)} missing and {len(unexpected)} unexpected keys",
+            flush=True,
+        )
+        if missing:
+            print(f"Missing keys: {missing}", flush=True)
+        if unexpected:
+            print(f"Unexpected keys: {unexpected}", flush=True)
     model.learning_rate = float(learning_rate)
-    return model
+    return ManualOptimizationVQWrapper(model)
 
 
 def main():
