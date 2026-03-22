@@ -18,8 +18,8 @@ echo $TRAIN_DIR
 echo $RUN_ROOT
 
 
-LRS=(1e-4 3e-4)
-BSS=(2 4 8)
+LRS=(1e-4) # 3e-4
+BSS=(8) # 2 4 8
 
 for LR in "${LRS[@]}"; do
   for BS in "${BSS[@]}"; do

@@ -41,7 +41,7 @@ for LR in "${LRS[@]}"; do
       --cache_size 2
       --batch_size "$BS"
       --lr "$LR"
-      --max_steps 20000
+      --max_steps 5000
       --num_workers 2
       --precision 32
       --matmul_precision high

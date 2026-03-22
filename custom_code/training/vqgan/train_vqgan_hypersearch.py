@@ -44,11 +44,13 @@ MARKET_CLOSE_NS = (16 * 60 * 60) * 1_000_000_000
 
 @dataclass
 class ImageConverters:
+    """Holds the bin converters used for order-image construction."""
     price_level: BinConverter
     order_volume: BinConverter
 
 
 def _build_converters_from_json(converter_json_path: Path) -> ImageConverters:
+    """Load image bin converters from a portable JSON file."""
     with converter_json_path.open("r", encoding="utf-8") as f:
         obj = json.load(f)
 
@@ -66,6 +68,7 @@ def _build_converters_from_json(converter_json_path: Path) -> ImageConverters:
 
 
 def _find_default_converter_json() -> Path:
+    """Return the first local converters JSON file that exists."""
     candidates = [
         REPO_ROOT / "custom_code" / "preprocessing" / "converters_portable.json",
         REPO_ROOT / "custom_code" / "preprocessing" / "order_model" / "converters_portable.json",
@@ -78,6 +81,7 @@ def _find_default_converter_json() -> Path:
 
 
 def create_mars_order_type_column(messages: pd.DataFrame) -> None:
+    """Map raw message types and directions to the 3 MarS order classes."""
     messages["Mars_type"] = 0
     messages.loc[messages["Message_Type"].isin([2, 3]), "Mars_type"] = 2
     messages.loc[
@@ -92,6 +96,7 @@ def from_messages_and_snapshots_to_image_features(
     snapshots: pd.DataFrame,
     converters: ImageConverters,
 ) -> pd.DataFrame:
+    """Convert raw messages and snapshots into per-order image features."""
     messages = messages.copy()
     create_mars_order_type_column(messages)
 
@@ -111,6 +116,7 @@ def from_messages_and_snapshots_to_image_features(
 
 
 def minute_chunk_to_order_image(chunk: pd.DataFrame) -> np.ndarray:
+    """Rasterize one minute of orders into a MarS-style RGB image."""
     image = np.zeros((3, NUM_BINS_PRICE_LEVEL, NUM_BINS_ORDER_VOLUME), dtype=np.uint8)
     if chunk.empty:
         return image
@@ -133,6 +139,7 @@ def minute_chunk_to_order_image(chunk: pd.DataFrame) -> np.ndarray:
 
 
 class RawMinuteOrderImageDataset(Dataset):
+    """Build one-minute order images on the fly from raw parquet files."""
     def __init__(
         self,
         message_files: list[str | Path],
@@ -174,6 +181,7 @@ class RawMinuteOrderImageDataset(Dataset):
         print(f"Total minute images: {len(self.index)}")
 
     def _build_minute_ranges(self, message_path: Path) -> list[tuple[int, int, int]]:
+        """Index the one-minute slices available in a single message file."""
         times = pd.read_parquet(message_path, columns=["Time"])["Time"].to_numpy(dtype=np.int64, copy=False)
         market_times = times[(times >= MARKET_OPEN_NS) & (times <= MARKET_CLOSE_NS)]
         if market_times.size == 0:
@@ -197,6 +205,7 @@ class RawMinuteOrderImageDataset(Dataset):
         return ranges
 
     def _load_features(self, file_idx: int) -> pd.DataFrame:
+        """Load and cache per-order image features for one file."""
         if file_idx in self.cache:
             self.cache.move_to_end(file_idx)
             return self.cache[file_idx]
@@ -214,9 +223,11 @@ class RawMinuteOrderImageDataset(Dataset):
         return features
 
     def __len__(self) -> int:
+        """Return the number of indexed minute images."""
         return len(self.index)
 
     def __getitem__(self, idx: int):
+        """Return one normalized HWC order image and lightweight metadata."""
         file_idx, minute_id, start, end = self.index[idx]
         features = self._load_features(file_idx)
         chunk = features.iloc[start:end]
@@ -232,6 +243,7 @@ class RawMinuteOrderImageDataset(Dataset):
 
 
 class OrderImageDataModule(pl.LightningDataModule):
+    """Create the train and validation dataloaders for VQGAN training."""
     def __init__(
         self,
         train_dir: str,
@@ -262,6 +274,7 @@ class OrderImageDataModule(pl.LightningDataModule):
         self._val: RawMinuteOrderImageDataset | None = None
 
     def setup(self, stage: str | None = None):
+        """Instantiate the train and validation datasets."""
         train_files = list(Path(self.train_dir).glob("*messages.parquet"))
         val_files = list(Path(self.val_dir).glob("*messages.parquet"))
 
@@ -283,6 +296,7 @@ class OrderImageDataModule(pl.LightningDataModule):
         )
 
     def train_dataloader(self):
+        """Build the shuffled training dataloader."""
         return DataLoader(
             self._train,
             batch_size=self.batch_size,
@@ -293,6 +307,7 @@ class OrderImageDataModule(pl.LightningDataModule):
         )
 
     def val_dataloader(self):
+        """Build the validation dataloader."""
         return DataLoader(
             self._val,
             batch_size=self.batch_size,
@@ -304,17 +319,20 @@ class OrderImageDataModule(pl.LightningDataModule):
 
 
 class TextProgressCallback(Callback):
+    """Print lightweight text progress during training and validation."""
     def __init__(self, print_every_n_steps: int = 20):
         super().__init__()
         self.print_every_n_steps = int(print_every_n_steps)
 
     def on_train_epoch_start(self, trainer, pl_module):
+        """Print the start of a training epoch."""
         print(
             f"\n=== Epoch {trainer.current_epoch} started | total_batches={trainer.num_training_batches} ===",
             flush=True,
         )
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+        """Print periodic training progress updates."""
         if trainer.global_step == 0 or trainer.global_step % self.print_every_n_steps != 0:
             return
         max_steps = trainer.max_steps if trainer.max_steps is not None else -1
@@ -326,6 +344,7 @@ class TextProgressCallback(Callback):
         )
 
     def on_validation_end(self, trainer, pl_module):
+        """Print the latest validation metrics after each validation run."""
         metrics = trainer.callback_metrics
         for key in ("val/rec_loss", "val/aeloss", "val/disc_loss"):
             value = metrics.get(key)
@@ -343,6 +362,7 @@ class TextProgressCallback(Callback):
 
 
 class ManualOptimizationVQWrapper(pl.LightningModule):
+    """Adapt the CompVis VQ model to newer Lightning manual optimization."""
     def __init__(self, model: pl.LightningModule):
         super().__init__()
         self.model = model
@@ -350,6 +370,7 @@ class ManualOptimizationVQWrapper(pl.LightningModule):
         self._loss_accepts_predicted_indices = "predicted_indices" in inspect.signature(self.model.loss.forward).parameters
 
     def forward(self, *args, **kwargs):
+        """Forward to the wrapped VQ model."""
         return self.model(*args, **kwargs)
 
     def _call_loss(
@@ -361,6 +382,7 @@ class ManualOptimizationVQWrapper(pl.LightningModule):
         split: str,
         predicted_indices=None,
     ):
+        """Call the loss with compatibility for different LDM signatures."""
         kwargs = {
             "last_layer": self.model.get_last_layer(),
             "split": split,
@@ -376,10 +398,24 @@ class ManualOptimizationVQWrapper(pl.LightningModule):
             **kwargs,
         )
 
+    def _codebook_stats(self, indices):
+        """Compute perplexity and active-code count from quantizer indices."""
+        if isinstance(indices, (tuple, list)):
+            indices = indices[0]
+        flat = indices.reshape(-1).to(dtype=torch.long)
+        counts = torch.bincount(flat, minlength=int(self.model.n_embed)).float()
+        probs = counts / counts.sum().clamp_min(1.0)
+        used = probs > 0
+        perplexity = torch.exp(-(probs[used] * torch.log(probs[used] + 1e-10)).sum())
+        cluster_usage = used.sum().to(dtype=torch.float32)
+        return perplexity, cluster_usage
+
     def training_step(self, batch, batch_idx):
+        """Run one manual-optimization training step with two optimizers."""
         opt_ae, opt_disc = self.optimizers()
         x = self.model.get_input(batch, self.model.image_key)
         xrec, qloss, ind = self.model(x, return_pred_indices=True)
+        perplexity, cluster_usage = self._codebook_stats(ind)
 
         self.toggle_optimizer(opt_ae)
         opt_ae.zero_grad()
@@ -410,11 +446,15 @@ class ManualOptimizationVQWrapper(pl.LightningModule):
 
         self.log_dict(log_dict_ae, prog_bar=False, logger=True, on_step=True, on_epoch=True)
         self.log_dict(log_dict_disc, prog_bar=False, logger=True, on_step=True, on_epoch=True)
+        self.log("train/perplexity", perplexity, prog_bar=False, logger=True, on_step=True, on_epoch=True)
+        self.log("train/cluster_usage", cluster_usage, prog_bar=False, logger=True, on_step=True, on_epoch=True)
         return aeloss.detach()
 
     def validation_step(self, batch, batch_idx):
+        """Compute validation metrics for the wrapped VQ model."""
         x = self.model.get_input(batch, self.model.image_key)
         xrec, qloss, ind = self.model(x, return_pred_indices=True)
+        perplexity, cluster_usage = self._codebook_stats(ind)
 
         aeloss, log_dict_ae = self._call_loss(
             qloss,
@@ -436,6 +476,8 @@ class ManualOptimizationVQWrapper(pl.LightningModule):
         self.log("val/rec_loss", log_dict_ae["val/rec_loss"], prog_bar=True, logger=True, on_step=False, on_epoch=True, sync_dist=True)
         self.log("val/aeloss", aeloss, prog_bar=True, logger=True, on_step=False, on_epoch=True, sync_dist=True)
         self.log("val/disc_loss", discloss, prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+        self.log("val/perplexity", perplexity, prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+        self.log("val/cluster_usage", cluster_usage, prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True)
 
         log_dict_ae = dict(log_dict_ae)
         log_dict_disc = dict(log_dict_disc)
@@ -472,13 +514,16 @@ class ManualOptimizationVQWrapper(pl.LightningModule):
                 self.log_dict(log_dict_disc_ema, prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True)
 
     def configure_optimizers(self):
+        """Reuse the wrapped model optimizer configuration."""
         return self.model.configure_optimizers()
 
     def on_train_batch_end(self, outputs, batch, batch_idx):
+        """Forward the train-batch-end hook for EMA updates."""
         self.model.on_train_batch_end(outputs, batch, batch_idx)
 
 
 def _instantiate_vq_model(config_path: Path, init_ckpt: str | None, learning_rate: float):
+    """Build the VQ model and optionally load pretrained weights."""
     cfg = OmegaConf.load(str(config_path))
     cfg.model.params.ckpt_path = None
     model = instantiate_from_config(cfg.model)
@@ -499,6 +544,7 @@ def _instantiate_vq_model(config_path: Path, init_ckpt: str | None, learning_rat
 
 
 def main():
+    """Parse arguments, build the trainer, and launch fitting."""
     p = argparse.ArgumentParser()
     p.add_argument("--train_dir", required=True)
     p.add_argument("--val_dir", required=True)
@@ -510,7 +556,7 @@ def main():
     p.add_argument("--cache_size", type=int, default=2)
     p.add_argument("--include_empty_minutes", action=argparse.BooleanOptionalAction, default=False)
     p.add_argument("--max_train_minutes_per_file", type=int, default=None)
-    p.add_argument("--max_val_minutes_per_file", type=int, default=None)
+    p.add_argument("--max_val_minutes_per_file", type=int, default=10)
     p.add_argument("--train_minute_stride", type=int, default=1)
     p.add_argument("--val_minute_stride", type=int, default=1)
     p.add_argument("--precision", default=32, choices=["16", "32", "bf16"])

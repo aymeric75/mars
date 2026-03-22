@@ -46,8 +46,8 @@ echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES-}"
 
 
 # ---- Hyperparameter grid (edit freely) ----
-LRS=(1e-4 3e-4 1e-3)
-BSS=(4)  #(8 16)
+LRS=(1e-4) # 3e-4 1e-3
+BSS=(8)  #(8 16)
 
 for LR in "${LRS[@]}"; do
   for BS in "${BSS[@]}"; do

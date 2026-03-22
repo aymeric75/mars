@@ -90,3 +90,13 @@ Above is the distributions of values for one day one stock (AVGO 2025-11-18) of 
 <p align="center">
 <img src="../../testing/values_distributions/all_distributions_5_0585.png" alt="distributions of values" width="50%" />
 </p>
+
+
+Below, is the distributions of values when the Model was trained with same hyper param (batch 8 / lr 1e-4) but with bins such that no bin has both negative and positive values.
+
+We notice, that the passive orders (0 / 1) are a but closer to ground truth.
+
+
+<p align="center">
+<img src="../../testing/values_distributions/all_distributions_3_2903_good_bins.png" alt="distributions of values" width="50%" />
+</p>
