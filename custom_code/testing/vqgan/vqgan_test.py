@@ -25,7 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ckpt_path",
         type=Path,
-        default=REPO_ROOT / "mars_runs" / "vqgan" / "tensorboard" / "bs=8_lr=4.5e-6" / "step=4846-val_rec_loss=0.041324.ckpt",
+        default=REPO_ROOT / "mars_runs" / "vqgan" / "tensorboard" / "bs=8_lr=1e-5" / "step=4606-val_rec_loss=0.038047.ckpt",
     )
     parser.add_argument(
         "--data_dir",

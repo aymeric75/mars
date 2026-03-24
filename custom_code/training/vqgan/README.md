@@ -1,6 +1,6 @@
 # VQGAN Training
 
-This folder contains a simple `stage-1` VQGAN fine-tuning setup for MarS-style order images.
+This folder contains a simple "stage-1" VQGAN fine-tuning setup for MarS-style order images.
 
 The main script is [`train_vqgan_hypersearch.py`](/home/random/projects/MarS/custom_code/training/vqgan/train_vqgan_hypersearch.py).
 It does not read precomputed zarr order images. Instead, it:
@@ -101,6 +101,21 @@ The checkpoint callback monitors:
 `val/rec_loss`
 
 and keeps the best checkpoint for each run.
+
+
+## Results
+
+Example reconstruction comparison:
+
+| Original | Reconstruction |
+| --- | --- |
+| ![Original order image](../../testing/vqgan/outputs/originals/sample_00_file00_minute000_original.png) | ![Reconstructed order image](../../testing/vqgan/outputs/reconstructions_bs=8_lr=1e-5_0_038047/sample_00_file00_minute000_reconstruction.png) |
+
+Validation reconstruction loss during training:
+
+![Validation reconstruction loss curve](../../../mars_runs/vqgan/2500steps/tensorboard/val_rec_loss.png)
+
+The validation loss is still trending downward, which suggests the model likely has not fully converged yet and there is still room for more training steps.
 
 
 ## Notes
