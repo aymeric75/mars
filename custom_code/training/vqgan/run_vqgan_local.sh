@@ -20,7 +20,7 @@ VQ_CONFIG="$PROJECT_ROOT/third_party/latent_diffusion/models/first_stage_models/
 INIT_CKPT="$PROJECT_ROOT/third_party/latent_diffusion/models/first_stage_models/vq-f4/model.ckpt"
 
 LRS=(4.5e-6 1e-5)
-BSS=(8 16)
+BSS=(4 8)
 
 for LR in "${LRS[@]}"; do
   for BS in "${BSS[@]}"; do
@@ -38,7 +38,6 @@ for LR in "${LRS[@]}"; do
       --val_dir "$VAL_DIR"
       --converter_json_path "$CONVERTERS_JSON"
       --vq_config "$VQ_CONFIG"
-      --cache_size 2
       --batch_size "$BS"
       --lr "$LR"
       --max_steps 5000

@@ -54,6 +54,10 @@ for bin_item in obj["state"]["lob_volume"]["bin_values"]:
 converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
 
 
+# print(converters.price_level.bin_values)
+
+# exit()
+
 
 
 def serie_of_mars_type(message_file):
@@ -102,24 +106,24 @@ def rearrange_order_type(type_, price, index_, mars_type):
     if type_ == 2:
         return type_
 
-    # if price is 16, go take the
-    if price == 16:
-        return mars_type
+    # # if price is 16, go take the
+    # if price == 16:
+    #     return mars_type
 
-    else:
+    # else:
 
-        # if sell order
-        if type_ == 0:
-            if price > 16:
-                return 0 # passive limit order
-            else:
-                return 3 # agressive
-        # if buy order
-        if type_ == 1:
-            if price < 16:
-                return 1 # passive limit order
-            else:
-                return 4 # agressive
+    # if sell order
+    if type_ == 0:
+        if price > 16:
+            return 0 # passive limit order
+        else:
+            return 3 # agressive
+    # if buy order
+    if type_ == 1:
+        if price < 16:
+            return 1 # passive limit order
+        else:
+            return 4 # agressive
     return
 
 
