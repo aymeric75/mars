@@ -1,6 +1,6 @@
 # VQGAN Training
 
-This folder contains a simple stage-1 VQGAN fine-tuning setup for MarS-style order images.
+This folder contains a simple `stage-1` VQGAN fine-tuning setup for MarS-style order images.
 
 The main script is [`train_vqgan_hypersearch.py`](/home/random/projects/MarS/custom_code/training/vqgan/train_vqgan_hypersearch.py).
 It does not read precomputed zarr order images. Instead, it:
