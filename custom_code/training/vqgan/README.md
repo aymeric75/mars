@@ -107,20 +107,8 @@ and keeps the best checkpoint for each run.
 
 Example reconstruction comparison:
 
-<table>
-  <tr>
-    <th>Original</th>
-    <th>Reconstruction</th>
-  </tr>
-  <tr>
-    <td>
-      <img src="../../testing/vqgan/outputs/originals/sample_00_file00_minute000_original.png" alt="Original order image" width="320">
-    </td>
-    <td>
-      <img src="../../testing/vqgan/outputs/reconstructions_bs=8_lr=1e-5_0_038047/sample_00_file00_minute000_reconstruction.png" alt="Reconstructed order image" width="320">
-    </td>
-  </tr>
-</table>
+<img src="../../testing/vqgan/outputs/originals/sample_00_file00_minute000_original.png" alt="Original order image" width="320">
+<img src="../../testing/vqgan/outputs/reconstructions_bs=8_lr=1e-5_0_038047/sample_00_file00_minute000_reconstruction.png" alt="Reconstructed order image" width="320">
 
 Validation reconstruction loss during training:
 
