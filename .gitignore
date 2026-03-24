@@ -183,7 +183,7 @@ cython_debug/
 tmp/
 typings/
 fuse_connection.cfg
-outputs/
+#outputs/
 git-diff
 data_pool/
 tags
