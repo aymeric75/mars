@@ -16,12 +16,14 @@ from mlib.core.lob_snapshot import LobSnapshot
 from market_simulation.utils import pkl_utils
 from market_simulation.utils.bin_converter import BinConverter
 
-from custom_code.preprocessing.order_model.messages_to_features import (
+from custom_code.preprocessing.order_model.messages_to_features_no_engine import (
+    build_converters_from_samples,
+    Converters,
+)
+from custom_code.testing.values_distributions.messages_to_features import (
     make_exchange_and_orderstate,
     make_exchange, row_to_order,
-    build_converters_from_samples,
     pass2_write_features,
-    Converters
 )
 
 
@@ -353,7 +355,7 @@ def _process_pair(args):
 
 
 def main():
-    converters_json = "converters_portable.json"
+    converters_json = str(Path(__file__).resolve().parents[2] / "training" / "converters_portable.json")
     data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
     #data_dir = Path("some_data")
     out_dir = Path("trade_infos")

@@ -13,7 +13,7 @@ mkdir -p "$RUN_ROOT" "$LOG_ROOT"
 
 TRAIN_DIR="$PROJECT_ROOT/data/train"
 VAL_DIR="$PROJECT_ROOT/data/val"
-CONVERTERS_JSON="$PROJECT_ROOT/custom_code/preprocessing/converters_portable.json"
+CONVERTERS_JSON="$PROJECT_ROOT/custom_code/training/converters_portable.json"
 VQ_CONFIG="$PROJECT_ROOT/third_party/latent_diffusion/models/first_stage_models/vq-f4/config.yaml"
 
 # Point this to the pretrained VQ checkpoint you want to fine-tune from.

@@ -20,10 +20,12 @@ from mlib.core.limit_order import LimitOrder
 from market_simulation.conf import C
 from market_simulation.states.order_state import OrderState, PredOrderInfo
 from market_simulation.utils.bin_converter import BinConverter
-from custom_code.preprocessing.order_model.messages_to_features import (
+from custom_code.preprocessing.order_model.messages_to_features_no_engine import (
+    build_converters_from_samples,
+)
+from custom_code.testing.values_distributions.messages_to_features import (
     make_exchange_and_orderstate,
     make_exchange, row_to_order,
-    build_converters_from_samples,
     pass2_write_features
 )
 
@@ -46,7 +48,9 @@ class Converters:
     lob_volume: BinConverter
 
 
-with open("converters_portable.json", "r", encoding="utf-8") as f:
+CONVERTERS_JSON = Path(__file__).resolve().parents[1] / "training" / "converters_portable.json"
+
+with CONVERTERS_JSON.open("r", encoding="utf-8") as f:
     obj = json.load(f)
 
 price_minus_mid = []

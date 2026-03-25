@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from market_simulation.utils.bin_converter import BinConverter
 
-from custom_code.preprocessing.order_model.messages_to_features import (
+from custom_code.preprocessing.order_model.messages_to_features_no_engine import (
     build_converters_from_samples,
 )
 
@@ -32,7 +32,10 @@ class Converters:
     pred_order_volume: BinConverter
     order_interval: BinConverter
     lob_volume: BinConverter
-with open("converters_portable.json", "r", encoding="utf-8") as f:
+
+CONVERTERS_JSON = Path(__file__).resolve().parents[2] / "training" / "converters_portable.json"
+
+with CONVERTERS_JSON.open("r", encoding="utf-8") as f:
     obj = json.load(f)
 
 price_minus_mid = []

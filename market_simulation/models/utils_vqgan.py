@@ -400,6 +400,12 @@ def instantiate_vq_model(config_path: Path | str, init_ckpt: str | None, learnin
     if init_ckpt:
         ckpt = torch.load(str(init_ckpt), map_location="cpu", weights_only=False)
         state_dict = ckpt.get("state_dict", ckpt)
+        if any(key.startswith("model.") for key in state_dict):
+            state_dict = {
+                key.removeprefix("model."): value
+                for key, value in state_dict.items()
+                if key.startswith("model.")
+            }
         missing, unexpected = model.load_state_dict(state_dict, strict=False)
         print(
             f"Restored from {init_ckpt} with {len(missing)} missing and {len(unexpected)} unexpected keys",

@@ -585,13 +585,13 @@ if __name__ == "__main__":
 
     import json
     from custom_code.testing.utils import load_order_model
-    from custom_code.preprocessing.order_model.messages_to_features import build_converters_from_samples
+    from custom_code.preprocessing.order_model.messages_to_features_no_engine import build_converters_from_samples
 
 
 
 
-
-    with open("converters_portable.json", "r", encoding="utf-8") as f:
+    converters_json = Path(__file__).resolve().parents[2] / "custom_code" / "training" / "converters_portable.json"
+    with converters_json.open("r", encoding="utf-8") as f:
         obj = json.load(f)
     #price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
     price_minus_mid = []

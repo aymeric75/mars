@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from dataclasses import dataclass
 from market_simulation.utils.bin_converter import BinConverter
-from custom_code.preprocessing.order_model.messages_to_features import (
+from custom_code.preprocessing.order_model.messages_to_features_no_engine import (
     build_converters_from_samples,
 )
 
@@ -31,7 +31,9 @@ class Converters:
     order_interval: BinConverter
     lob_volume: BinConverter
 
-with open("/projappl/project_2012747/mars/MarS/custom_code/preprocessing/order_batch_model/converters_portable.json", "r", encoding="utf-8") as f:
+CONVERTERS_JSON = Path(__file__).resolve().parents[2] / "training" / "converters_portable.json"
+
+with CONVERTERS_JSON.open("r", encoding="utf-8") as f:
     obj = json.load(f)
 
 price_minus_mid = []
@@ -137,18 +139,11 @@ def compute_valid_anchor_indices(times: np.ndarray) -> np.ndarray:
     if times.size == 0:
         return np.empty(0, dtype=np.int64)
 
-    valid = []
-    offsets = np.arange(16, -1, -1, dtype=np.int64) * ONE_MINUTE_NS
+    earliest_cut_points = np.searchsorted(times, times - 16 * ONE_MINUTE_NS, side="left")
 
-    for i in range(times.size):
-        cut_points = np.searchsorted(times, times[i] - offsets, side="left")
-
-        # Need the earliest boundary to be strictly inside the file history.
-        # If cut_points[0] == 0, retrieval would rely on data before the file start.
-        if cut_points[0] > 0:
-            valid.append(i)
-
-    return np.asarray(valid, dtype=np.int64)
+    # Need the earliest boundary to be strictly inside the file history.
+    # If earliest_cut_points[i] == 0, retrieval would rely on data before the file start.
+    return np.flatnonzero(earliest_cut_points > 0).astype(np.int64, copy=False)
 
 def retrieve_chunk_last_16min(message_file: str | Path, index: int) -> list[pd.DataFrame]:
     msg_cols = ["Time", "Message_Type", "Direction", "Price", "Size"]

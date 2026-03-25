@@ -32,7 +32,7 @@ from mlib.core.exchange import Exchange
 from mlib.core.exchange_config import create_exchange_config_without_call_auction
 
 from market_simulation.rollout.ray_model_client import RayModelClient
-from custom_code.preprocessing.order_model.messages_to_features import build_converters_from_samples
+from custom_code.preprocessing.order_model.messages_to_features_no_engine import build_converters_from_samples
 
 from market_simulation.rollout.order_model_actor import OrderModelActor
 
@@ -71,6 +71,9 @@ def create_initialization_agent(
         seed=seed,
     )
     return init_agent
+
+
+CONVERTERS_JSON = Path(__file__).resolve().parents[2] / "custom_code" / "training" / "converters_portable.json"
 
 
 class RolloutTask(NamedTuple):
@@ -118,7 +121,7 @@ def execute_single_simulation(task: RolloutTask) -> list[TradeInfo]:
 
     # Set up the converter and model client for the background agent
 
-    converter = load_portable_converter("converters_portable.json")
+    converter = load_portable_converter(str(CONVERTERS_JSON))
     #model_client = ModelClient(model_name=C.model_serving.model_name, ip=C.model_serving.ip, port=C.model_serving.port)
     model_client = RayModelClient()
 

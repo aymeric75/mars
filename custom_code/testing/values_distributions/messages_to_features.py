@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import pickle
 import random
+import json
 
 from multiprocessing import Pool
 from collections import defaultdict
@@ -60,6 +61,9 @@ def build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols):
     lob_volume = BinConverter.create_from_values(lv, NUM_BINS_LOB_VOLUME)
 
     return Converters(price_level, order_volume, order_volume, order_interval, lob_volume)
+
+
+CONVERTERS_JSON = Path(__file__).resolve().parents[2] / "training" / "converters_portable.json"
 
 
 
@@ -701,7 +705,7 @@ def main():
 
 
 
-    with open("converters_portable.json", "r", encoding="utf-8") as f:
+    with CONVERTERS_JSON.open("r", encoding="utf-8") as f:
         obj = json.load(f)
 
     #price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]

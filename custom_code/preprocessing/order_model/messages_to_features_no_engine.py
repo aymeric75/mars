@@ -2,11 +2,9 @@ import pandas as pd
 import numpy as np
 import json
 from dataclasses import dataclass
+from pathlib import Path
 from market_simulation.models.utils import read_parquet_row_slice
 from market_simulation.utils.bin_converter import BinConverter
-from custom_code.preprocessing.order_model.messages_to_features import (
-    build_converters_from_samples,
-)
 
 
 NUM_BINS_PRICE_LEVEL = 32
@@ -22,7 +20,25 @@ class Converters:
     order_interval: BinConverter
     lob_volume: BinConverter
 
-with open("converters_portable.json", "r", encoding="utf-8") as f:
+
+def build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols):
+    pm = [float(x) for x in price_minus_mid if x is not None and np.isfinite(x)]
+    price_level = BinConverter.create_from_values(pm, NUM_BINS_PRICE_LEVEL)
+
+    ov = [float(x) for x in sizes if x is not None and x > 0]
+    order_volume = BinConverter.create_from_values(ov, NUM_BINS_ORDER_VOLUME)
+
+    itv = [float(x) for x in intervals if x is not None and x > 0]
+    order_interval = BinConverter.create_from_values(itv, NUM_BINS_ORDER_INTERVAL)
+
+    lv = [float(x) for x in lob_vols if x is not None and x > 0]
+    lob_volume = BinConverter.create_from_values(lv, NUM_BINS_LOB_VOLUME)
+
+    return Converters(price_level, order_volume, order_volume, order_interval, lob_volume)
+
+CONVERTERS_JSON = Path(__file__).resolve().parents[2] / "training" / "converters_portable.json"
+
+with CONVERTERS_JSON.open("r", encoding="utf-8") as f:
     obj = json.load(f)
 
 price_minus_mid = []

@@ -1,0 +1,14 @@
+order_vocab_size: 49152
+order_model_ckpt: /home/random/projects/MarS/mars_runs/order_model/tensorboard/bs=8_lr=1e-4/step=step=13920-val=val_loss=3.2903.ckpt
+vq_ckpt_dir: /home/random/projects/MarS/mars_runs/vqgan/2500steps/tensorboard/bs=8_lr=1e-5/step=4606-val_rec_loss=0.038047.ckpt
+latent_diffusion_root: /home/random/projects/MarS/third_party/latent_diffusion
+lr: 0.0001
+batch_vocab_size: 8192
+batch_tokens_len: 64
+d_model: 128
+num_layers: 2
+num_heads: 4
+dropout: 0.1
+vq_config_relpath: latent_diffusion/models/first_stage_models/vq-f4/config.yaml
+vq_metric_name: val_rec_loss
+vq_use_autocast: true

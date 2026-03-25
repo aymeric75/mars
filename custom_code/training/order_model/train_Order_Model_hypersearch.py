@@ -9,8 +9,9 @@ import numpy as np
 from pathlib import Path
 from torch.utils.data import BatchSampler, DataLoader, Subset
 from lightning.pytorch.loggers import TensorBoardLogger
-from lightning.pytorch.callbacks import ModelCheckpoint, Callback
+from lightning.pytorch.callbacks import ModelCheckpoint
 
+from custom_code.training.utils import TextProgressCallback
 from market_simulation.models.utils_order_model import (
     RawMessagesTokenDataset,
     build_model_from_variant,
@@ -247,58 +248,6 @@ class OrderLightningModule(pl.LightningModule):
 
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters(), lr=self.lr)
-
-
-
-class TextProgressCallback(Callback):
-    def __init__(self, print_every_n_steps: int = 20):
-        super().__init__()
-        self.print_every_n_steps = int(print_every_n_steps)
-
-    def on_train_epoch_start(self, trainer, pl_module):
-        total_batches = trainer.num_training_batches
-        print(f"\n=== Epoch {trainer.current_epoch} started | total_batches={total_batches} ===", flush=True)
-
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
-        if trainer.global_step == 0:
-            return
-
-        if trainer.global_step % self.print_every_n_steps != 0:
-            return
-
-        total_batches = trainer.num_training_batches
-        batch_in_epoch = (batch_idx + 1)
-        epoch_pct = 100.0 * batch_in_epoch / max(total_batches, 1)
-
-        max_steps = trainer.max_steps if trainer.max_steps is not None else -1
-        step_pct = 100.0 * trainer.global_step / max(max_steps, 1) if max_steps > 0 else 0.0
-        batch_size = len(batch)
-        total_windows = len(trainer.train_dataloader.dataset)
-        sampled_windows = trainer.global_step * batch_size
-        sampled_pct = 100.0 * sampled_windows / max(total_windows, 1)
-
-        print(
-            f"[train] epoch={trainer.current_epoch} "
-            f"batch={batch_in_epoch}/{total_batches} "
-            f"epoch_progress={epoch_pct:.2f}% "
-            f"global_step={trainer.global_step}/{max_steps} "
-            f"step_progress={step_pct:.2f}% "
-            f"sampled_windows={sampled_windows}/{total_windows} "
-            f"sampled_progress={sampled_pct:.5f}%",
-            flush=True,
-        )
-
-    def on_validation_end(self, trainer, pl_module):
-        metrics = trainer.callback_metrics
-        val_loss = metrics.get("val_loss", None)
-        if val_loss is not None:
-            try:
-                val_loss = float(val_loss)
-                print(f"[val] epoch={trainer.current_epoch} global_step={trainer.global_step} val_loss={val_loss:.6f}", flush=True)
-            except Exception:
-                print(f"[val] epoch={trainer.current_epoch} global_step={trainer.global_step} val_loss={val_loss}", flush=True)
-
-
 
 def main():
     p = argparse.ArgumentParser()

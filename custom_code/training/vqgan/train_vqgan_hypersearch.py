@@ -166,7 +166,7 @@ def main():
     p.add_argument("--run_name", default=None)
     p.add_argument(
         "--converter_json_path",
-        default=str(Path(__file__).resolve().with_name("converters_portable.json")),
+        default=str(Path(__file__).resolve().parents[1] / "converters_portable.json"),
     )
     p.add_argument(
         "--vq_config",

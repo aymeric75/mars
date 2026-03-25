@@ -8,14 +8,18 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from market_simulation.models.utils_vqgan import RawMinuteOrderImageDataset, instantiate_vq_model
+from market_simulation.models.utils_vqgan import (
+    ORDER_IMAGE_MAX_VALUE,
+    RawMinuteOrderImageDataset,
+    instantiate_vq_model,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,7 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ckpt_path",
         type=Path,
-        default=REPO_ROOT / "mars_runs" / "vqgan" / "tensorboard" / "bs=8_lr=1e-5" / "step=4606-val_rec_loss=0.038047.ckpt",
+        default=REPO_ROOT / "mars_runs" / "vqgan" / "2500steps" / "tensorboard" / "bs=8_lr=1e-5" / "step=4606-val_rec_loss=0.038047.ckpt",
     )
     parser.add_argument(
         "--data_dir",
@@ -35,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--converter_json_path",
         type=Path,
-        default=REPO_ROOT / "custom_code" / "training" / "vqgan" / "converters_portable.json",
+        default=REPO_ROOT / "custom_code" / "training" / "converters_portable.json",
     )
     parser.add_argument(
         "--vq_config",
@@ -91,16 +95,54 @@ def load_vqgan_checkpoint(
     return model
 
 
-def image_to_uint8_hwc(image: np.ndarray) -> np.ndarray:
+def model_space_to_order_image_hwc(image: np.ndarray) -> np.ndarray:
     image = np.asarray(image, dtype=np.float32)
-    image = np.clip((image + 1.0) * 0.5, 0.0, 1.0)
-    image = np.rint(image * 255.0).astype(np.uint8)
-    return image
+    image = np.clip((image + 1.0) * 0.5 * float(ORDER_IMAGE_MAX_VALUE), 0.0, float(ORDER_IMAGE_MAX_VALUE))
+    return np.rint(image).astype(np.uint8)
 
 
-def save_rgb_image(image: np.ndarray, out_path: Path) -> None:
+def order_image_to_uint8_hwc(image: np.ndarray) -> np.ndarray:
+    image = np.asarray(image, dtype=np.float32)
+    image = np.clip(image / float(ORDER_IMAGE_MAX_VALUE), 0.0, 1.0)
+    return np.rint(image * 255.0).astype(np.uint8)
+
+
+def save_order_image_matrices(image: np.ndarray, out_path: Path, scale: int = 16, gap: int = 24) -> None:
+    image = order_image_to_uint8_hwc(image)
+    matrix_h, matrix_w, num_channels = image.shape
+    labels = ["S", "B", "C"]
+    top_pad = 28
+    border = 2
+
+    channels: list[Image.Image] = []
+    for idx in range(num_channels):
+        channel = Image.fromarray(image[:, :, idx], mode="L").resize(
+            (matrix_w * scale, matrix_h * scale),
+            resample=Image.Resampling.NEAREST,
+        ).convert("RGB")
+        channel = Image.new("RGB", (channel.width + 2 * border, channel.height + 2 * border), color=(0, 0, 0))
+        inner = Image.fromarray(image[:, :, idx], mode="L").resize(
+            (matrix_w * scale, matrix_h * scale),
+            resample=Image.Resampling.NEAREST,
+        ).convert("RGB")
+        channel.paste(inner, (border, border))
+        channels.append(channel)
+
+    canvas_w = sum(channel.width for channel in channels) + gap * (len(channels) - 1)
+    canvas_h = top_pad + max(channel.height for channel in channels)
+    canvas = Image.new("RGB", (canvas_w, canvas_h), color=(255, 255, 255))
+    draw = ImageDraw.Draw(canvas)
+
+    x = 0
+    for idx, channel in enumerate(channels):
+        label = labels[idx] if idx < len(labels) else f"C{idx}"
+        text_x = x + channel.width // 2 - 4
+        draw.text((text_x, 6), label, fill=(0, 0, 0))
+        canvas.paste(channel, (x, top_pad))
+        x += channel.width + gap
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    Image.fromarray(image, mode="RGB").save(out_path)
+    canvas.save(out_path)
 
 
 def build_dataset(data_dir: Path, converter_json_path: Path) -> RawMinuteOrderImageDataset:
@@ -139,17 +181,16 @@ def reconstruct_samples(
             x = model.model.get_input(batch, model.model.image_key)
             xrec, _, _ = model.model(x, return_pred_indices=True)
 
-            original_uint8 = image_to_uint8_hwc(image_hwc)
-            reconstruction_uint8 = image_to_uint8_hwc(
+            original_order_image = model_space_to_order_image_hwc(image_hwc)
+            reconstruction_order_image = model_space_to_order_image_hwc(
                 xrec.detach().cpu().squeeze(0).permute(1, 2, 0).numpy(),
             )
-
             file_idx = int(sample["file_idx"])
             minute_id = int(sample["minute_id"])
             stem = f"sample_{idx:02d}_file{file_idx:02d}_minute{minute_id:03d}"
 
-            save_rgb_image(original_uint8, originals_dir / f"{stem}_original.png")
-            save_rgb_image(reconstruction_uint8, reconstructions_dir / f"{stem}_reconstruction.png")
+            save_order_image_matrices(original_order_image, originals_dir / f"{stem}_original.png")
+            save_order_image_matrices(reconstruction_order_image, reconstructions_dir / f"{stem}_reconstruction.png")
 
             print(
                 f"Saved sample {idx + 1}/{total}: file_idx={file_idx}, minute_id={minute_id}",

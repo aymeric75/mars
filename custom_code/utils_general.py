@@ -4,8 +4,9 @@ import json
 import time
 
 from dataclasses import dataclass
+from pathlib import Path
 from market_simulation.utils.bin_converter import BinConverter
-from custom_code.preprocessing.order_model.messages_to_features import (
+from custom_code.preprocessing.order_model.messages_to_features_no_engine import (
     build_converters_from_samples,
 )
 
@@ -26,7 +27,10 @@ class Converters:
     pred_order_volume: BinConverter
     order_interval: BinConverter
     lob_volume: BinConverter
-with open("testing/converters_portable.json", "r", encoding="utf-8") as f:
+
+CONVERTERS_JSON = Path(__file__).resolve().parent / "training" / "converters_portable.json"
+
+with CONVERTERS_JSON.open("r", encoding="utf-8") as f:
     obj = json.load(f)
 price_minus_mid = []
 for bin_item in obj["state"]["price_level"]["bin_values"]:
@@ -146,4 +150,3 @@ for start, end in list_ranges:
 end = time.perf_counter()
 elapsed = end - start__
 print(f"Elapsed time: {elapsed} seconds")
-

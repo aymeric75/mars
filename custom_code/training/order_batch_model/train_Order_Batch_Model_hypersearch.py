@@ -2,18 +2,128 @@ import argparse
 import os
 import torch
 import lightning.pytorch as pl
+import numpy as np
 
 from pathlib import Path
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import TensorBoardLogger
-from torch.utils.data import DataLoader
+from torch.utils.data import BatchSampler, DataLoader
 
+from custom_code.training.utils import TextProgressCallback
 from market_simulation.models.order_batch_model import OrderBatchModel
 from market_simulation.models.utils_order_batch_model import (
     OnlineMessageTokenDataset,
     VQRuntimeConfig,
     lm_loss_next_token,
 )
+
+
+class TemporalSpacingBatchSampler(BatchSampler):
+    def __init__(
+        self,
+        dataset: OnlineMessageTokenDataset,
+        batch_size: int,
+        num_samples: int | None = None,
+        temporal_block_minutes: int = 15,
+        min_anchor_spacing_seconds: int = 30,
+        chunk_size: int = 256,
+        seed: int = 7,
+        drop_last: bool = True,
+    ):
+        if batch_size <= 0:
+            raise ValueError("batch_size must be positive")
+        if temporal_block_minutes <= 0:
+            raise ValueError("temporal_block_minutes must be positive")
+        if min_anchor_spacing_seconds <= 0:
+            raise ValueError("min_anchor_spacing_seconds must be positive")
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+
+        self.dataset = dataset
+        self.batch_size = int(batch_size)
+        self.temporal_block_ns = int(temporal_block_minutes) * 60 * 1_000_000_000
+        self.min_anchor_spacing_ns = int(min_anchor_spacing_seconds) * 1_000_000_000
+        self.chunk_size = int(chunk_size)
+        self.seed = int(seed)
+        self.drop_last = bool(drop_last)
+
+        self.chunk_groups: list[tuple[int, np.ndarray]] = []
+        total_selected = 0
+
+        for file_idx, anchor_times in enumerate(self.dataset.valid_anchor_times):
+            if anchor_times.size == 0:
+                continue
+
+            block_ids = anchor_times // self.temporal_block_ns
+            block_start = 0
+            while block_start < anchor_times.size:
+                block_end = block_start + 1
+                while block_end < anchor_times.size and block_ids[block_end] == block_ids[block_start]:
+                    block_end += 1
+
+                spaced_local_indices = []
+                last_time = None
+                for local_idx in range(block_start, block_end):
+                    anchor_time = int(anchor_times[local_idx])
+                    if last_time is None or anchor_time - last_time >= self.min_anchor_spacing_ns:
+                        spaced_local_indices.append(local_idx)
+                        last_time = anchor_time
+
+                for start in range(0, len(spaced_local_indices), self.chunk_size):
+                    local_chunk = np.asarray(spaced_local_indices[start : start + self.chunk_size], dtype=np.int64)
+                    if local_chunk.size == 0:
+                        continue
+                    self.chunk_groups.append((file_idx, local_chunk))
+                    total_selected += int(local_chunk.size)
+
+                block_start = block_end
+
+        self.total_selected = total_selected
+        self.num_samples = self.total_selected if num_samples is None else min(int(num_samples), self.total_selected)
+
+    def __iter__(self):
+        if not self.chunk_groups or self.num_samples <= 0:
+            return
+
+        generator = torch.Generator()
+        generator.manual_seed(self.seed)
+
+        yielded = 0
+        batch: list[int] = []
+        chunk_order = torch.randperm(len(self.chunk_groups), generator=generator).tolist()
+
+        for pos, chunk_id in enumerate(chunk_order):
+            if yielded >= self.num_samples:
+                break
+
+            file_idx, local_indices = self.chunk_groups[chunk_id]
+            self.dataset.prefetch_chunk(file_idx, local_indices)
+
+            if pos + 1 < len(chunk_order):
+                next_file_idx, next_local_indices = self.chunk_groups[chunk_order[pos + 1]]
+                self.dataset.prefetch_chunk(next_file_idx, next_local_indices)
+
+            file_base = 0 if file_idx == 0 else self.dataset.cumulative_windows[file_idx - 1]
+            local_order = torch.randperm(len(local_indices), generator=generator).tolist()
+
+            for offset in local_order:
+                batch.append(file_base + int(local_indices[offset]))
+                yielded += 1
+
+                if len(batch) == self.batch_size:
+                    yield batch
+                    batch = []
+
+                if yielded >= self.num_samples:
+                    break
+
+        if batch and not self.drop_last:
+            yield batch
+
+    def __len__(self):
+        if self.drop_last:
+            return self.num_samples // self.batch_size
+        return (self.num_samples + self.batch_size - 1) // self.batch_size
 
 
 class OrderBatchDataModule(pl.LightningDataModule):
@@ -26,6 +136,12 @@ class OrderBatchDataModule(pl.LightningDataModule):
         num_workers: int,
         cache_size: int,
         vq_runtime: VQRuntimeConfig,
+        seed: int = 7,
+        val_num_samples: int | None = None,
+        temporal_block_minutes: int = 15,
+        min_anchor_spacing_seconds: int = 30,
+        train_chunk_size: int = 256,
+        val_chunk_size: int | None = None,
     ):
         super().__init__()
         self.train_dir = train_dir
@@ -35,6 +151,12 @@ class OrderBatchDataModule(pl.LightningDataModule):
         self.num_workers = int(num_workers)
         self.cache_size = int(cache_size)
         self.vq_runtime = vq_runtime
+        self.seed = int(seed)
+        self.val_num_samples = None if val_num_samples is None else int(val_num_samples)
+        self.temporal_block_minutes = int(temporal_block_minutes)
+        self.min_anchor_spacing_seconds = int(min_anchor_spacing_seconds)
+        self.train_chunk_size = int(train_chunk_size)
+        self.val_chunk_size = self.train_chunk_size if val_chunk_size is None else int(val_chunk_size)
         self._train = None
         self._val = None
 
@@ -53,25 +175,42 @@ class OrderBatchDataModule(pl.LightningDataModule):
         )
 
     def train_dataloader(self):
-        return DataLoader(
+        batch_sampler = TemporalSpacingBatchSampler(
             self._train,
             batch_size=self.batch_size,
-            shuffle=True,
+            temporal_block_minutes=self.temporal_block_minutes,
+            min_anchor_spacing_seconds=self.min_anchor_spacing_seconds,
+            chunk_size=self.train_chunk_size,
+            seed=self.seed,
+            drop_last=True,
+        )
+        return DataLoader(
+            self._train,
+            batch_sampler=batch_sampler,
             num_workers=self.num_workers,
             pin_memory=True,
-            drop_last=True,
             persistent_workers=(self.num_workers > 0),
+            prefetch_factor=2 if self.num_workers > 0 else None,
         )
 
     def val_dataloader(self):
-        return DataLoader(
+        batch_sampler = TemporalSpacingBatchSampler(
             self._val,
             batch_size=self.batch_size,
-            shuffle=False,
+            num_samples=self.val_num_samples,
+            temporal_block_minutes=self.temporal_block_minutes,
+            min_anchor_spacing_seconds=self.min_anchor_spacing_seconds,
+            chunk_size=self.val_chunk_size,
+            seed=self.seed,
+            drop_last=False,
+        )
+        return DataLoader(
+            self._val,
+            batch_sampler=batch_sampler,
             num_workers=self.num_workers,
             pin_memory=True,
-            drop_last=False,
             persistent_workers=(self.num_workers > 0),
+            prefetch_factor=2 if self.num_workers > 0 else None,
         )
 
 
@@ -136,6 +275,11 @@ def main():
     p.add_argument("--max_steps", type=int, default=1000)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--num_workers", type=int, default=0)
+    p.add_argument("--val_num_samples", type=int, default=None)
+    p.add_argument("--temporal_block_minutes", type=int, default=15)
+    p.add_argument("--min_anchor_spacing_seconds", type=int, default=30)
+    p.add_argument("--train_chunk_size", type=int, default=256)
+    p.add_argument("--val_chunk_size", type=int, default=None)
     p.add_argument("--precision", default="bf16-mixed", choices=["32-true", "16-mixed", "bf16-mixed"])
     p.add_argument("--latent_diffusion_root", default="../../../third_party/latent_diffusion")
     p.add_argument("--taming_root", default="../../../third_party/taming-transformers")
@@ -145,8 +289,12 @@ def main():
     run_root = args.run_root
     os.makedirs(run_root, exist_ok=True)
     run_name = args.run_name or f"bs={args.batch_size}_lr={args.lr:g}"
-    run_dir = os.path.join(run_root, run_name)
+    run_dir = os.path.join(run_root, "tensorboard", run_name)
     os.makedirs(run_dir, exist_ok=True)
+
+    for filename in os.listdir(run_dir):
+        if filename.endswith(".ckpt"):
+            os.remove(os.path.join(run_dir, filename))
 
     print("PWD =", os.getcwd())
     print("run_root =", os.path.abspath(run_root))
@@ -169,6 +317,12 @@ def main():
         num_workers=args.num_workers,
         cache_size=args.cache_size,
         vq_runtime=vq_runtime,
+        seed=args.seed,
+        val_num_samples=args.val_num_samples,
+        temporal_block_minutes=args.temporal_block_minutes,
+        min_anchor_spacing_seconds=args.min_anchor_spacing_seconds,
+        train_chunk_size=args.train_chunk_size,
+        val_chunk_size=args.val_chunk_size,
     )
 
     model = OrderBatchLightningModule(
@@ -186,17 +340,18 @@ def main():
         monitor="val_loss",
         mode="min",
         save_top_k=1,
-        save_last=True,
+        save_last=False,
         verbose=True,
     )
+    progress_cb = TextProgressCallback(print_every_n_steps=5)
 
     trainer = pl.Trainer(
         default_root_dir=run_dir,
         logger=logger,
-        callbacks=[ckpt_cb, PrintCkptFilename()],
+        callbacks=[ckpt_cb, PrintCkptFilename(), progress_cb],
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices="auto" if torch.cuda.is_available() else 1,
-        strategy="ddp" if torch.cuda.is_available() else "auto",
+        strategy="auto",
         max_steps=args.max_steps,
         precision=args.precision,
         log_every_n_steps=10,

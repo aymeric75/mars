@@ -84,7 +84,9 @@ import json
 
 
 
-with open("converters_portable.json", "r", encoding="utf-8") as f:
+CONVERTERS_JSON = Path(__file__).resolve().parents[1] / "training" / "converters_portable.json"
+
+with CONVERTERS_JSON.open("r", encoding="utf-8") as f:
     obj = json.load(f)
 
 #price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
