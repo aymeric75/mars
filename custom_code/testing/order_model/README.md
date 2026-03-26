@@ -7,4 +7,5 @@
 
 Results
 
-- Observed in discussion: inference is under `100 ms`.
+- `seq_len=1024`, `batch_size=16`, `device=cuda`
+- `preprocess_ms=8.878`, `inference_ms=31.829`, `total_ms=40.708`
