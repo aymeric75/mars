@@ -117,7 +117,7 @@ Validation reconstruction loss during training:
 
 The validation loss is still trending downward, which suggests the model likely has not fully converged yet and there is still room for more training steps.
 
-Here is the new reconstruction with more training steps: 
+Here is the new (and better) reconstruction with more training steps: 
 
-<img src="../../testing/vqgan/outputs/reconstructions_bs=8_lr=1.5e-5_0_031307/sample_00_file11_minute235_reconstruction.png" alt="Reconstructed order image" width="800"> 
+<img src="../../testing/vqgan/outputs/reconstructions_bs=8_lr=1.5e-5_0_031307/sample_00_file11_minute235_reconstruction.png" alt="Reconstructed order image" width="600"> 
 
