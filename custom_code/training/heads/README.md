@@ -20,11 +20,20 @@ For the previous 2-class probability head, a validation loss around `0.6` meant 
 
 ![Probability head validation loss](./figures/val_loss_proba_head_30s.png)
 
-For the newer 3-class probability head, the validation loss looks more stable:
+For the newer 3-class probability head, the loss is `CrossEntropyLoss` on 3 logits:
+- class `0`: unprofitable, `pnl < -PNL_MARGIN`
+- class `1`: unclear, `-PNL_MARGIN <= pnl <= PNL_MARGIN`
+- class `2`: profitable, `pnl > PNL_MARGIN`
 
-The validation accuracy is also fairly high, which suggests the 3-class formulation is easier to learn than the previous binary setup:
+The validation loss looks more stable, and the validation accuracy is also fairly high, which suggests the 3-class formulation is easier to learn than the previous binary setup:
 
 <p>
   <img src="./figures/val_proba_loss_30sec_3classes.png" alt="3-class probability head validation loss" width="35%">
   <img src="./figures/val_proba_acc_30sec_3classes.png" alt="3-class probability head validation accuracy" width="35%">
 </p>
+
+The hypersearch was not finished because it had to be stopped early.
+
+Possible next ideas:
+- unfreeze the last MarS transformer block after a short warmup, so the backbone can adapt a bit to the trading target
+- keep the 3-class head, but calibrate the final probabilities afterward with temperature scaling or isotonic regression
