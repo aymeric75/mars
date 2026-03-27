@@ -15,8 +15,6 @@ from collections import OrderedDict
 from functools import lru_cache
 from torch.utils.data import DataLoader, Dataset, Subset
 
-
-
 from custom_code.preprocessing.order_model.messages_to_features_no_engine import (
     from_messages_to_features,
 )
@@ -198,6 +196,7 @@ class RawMessagesTokenDataset(Dataset):
         seq = feats[offset : offset + self.seq_len]
         return torch.tensor(seq, dtype=torch.long)
 
+from market_simulation.models.utils_heads import OnlineReturnHeadDataset  # compatibility import
 
 
 

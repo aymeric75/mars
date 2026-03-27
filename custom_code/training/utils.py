@@ -16,9 +16,9 @@ class TextProgressCallback(pl.Callback):
             return str(value)
 
     def on_train_epoch_start(self, trainer, pl_module):
-        total_batches = trainer.num_training_batches
+        batches_per_epoch = trainer.num_training_batches
         print(
-            f"\n=== Epoch {trainer.current_epoch} started | total_batches={total_batches} ===",
+            f"\n=== Epoch {trainer.current_epoch} started | batches_per_epoch={batches_per_epoch} ===",
             flush=True,
         )
 
@@ -26,21 +26,22 @@ class TextProgressCallback(pl.Callback):
         if trainer.global_step == 0 or trainer.global_step % self.print_every_n_steps != 0:
             return
 
-        total_batches = trainer.num_training_batches
+        batches_per_epoch = trainer.num_training_batches
         batch_in_epoch = batch_idx + 1
-        epoch_pct = 100.0 * batch_in_epoch / max(total_batches, 1)
+        epoch_pct = 100.0 * batch_in_epoch / max(batches_per_epoch, 1)
         max_steps = trainer.max_steps if trainer.max_steps is not None else -1
-        step_pct = 100.0 * trainer.global_step / max(max_steps, 1) if max_steps > 0 else 0.0
+        optimizer_step = trainer.global_step
+        run_pct = 100.0 * optimizer_step / max(max_steps, 1) if max_steps > 0 else 0.0
 
         train_loss = trainer.callback_metrics.get("train_loss")
         loss_str = self._metric_to_str(train_loss) if train_loss is not None else "n/a"
 
         print(
             f"[train] epoch={trainer.current_epoch} "
-            f"batch={batch_in_epoch}/{total_batches} "
+            f"batch={batch_in_epoch}/{batches_per_epoch} "
             f"epoch_progress={epoch_pct:.2f}% "
-            f"global_step={trainer.global_step}/{max_steps} "
-            f"step_progress={step_pct:.2f}% "
+            f"optimizer_step={optimizer_step}/{max_steps} "
+            f"run_progress={run_pct:.2f}% "
             f"train_loss={loss_str}",
             flush=True,
         )
@@ -52,7 +53,7 @@ class TextProgressCallback(pl.Callback):
 
         print(
             f"[val] epoch={trainer.current_epoch} "
-            f"global_step={trainer.global_step} "
+            f"optimizer_step={trainer.global_step} "
             f"val_loss={self._metric_to_str(val_loss)}",
             flush=True,
         )

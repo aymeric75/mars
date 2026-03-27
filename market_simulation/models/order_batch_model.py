@@ -71,6 +71,25 @@ class OrderBatchModel(nn.Module, PyTorchModelHubMixin):
         out = self.decoder(input_ids=input_ids, attention_mask=attention_mask, use_cache=False)  # type: ignore
         return out.logits
 
+    def forward_hidden_states(self, input_ids: Tensor, attention_mask: Tensor | None = None) -> Tensor:
+        """Return the last hidden states for the input sequence."""
+        if input_ids.dtype != torch.long:
+            raise TypeError(f"input_ids must be torch.long, got {input_ids.dtype}")
+        out = self.decoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            use_cache=False,
+            output_hidden_states=True,
+        )  # type: ignore
+        hidden_states = out.hidden_states
+        if hidden_states is None:
+            raise RuntimeError("Decoder did not return hidden states")
+        return hidden_states[-1]
+
+    def encode(self, input_ids: Tensor, attention_mask: Tensor | None = None) -> Tensor:
+        """Return one feature vector per sample, using the last token representation."""
+        return self.forward_hidden_states(input_ids=input_ids, attention_mask=attention_mask)[:, -1, :]
+
     @torch.no_grad()
     def sample_next(self, input_ids: Tensor, temperature: float = 1.0, top_k: int | None = None) -> Tensor:
         """Sample the *next* token (one step) given a prefix.

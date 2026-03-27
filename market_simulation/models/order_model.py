@@ -152,6 +152,19 @@ class OrderModel(nn.Module, PyTorchModelHubMixin):
         inputs = inputs.reshape(features.size(0), num_tokens, self.emb_dim)
         return inputs
 
+    def forward_hidden_states(self, features: Tensor) -> Tensor:
+        """Return the last hidden states for the input sequence."""
+        tokens = self.tokenize(features)
+        out = self.decoder(inputs_embeds=tokens, use_cache=False, output_hidden_states=True)  # type: ignore
+        hidden_states = out.hidden_states
+        if hidden_states is None:
+            raise RuntimeError("Decoder did not return hidden states")
+        return hidden_states[-1]
+
+    def encode(self, features: Tensor) -> Tensor:
+        """Return one feature vector per sample, using the last token representation."""
+        return self.forward_hidden_states(features)[:, -1, :]
+
     def forward(self, features: Tensor) -> Tensor:
         """Forward pass."""
         tokens = self.tokenize(features)
