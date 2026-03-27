@@ -42,20 +42,20 @@ class FuturePnLRegressionHead(nn.Module):
 
 
 class ProfitableTradeProbabilityHead(nn.Module):
-    """Predict whether the future return will exceed trading costs."""
+    """Predict unprofitable / unclear / profitable trade classes."""
 
     def __init__(self, input_dim: int, hidden_dim: int = 128, dropout: float = 0.1) -> None:
         super().__init__()
         self.trunk = _make_mlp(int(input_dim), int(hidden_dim), float(dropout))
-        self.out = nn.Linear(int(hidden_dim), 1)
+        self.out = nn.Linear(int(hidden_dim), 3)
 
     def forward(self, features: Tensor) -> Tensor:
         if features.dim() != 2:
             raise ValueError("features must be a 2D tensor of shape (B, D)")
-        return self.out(self.trunk(features)).squeeze(-1)
+        return self.out(self.trunk(features))
 
     def probability(self, features: Tensor) -> Tensor:
-        return torch.sigmoid(self(features))
+        return torch.softmax(self(features), dim=-1)
 
 
 class ReturnHeads(nn.Module):
@@ -103,7 +103,7 @@ class ReturnHeads(nn.Module):
         )
         self.return_head = nn.Linear(int(hidden_dim), 1)
         self.pnl_head = nn.Linear(int(hidden_dim), 1)
-        self.profit_head = nn.Linear(int(hidden_dim), 1)
+        self.profit_head = nn.Linear(int(hidden_dim), 3)
 
     def _combine_features(self, order_features: Tensor | None, batch_features: Tensor | None) -> Tensor:
         parts: list[Tensor] = []
@@ -138,7 +138,7 @@ class ReturnHeads(nn.Module):
         return {
             "pred_return": self.return_head(hidden).squeeze(-1),
             "pred_pnl": self.pnl_head(hidden).squeeze(-1),
-            "profit_logit": self.profit_head(hidden).squeeze(-1),
+            "profit_logits": self.profit_head(hidden),
         }
 
     def profit_probability(
@@ -148,7 +148,7 @@ class ReturnHeads(nn.Module):
         batch_features: Tensor | None = None,
     ) -> Tensor:
         outputs = self(order_features=order_features, batch_features=batch_features)
-        return torch.sigmoid(outputs["profit_logit"])
+        return torch.softmax(outputs["profit_logits"], dim=-1)
 
 
 __all__ = [

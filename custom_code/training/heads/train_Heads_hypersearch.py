@@ -336,7 +336,12 @@ class HeadsLightningModule(pl.LightningModule):
         return torch.tensor(pnls, dtype=torch.float32, device=self.device)
 
     def _profit_targets(self, batch: dict[str, torch.Tensor]) -> torch.Tensor:
-        return (self._pnl_targets(batch) > 0).to(dtype=torch.float32)
+        pnl = self._pnl_targets(batch)
+        margin = float(self.hparams.pnl_margin)
+        targets = torch.full_like(pnl, fill_value=1, dtype=torch.long)
+        targets = torch.where(pnl < -margin, torch.zeros_like(targets), targets)
+        targets = torch.where(pnl > margin, torch.full_like(targets, fill_value=2), targets)
+        return targets
 
     def _encode_features(self, batch: dict[str, torch.Tensor]) -> tuple[Tensor | None, Tensor | None]:
         order_features = None
@@ -381,21 +386,11 @@ class HeadsLightningModule(pl.LightningModule):
             self.log(f"{stage}_pnl_mae", pnl_mae, on_step=on_step, on_epoch=True, sync_dist=True)
 
         if self.hparams.head_type in {"probability", "multitask"}:
-            target_pnl = self._pnl_targets(batch)
-            keep_mask = torch.abs(target_pnl) > float(self.hparams.pnl_margin)
-            kept_fraction = keep_mask.to(dtype=torch.float32).mean()
-            self.log(f"{stage}_probability_kept_fraction", kept_fraction, on_step=on_step, on_epoch=True, sync_dist=True)
-
-            if torch.any(keep_mask):
-                filtered_pnl = target_pnl[keep_mask]
-                filtered_logits = outputs["profit_logit"][keep_mask]
-                profit_target = (filtered_pnl > 0).to(dtype=torch.float32)
-                probability_loss = F.binary_cross_entropy_with_logits(filtered_logits, profit_target)
-                probability_acc = torch.mean(((filtered_logits > 0) == (profit_target > 0.5)).to(dtype=torch.float32))
-            else:
-                probability_loss = outputs["profit_logit"].sum() * 0.0
-                probability_acc = torch.zeros((), device=self.device)
-
+            profit_target = self._profit_targets(batch)
+            probability_loss = F.cross_entropy(outputs["profit_logits"], profit_target)
+            probability_acc = torch.mean(
+                (torch.argmax(outputs["profit_logits"], dim=-1) == profit_target).to(dtype=torch.float32)
+            )
             total_loss = total_loss + float(self.hparams.probability_loss_weight) * probability_loss
             self.log(f"{stage}_probability_loss", probability_loss, on_step=on_step, on_epoch=True, sync_dist=True)
             self.log(f"{stage}_probability_acc", probability_acc, on_step=on_step, on_epoch=True, sync_dist=True)

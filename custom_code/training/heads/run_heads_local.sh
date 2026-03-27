@@ -21,7 +21,7 @@ SCENARIO=order_model
 TRADE_SIDE=long
 TRAIN_SAMPLES_PER_EPOCH=3072 
 VAL_SAMPLES=1024 
-MAX_STEPS=20000
+MAX_STEPS=5000
 PNL_MARGIN=1000
 
 #HEAD_TYPE="${HEAD_TYPE:-regression}"
@@ -39,8 +39,8 @@ echo "$TRAIN_DIR"
 echo "$RUN_ROOT"
 
 LRS=(1e-4 3e-4)
-BSS=(8 16)
-HIDDEN_DIMS=(128)
+BSS=(8 16 32)
+HIDDEN_DIMS=(128 256)
 
 for LR in "${LRS[@]}"; do
   for BS in "${BSS[@]}"; do

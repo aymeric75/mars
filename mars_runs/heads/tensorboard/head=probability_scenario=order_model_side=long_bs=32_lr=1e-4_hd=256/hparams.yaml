@@ -1,11 +1,12 @@
-head_type: regression
+head_type: probability
 scenario: order_model
 trade_side: long
 trade_quantity: 1.0
 order_model_ckpt: /home/random/projects/MarS/mars_runs/order_model/tensorboard/bs=8_lr=1e-4/step=step=13920-val=val_loss=3.2903.ckpt
 order_batch_ckpt: /home/random/projects/MarS/mars_runs/order_batch_model/tensorboard/bs=2_lr=1e-4/step=step=0-val=val_loss=1.8096.ckpt
-hidden_dim: 128
+hidden_dim: 256
 dropout: 0.1
 lr: 0.0001
+pnl_margin: 1000.0
 regression_loss_weight: 1.0
 probability_loss_weight: 1.0
