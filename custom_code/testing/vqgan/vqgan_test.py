@@ -29,7 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ckpt_path",
         type=Path,
-        default=REPO_ROOT / "mars_runs" / "vqgan" / "2500steps" / "tensorboard" / "bs=8_lr=1e-5" / "step=4606-val_rec_loss=0.038047.ckpt",
+        default=REPO_ROOT / "mars_runs" / "vqgan" / "tensorboard" / "bs=8_lr=1.5e-5" / "step=14584-val_rec_loss=0.031307.ckpt",
     )
     parser.add_argument(
         "--data_dir",
@@ -52,6 +52,12 @@ def parse_args() -> argparse.Namespace:
         default=Path(__file__).resolve().parent / "outputs",
     )
     parser.add_argument("--num_samples", type=int, default=5)
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Optional random seed for reproducible test-sample selection.",
+    )
     parser.add_argument("--learning_rate", type=float, default=4.5e-6)
     parser.add_argument(
         "--device",
@@ -165,6 +171,7 @@ def reconstruct_samples(
     num_samples: int,
     output_dir: Path,
     device: str,
+    seed: int | None = None,
 ) -> None:
     originals_dir = output_dir / "originals"
     reconstructions_dir = output_dir / "reconstructions"
@@ -173,9 +180,12 @@ def reconstruct_samples(
     if total == 0:
         raise RuntimeError("The dataset is empty; nothing to reconstruct.")
 
+    rng = np.random.default_rng(seed)
+    sampled_indices = rng.choice(len(dataset), size=total, replace=False)
+
     with torch.no_grad():
-        for idx in range(total):
-            sample = dataset[idx]
+        for sample_num, dataset_idx in enumerate(sampled_indices):
+            sample = dataset[int(dataset_idx)]
             image_hwc = sample["image"].astype(np.float32, copy=False)
             batch = {"image": torch.from_numpy(image_hwc).unsqueeze(0).to(device)}
             x = model.model.get_input(batch, model.model.image_key)
@@ -187,13 +197,13 @@ def reconstruct_samples(
             )
             file_idx = int(sample["file_idx"])
             minute_id = int(sample["minute_id"])
-            stem = f"sample_{idx:02d}_file{file_idx:02d}_minute{minute_id:03d}"
+            stem = f"sample_{sample_num:02d}_file{file_idx:02d}_minute{minute_id:03d}"
 
             save_order_image_matrices(original_order_image, originals_dir / f"{stem}_original.png")
             save_order_image_matrices(reconstruction_order_image, reconstructions_dir / f"{stem}_reconstruction.png")
 
             print(
-                f"Saved sample {idx + 1}/{total}: file_idx={file_idx}, minute_id={minute_id}",
+                f"Saved sample {sample_num + 1}/{total}: dataset_idx={int(dataset_idx)}, file_idx={file_idx}, minute_id={minute_id}",
                 flush=True,
             )
 
@@ -221,6 +231,7 @@ def main() -> None:
         num_samples=int(args.num_samples),
         output_dir=output_dir,
         device=args.device,
+        seed=args.seed,
     )
 
     print(f"Finished. Images saved under {output_dir}", flush=True)

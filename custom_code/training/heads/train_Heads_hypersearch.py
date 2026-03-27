@@ -31,6 +31,7 @@ from market_simulation.models.utils_heads import (
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+CLASS_LABELS = ["unprofitable", "unclear", "profitable"]
 
 
 class HeadsChunkBatchSampler(BatchSampler):
@@ -156,6 +157,8 @@ class HeadsDataModule(pl.LightningDataModule):
         self.val_ds: OnlineReturnHeadDataset | None = None
 
     def setup(self, stage: str | None = None):
+        if self.train_ds is not None and self.val_ds is not None:
+            return
         train_files = sorted(Path(self.train_dir).glob(self.pattern))
         val_files = sorted(Path(self.val_dir).glob(self.pattern))
         self.train_ds = OnlineReturnHeadDataset(
@@ -277,6 +280,7 @@ class HeadsLightningModule(pl.LightningModule):
             dropout=float(dropout),
         )
         self.lr = float(lr)
+        self.register_buffer("probability_class_weights", torch.ones(3, dtype=torch.float32), persistent=False)
 
     def _pnl_targets(self, batch: dict[str, torch.Tensor]) -> torch.Tensor:
         bid_prices = batch["bid_prices"].tolist()
@@ -387,7 +391,11 @@ class HeadsLightningModule(pl.LightningModule):
 
         if self.hparams.head_type in {"probability", "multitask"}:
             profit_target = self._profit_targets(batch)
-            probability_loss = F.cross_entropy(outputs["profit_logits"], profit_target)
+            probability_loss = F.cross_entropy(
+                outputs["profit_logits"],
+                profit_target,
+                weight=self.probability_class_weights,
+            )
             probability_acc = torch.mean(
                 (torch.argmax(outputs["profit_logits"], dim=-1) == profit_target).to(dtype=torch.float32)
             )
@@ -406,6 +414,34 @@ class HeadsLightningModule(pl.LightningModule):
 
     def configure_optimizers(self):
         return torch.optim.AdamW(self.model.parameters(), lr=self.lr)
+
+
+def print_probability_class_balance(
+    loader: DataLoader,
+    model: HeadsLightningModule,
+    split: str,
+    max_samples: int | None = None,
+) -> torch.Tensor:
+    counts = torch.zeros(3, dtype=torch.long)
+    seen = 0
+
+    for batch in loader:
+        targets = model._profit_targets(batch).detach().cpu()
+        if max_samples is not None:
+            remaining = max_samples - seen
+            if remaining <= 0:
+                break
+            targets = targets[:remaining]
+        counts += torch.bincount(targets, minlength=3)
+        seen += int(targets.numel())
+        if max_samples is not None and seen >= max_samples:
+            break
+
+    rates = counts.to(dtype=torch.float32) / max(seen, 1)
+    print(f"{split} probability-class balance over {seen} samples")
+    for idx, label in enumerate(CLASS_LABELS):
+        print(f"{split} {label}={int(counts[idx])} ({float(rates[idx]):.6f})")
+    return counts
 
 
 def main():
@@ -553,6 +589,19 @@ def main():
         auto_insert_metric_name=False,
     )
     progress_cb = TextProgressCallback(print_every_n_steps=args.print_every_n_steps)
+
+    if args.head_type in {"probability", "multitask"}:
+        dm.setup()
+        train_counts = print_probability_class_balance(dm.train_dataloader(), model, split="train", max_samples=4096)
+        print_probability_class_balance(dm.val_dataloader(), model, split="val", max_samples=None)
+        train_counts_f = train_counts.to(dtype=torch.float32)
+        class_weights = train_counts_f.sum() / (len(CLASS_LABELS) * train_counts_f.clamp_min(1.0))
+        class_weights = class_weights / class_weights.mean()
+        model.probability_class_weights.copy_(class_weights)
+        print(
+            "probability class weights="
+            + ", ".join(f"{label}={float(weight):.6f}" for label, weight in zip(CLASS_LABELS, class_weights.tolist()))
+        )
 
     trainer = pl.Trainer(
         default_root_dir=run_dir,

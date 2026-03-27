@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import DataLoader
 
@@ -22,6 +23,27 @@ def collate_batch(batch):
     return {key: torch.stack([sample[key].contiguous().clone() for sample in batch], dim=0) for key in keys}
 
 
+def save_confusion_matrix(confusion: torch.Tensor, output_path: Path) -> None:
+    fig, ax = plt.subplots(figsize=(6, 5))
+    matrix = confusion.cpu().numpy()
+    image = ax.imshow(matrix, cmap="Blues")
+    fig.colorbar(image, ax=ax)
+    ax.set_xticks(range(len(LABELS)), LABELS, rotation=20, ha="right")
+    ax.set_yticks(range(len(LABELS)), LABELS)
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("True")
+    ax.set_title("Confusion Matrix")
+
+    for row in range(matrix.shape[0]):
+        for col in range(matrix.shape[1]):
+            ax.text(col, row, str(int(matrix[row, col])), ha="center", va="center", color="black")
+
+    fig.tight_layout()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=160, bbox_inches="tight")
+    plt.close(fig)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--heads_ckpt", required=True)
@@ -36,6 +58,7 @@ def main() -> None:
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--num_samples", type=int, default=64)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--output_path", default=str(Path(__file__).resolve().parent / "confusion_matrix.png"))
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -116,10 +139,19 @@ def main() -> None:
                 )
 
     print(f"accuracy={(correct / total):.6f}" if total else "accuracy=nan")
-    print("confusion_matrix=true_rows_pred_cols")
-    for row in confusion.tolist():
-        print(row)
+    output_path = Path(args.output_path)
+    save_confusion_matrix(confusion, output_path)
+    print(f"confusion_matrix_path={output_path}")
 
 
 if __name__ == "__main__":
     main()
+
+
+# Example:
+# python /home/random/projects/MarS/custom_code/testing/heads/profitable_trade_probability.py \
+#   --heads_ckpt /home/random/projects/MarS/mars_runs/heads/tensorboard/head=probability_scenario=order_model_side=long_bs=8_lr=1e-4_hd=128/step=2880-val_loss=6.40123367e-01.ckpt \
+#   --order_model_ckpt /home/random/projects/MarS/mars_runs/order_model/tensorboard/bs=8_lr=1e-4/step=step=13920-val=val_loss=3.2903.ckpt \
+#   --data_dir /home/random/projects/MarS/data/test \
+#   --num_samples 64 \
+#   --output_path /home/random/projects/MarS/custom_code/testing/heads/confusion_matrix.png

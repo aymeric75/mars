@@ -17,12 +17,12 @@ VAL_DIR="${VAL_DIR:-$PROJECT_ROOT/data/val}"
 
 
 HEAD_TYPE=probability # regression, multitask, probability
-SCENARIO=order_model
+SCENARIO=order_batch
 TRADE_SIDE=long
-TRAIN_SAMPLES_PER_EPOCH=3072 
-VAL_SAMPLES=1024 
+TRAIN_SAMPLES_PER_EPOCH=512
+VAL_SAMPLES=128
 MAX_STEPS=5000
-PNL_MARGIN=1000
+PNL_MARGIN=100
 
 #HEAD_TYPE="${HEAD_TYPE:-regression}"
 #SCENARIO="${SCENARIO:-order_model}"
@@ -32,7 +32,7 @@ TRADE_QUANTITY="${TRADE_QUANTITY:-1.0}"
 #VAL_SAMPLES="${VAL_SAMPLES:-1024}"
 
 ORDER_MODEL_CKPT="${ORDER_MODEL_CKPT:-$PROJECT_ROOT/mars_runs/order_model/tensorboard/bs=8_lr=1e-4/step=step=13920-val=val_loss=3.2903.ckpt}"
-ORDER_BATCH_CKPT="${ORDER_BATCH_CKPT:-$PROJECT_ROOT/mars_runs/order_batch_model/tensorboard/bs=2_lr=1e-4/step=step=0-val=val_loss=1.8096.ckpt}"
+ORDER_BATCH_CKPT="${ORDER_BATCH_CKPT:-$PROJECT_ROOT/mars_runs/order_batch_model/tensorboard/bs=2_lr=1e-4/step=step=0-val=val_loss=2.3559.ckpt}"
 VQ_CKPT_DIR="${VQ_CKPT_DIR:-$PROJECT_ROOT/mars_runs/vqgan/2500steps/tensorboard/bs=8_lr=1e-5}"
 
 echo "$TRAIN_DIR"
@@ -72,9 +72,9 @@ for LR in "${LRS[@]}"; do
           --lr "$LR" \
           --cache_size 2 \
           --train_samples_per_val "$TRAIN_SAMPLES_PER_EPOCH" \
-          --train_chunk_size 128 \
+          --train_chunk_size 32 \
           --val_num_samples "$VAL_SAMPLES" \
-          --val_chunk_size 128 \
+          --val_chunk_size 32 \
           --max_steps "$MAX_STEPS" \
           --num_workers 0 \
           --precision bf16-mixed \

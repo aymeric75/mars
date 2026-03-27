@@ -67,7 +67,13 @@ def _build_converters_from_json(converter_json_path: str) -> ImageConverters:
 
 
 def create_mars_order_type_column(messages: pd.DataFrame) -> None:
-    """Map raw message types and directions to the 3 MarS order classes."""
+    """Map raw message types and directions to the 3 MarS order classes.
+
+    MarS_type meanings:
+    0 = passive sell limits and aggressive buy limits
+    1 = passive buy limits and aggressive sell limits
+    2 = cancel/delete events
+    """
     messages["Mars_type"] = 0
     messages.loc[messages["Message_Type"].isin([2, 3]), "Mars_type"] = 2
     messages.loc[
@@ -75,6 +81,43 @@ def create_mars_order_type_column(messages: pd.DataFrame) -> None:
         | ((messages["Message_Type"] == 4) & (messages["Direction"] == 1)),
         "Mars_type",
     ] = 1
+
+
+def create_subtle_order_type_column(messages: pd.DataFrame) -> None:
+    """Map raw message types and directions to the 6 subtle order classes.
+
+    Subtle_type meanings:
+    0 = limit sell passive
+    1 = limit buy passive
+    2 = limit sell aggressive
+    3 = limit buy aggressive
+    4 = cancel/delete limit sell passive
+    5 = cancel/delete limit buy passive
+    """
+    message_type = messages["Message_Type"].to_numpy(copy=False)
+    direction = messages["Direction"].to_numpy(copy=False)
+    subtle_type = np.full(len(messages), -1, dtype=np.int8)
+
+    subtle_type[(message_type == 1) & (direction == 1)] = 0
+    subtle_type[(message_type == 1) & (direction == -1)] = 1
+    subtle_type[(message_type == 4) & (direction == 1)] = 2
+    subtle_type[(message_type == 4) & (direction == -1)] = 3
+    subtle_type[np.isin(message_type, [2, 3]) & (direction == 1)] = 4
+    subtle_type[np.isin(message_type, [2, 3]) & (direction == -1)] = 5
+
+    invalid_mask = subtle_type < 0
+    if np.any(invalid_mask):
+        invalid_rows = (
+            messages.loc[invalid_mask, ["Message_Type", "Direction"]]
+            .drop_duplicates()
+            .to_dict(orient="records")
+        )
+        raise ValueError(
+            "Unsupported Message_Type/Direction combination for Subtle_type: "
+            f"{invalid_rows}"
+        )
+
+    messages["Subtle_type"] = subtle_type
 
 
 def from_messages_and_snapshots_to_image_features(

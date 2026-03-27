@@ -19,8 +19,8 @@ VQ_CONFIG="$PROJECT_ROOT/third_party/latent_diffusion/models/first_stage_models/
 # Point this to the pretrained VQ checkpoint you want to fine-tune from.
 INIT_CKPT="$PROJECT_ROOT/third_party/latent_diffusion/models/first_stage_models/vq-f4/model.ckpt"
 
-LRS=(4.5e-6 1e-5)
-BSS=(4 8)
+LRS=(1e-5 1.5e-5)
+BSS=(2 4 8)
 
 for LR in "${LRS[@]}"; do
   for BS in "${BSS[@]}"; do
@@ -40,7 +40,7 @@ for LR in "${LRS[@]}"; do
       --vq_config "$VQ_CONFIG"
       --batch_size "$BS"
       --lr "$LR"
-      --max_steps 5000
+      --max_steps 15000
       --num_workers 2
       --precision 32
       --matmul_precision high

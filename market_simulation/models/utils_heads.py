@@ -557,7 +557,7 @@ class OnlineReturnHeadDataset(Dataset):
         if isinstance(tokens, (tuple, list)):
             tokens = tokens[0]
         tokens = tokens.view(images.size(0), -1).to(dtype=torch.long)
-        return tokens.reshape(len(local_positions), 16, -1).cpu()
+        return tokens.reshape(len(anchor_indices), 16, -1).cpu()
 
     def _build_return_targets(
         self,
