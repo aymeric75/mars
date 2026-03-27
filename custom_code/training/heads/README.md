@@ -25,6 +25,6 @@ For the newer 3-class probability head, the validation loss looks more stable:
 The validation accuracy is also fairly high, which suggests the 3-class formulation is easier to learn than the previous binary setup:
 
 <p>
-  <img src="./figures/val_proba_loss_30sec_3classes.png" alt="3-class probability head validation loss" width="48%">
-  <img src="./figures/val_proba_acc_30sec_3classes.png" alt="3-class probability head validation accuracy" width="48%">
+  <img src="./figures/val_proba_loss_30sec_3classes.png" alt="3-class probability head validation loss" width="35%">
+  <img src="./figures/val_proba_acc_30sec_3classes.png" alt="3-class probability head validation accuracy" width="35%">
 </p>
