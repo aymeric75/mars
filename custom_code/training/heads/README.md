@@ -37,3 +37,11 @@ The hypersearch was not finished because it had to be stopped early.
 Possible next ideas:
 - unfreeze the last MarS transformer block after a short warmup, so the backbone can adapt a bit to the trading target
 - keep the 3-class head, but calibrate the final probabilities afterward with temperature scaling or isotonic regression
+
+## Training perfs per configuration
+
+| configuration | small threshold: 100 | big threshold: 1000 |
+| --- | --- | --- |
+| order_model | - | - |
+| order_batch | - | - |
+| both | - | - |
