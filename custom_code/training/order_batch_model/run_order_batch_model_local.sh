@@ -14,7 +14,7 @@ mkdir -p "$RUN_ROOT" "$LOG_ROOT"
 
 TRAIN_DIR="$PROJECT_ROOT/data/train"
 VAL_DIR="$PROJECT_ROOT/data/val"
-VQ_CKPT_DIR="$PROJECT_ROOT/mars_runs/vqgan/2500steps/tensorboard/bs=8_lr=1e-5"
+VQ_CKPT_DIR="$PROJECT_ROOT/mars_runs/vqgan/tensorboard/bs=8_lr=1.5e-5"
 
 # 
 
@@ -22,7 +22,7 @@ echo "$TRAIN_DIR"
 echo "$RUN_ROOT"
 
 LRS=(1e-4 3e-4)
-BSS=(2 4)
+BSS=(2 4 8)
 
 for LR in "${LRS[@]}"; do
   for BS in "${BSS[@]}"; do
