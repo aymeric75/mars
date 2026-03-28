@@ -34,6 +34,11 @@ Validation uses the same temporal-spacing + chunk-shuffle logic as training, wit
 
 ## Hyperparameter search
 
+```bash
+LRS=(1e-4 3e-4)
+BSS=(2 4 8)
+```
+
 Best curve in this sweep: `bs=4, lr=1e-4` (`val_loss ~= 1.70`). 
 
 <p align="center">
