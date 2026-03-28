@@ -9,7 +9,7 @@ Eval set: 17-11-2025 -> 19-11-2025
 
 ## Data
 
-Each sample is a sequence of the last 16 one-minute order images before a valid anchor time. These order images are converted into discrete VQ tokens with the best trained VQGAN checkpoint, i.e. the one with validation reconstruction loss `0.031307`.
+Each sample ends at a valid anchor time, i.e. a timestamp with enough history to build the previous 16 one-minute order images. These 16 images are converted into discrete VQ tokens with the best trained VQGAN checkpoint, i.e. the one with validation reconstruction loss `0.031307`.
 
 
 ## Train data sampling
@@ -18,7 +18,7 @@ Sampling is close in spirit to the `Order Model` sampler, but not identical.
 
 For each file, the code first keeps only valid anchor times during market hours, then:
 
-- groups anchors by 15-minute temporal blocks
+- groups anchor times into 15-minute sampler blocks (this is only for sampling; each sample still contains 16 minutes of history)
 - inside each block, keeps anchors at least 30 seconds apart
 - splits the selected anchors into chunks (size `128` in the sweep)
 - shuffles the chunks
