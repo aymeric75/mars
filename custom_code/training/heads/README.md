@@ -40,7 +40,7 @@ Possible next ideas:
 
 ## Training perfs per configuration
 
-For seed `44`, the sampled probability-class balance was:
+For seed `44` with threshold `100` (`PNL_MARGIN=100`), the sampled probability-class balance was:
 
 ```text
 train probability-class balance over 512 samples
