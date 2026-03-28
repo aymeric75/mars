@@ -43,15 +43,15 @@ Possible next ideas:
 For seed `44`, the sampled probability-class balance was:
 
 ```text
-train probability-class balance over 2048 samples
-train unprofitable=1325 (0.646973)
-train unclear=179 (0.087402)
-train profitable=544 (0.265625)
+train probability-class balance over 512 samples
+train unprofitable=320 (0.625000)
+train unclear=32 (0.062500)
+train profitable=160 (0.312500)
 
-val probability-class balance over 512 samples
-val unprofitable=337 (0.658203)
-val unclear=15 (0.029297)
-val profitable=160 (0.312500)
+val probability-class balance over 256 samples
+val unprofitable=177 (0.691406)
+val unclear=15 (0.058594)
+val profitable=64 (0.250000)
 ```
 
 The following table shows the best probability accuracy over each run:
