@@ -32,6 +32,8 @@ from market_simulation.models.utils_heads import (
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CLASS_LABELS = ["unprofitable", "unclear", "profitable"]
+ANSI_BLUE = "\033[34m"
+ANSI_RESET = "\033[0m"
 
 
 class HeadsChunkBatchSampler(BatchSampler):
@@ -438,9 +440,17 @@ def print_probability_class_balance(
             break
 
     rates = counts.to(dtype=torch.float32) / max(seen, 1)
-    print(f"{split} probability-class balance over {seen} samples")
-    for idx, label in enumerate(CLASS_LABELS):
-        print(f"{split} {label}={int(counts[idx])} ({float(rates[idx]):.6f})")
+    lines = [f"{split} probability-class balance over {seen} samples"]
+    lines.extend(
+        f"{split} {label}={int(counts[idx])} ({float(rates[idx]):.6f})"
+        for idx, label in enumerate(CLASS_LABELS)
+    )
+    print()
+    print(f"{ANSI_BLUE}{'=' * 56}")
+    for line in lines:
+        print(line)
+    print(f"{'=' * 56}{ANSI_RESET}")
+    print()
     return counts
 
 
@@ -594,6 +604,7 @@ def main():
         dm.setup()
         train_counts = print_probability_class_balance(dm.train_dataloader(), model, split="train", max_samples=4096)
         print_probability_class_balance(dm.val_dataloader(), model, split="val", max_samples=None)
+        exit()
         train_counts_f = train_counts.to(dtype=torch.float32)
         class_weights = train_counts_f.sum() / (len(CLASS_LABELS) * train_counts_f.clamp_min(1.0))
         class_weights = class_weights / class_weights.mean()

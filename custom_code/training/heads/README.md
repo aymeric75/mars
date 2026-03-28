@@ -40,7 +40,23 @@ Possible next ideas:
 
 ## Training perfs per configuration
 
-| configuration | small threshold: 100 | big threshold: 1000 |
+For seed `44`, the sampled probability-class balance was:
+
+```text
+train probability-class balance over 2048 samples
+train unprofitable=1325 (0.646973)
+train unclear=179 (0.087402)
+train profitable=544 (0.265625)
+
+val probability-class balance over 512 samples
+val unprofitable=337 (0.658203)
+val unclear=15 (0.029297)
+val profitable=160 (0.312500)
+```
+
+The following table shows the best probability accuracy over each run:
+
+|  | small threshold: 100 | big threshold: 1000 |
 | --- | --- | --- |
 | order_model | - | - |
 | order_batch | - | - |
