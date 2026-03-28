@@ -37,7 +37,7 @@ Validation uses the same temporal-spacing + chunk-shuffle logic as training, wit
 Best curve in this sweep: `bs=4, lr=1e-4` (`val_loss ~= 1.70`). 
 
 <p align="center">
-  <img src="../../../mars_runs/order_batch_model/on_best_vqgan_0_031307/val_loss_order_batch.png" alt="Order batch model validation loss across hyperparameter runs" width="520" />
+  <img src="../../../mars_runs/order_batch_model/on_best_vqgan_0_031307/val_loss_order_batch.png" alt="Order batch model validation loss across hyperparameter runs" width="350" />
 </p>
 
 The `bs=8, lr=1e-4` stopped much earlier, so the **search should be continued !**
