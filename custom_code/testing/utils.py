@@ -26,13 +26,6 @@ from market_simulation.models.order_batch_model import OrderBatchModel
 from market_simulation.models.order_model import OrderModel
 
 
-
-
-
-
-
-
-
 # Load the Order Model
 def load_order_model(ckpt_path: str, device: str = "cpu", K: int = 1024):
     ckpt = torch.load(ckpt_path, map_location="cpu")
@@ -46,7 +39,6 @@ def load_order_model(ckpt_path: str, device: str = "cpu", K: int = 1024):
     model.load_state_dict(state_dict, strict=True)
     model.to(device).eval()
     return model
-
 
 
 # Load the Order Batch Model
@@ -73,10 +65,10 @@ def load_order_batch_model(ckpt_path: str, device: str = "cpu"):
     return model
 
 
- # Load the Ensemble Model (PT file)
+# Load the Ensemble Model (PT file)
 def load_ensemble_model(ckpt_path: str, device: str = "cpu", order_vocab_size: int = 49152):
     ckpt = torch.load(ckpt_path, map_location="cpu")  # this is the dict saved by save_checkpoint()
-    state_dict = ckpt["model_state_dict"]             # <-- critical: NOT "state_dict"
+    state_dict = ckpt["model_state_dict"]  # <-- critical: NOT "state_dict"
 
     model = EnsembleModel(order_vocab_size=int(order_vocab_size))
     model.load_state_dict(state_dict, strict=True)

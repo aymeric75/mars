@@ -6,11 +6,13 @@ from datasets import load_dataset
 parquet_dir = "/scratch/project_2012747/mars_data/order_model/train/final"
 files = sorted(glob.glob(f"{parquet_dir}/*_features.parquet"))
 
+
 def add_f4(batch):
     t = np.asarray(batch["Time"], dtype=np.int64)
     t_sec = (t // 1_000_000_000).astype(np.int64)
     batch["f4"] = np.clip(t_sec - 34200, 0, 23399).astype(np.int64)
     return batch
+
 
 for path in files:
     print(f"Processing {path}...")

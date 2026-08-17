@@ -76,7 +76,9 @@ def read_market_bounds(message_file: Path) -> tuple[int, int]:
     return int(rows[0]), int(rows[-1] + 1 - rows[0])
 
 
-def load_raw_rows(message_file: Path, snapshot_file: Path, market_start: int, start_offset: int, need_rows: int) -> tuple[pd.DataFrame, pd.DataFrame, bool]:
+def load_raw_rows(
+    message_file: Path, snapshot_file: Path, market_start: int, start_offset: int, need_rows: int
+) -> tuple[pd.DataFrame, pd.DataFrame, bool]:
     include_prev = start_offset > 0
     raw_start = market_start + start_offset - int(include_prev)
     raw_rows = need_rows + int(include_prev)
