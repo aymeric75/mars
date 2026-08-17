@@ -3,9 +3,7 @@ from market_simulation.utils import pkl_utils
 from report_stylized_facts import RolloutInfo, get_rollout_info
 
 
-
 rollout_infos = []
-
 
 
 from pathlib import Path
@@ -14,26 +12,24 @@ directory = Path("trade_infos")
 
 for path in directory.iterdir():
     if path.is_file():
-        print(path)          # path is already a Path object
-        print(type(path))    # <class 'pathlib.PosixPath'> (or WindowsPath)
+        print(path)  # path is already a Path object
+        print(type(path))  # <class 'pathlib.PosixPath'> (or WindowsPath)
 
-        #resssssss = pkl_utils.load_pkl_zstd(path)
+        # resssssss = pkl_utils.load_pkl_zstd(path)
         rollow_info = get_rollout_info(path)
         if rollow_info is not None:
             rollout_infos.append(rollow_info)
 
-    #get_rollout_info(Path("tradeInfos_snapshot_replay.zstd"))
+    # get_rollout_info(Path("tradeInfos_snapshot_replay.zstd"))
 
     #
 
 
 # ---- SHOULD add multiple rolloutinfos to the list
 pkl_utils.save_pkl_zstd(
-    rollout_infos,   # must be a list
-    Path("rollout_info_25_minutes.zstd")
+    rollout_infos,  # must be a list
+    Path("rollout_info_25_minutes.zstd"),
 )
-
-
 
 
 # # ---- load your saved minute lists ----

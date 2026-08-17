@@ -42,9 +42,7 @@ class OrderTokenizer(nn.Module, PyTorchModelHubMixin):
 
     def forward(self, features: Tensor) -> Tensor:
         """Tokenize inputs."""
-        
 
-        
         batch_size = features.size(0)
         dtype = next(self.parameters()).dtype
         assert features.size(1) == self.num_max_orders * self.dim_order
@@ -132,15 +130,17 @@ class OrderModel(nn.Module, PyTorchModelHubMixin):
             attention_dropout=dropout,
             use_cache=False,
             vocab_size=self.output_dim,
-            tie_word_embeddings=False # Aymeric: # Input token embeddings are bypassed via `inputs_embeds`, so they must not be tied to the LM head
+            tie_word_embeddings=False,  # Aymeric: # Input token embeddings are bypassed via `inputs_embeds`, so they must not be tied to the LM head
         )
-        #llama_config._attn_implementation = "flash_attention_2"
+        # llama_config._attn_implementation = "flash_attention_2"
         self.decoder = LlamaForCausalLM(llama_config)
-        self.decoder.model.embed_tokens.weight.requires_grad_(False) # Aymeric: # `embed_tokens` is never used when passing `inputs_embeds`; freeze to avoid unused-parameter issues in DDP
-        #self.linear_head = nn.Sequential( # Aymeric: sequential head already in LLAMA
+        self.decoder.model.embed_tokens.weight.requires_grad_(
+            False
+        )  # Aymeric: # `embed_tokens` is never used when passing `inputs_embeds`; freeze to avoid unused-parameter issues in DDP
+        # self.linear_head = nn.Sequential( # Aymeric: sequential head already in LLAMA
         #    nn.LayerNorm(emb_dim),
         #    nn.Linear(emb_dim, self.output_dim),
-        #)
+        # )
 
     def tokenize(self, features: Tensor) -> Tensor:
         """Tokenize inputs."""

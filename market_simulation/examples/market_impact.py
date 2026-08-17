@@ -5,7 +5,7 @@ import json
 import time
 import os
 
-#from multiprocessing import Pool
+# from multiprocessing import Pool
 import multiprocessing as mp
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
@@ -122,7 +122,7 @@ def execute_single_simulation(task: RolloutTask) -> list[TradeInfo]:
     # Set up the converter and model client for the background agent
 
     converter = load_portable_converter(str(CONVERTERS_JSON))
-    #model_client = ModelClient(model_name=C.model_serving.model_name, ip=C.model_serving.ip, port=C.model_serving.port)
+    # model_client = ModelClient(model_name=C.model_serving.model_name, ip=C.model_serving.ip, port=C.model_serving.port)
     model_client = RayModelClient()
 
     # Create agents for different simulation phases
@@ -176,18 +176,16 @@ def execute_single_simulation(task: RolloutTask) -> list[TradeInfo]:
     # Initialize and run the simulation
     env.push_events(create_exchange_events(exchange_config))
     for observation in env.env():
-        #t0 = time.perf_counter()
+        # t0 = time.perf_counter()
         action = observation.agent.get_action(observation)
         env.step(action)
-        #t1 = time.perf_counter()
-        #print(f"BackgroundAgent get_action total: {t1 - t0:.6f}s")
+        # t1 = time.perf_counter()
+        # print(f"BackgroundAgent get_action total: {t1 - t0:.6f}s")
 
     # Extract and return trade information
     trade_infos: list[TradeInfo] = extract_trade_information(exchange, task.symbol, task.start_time, task.end_time)
     logging.info(f"Got {len(trade_infos)} trade infos from {task.rollout_index}th simulation.")
     return trade_infos
-
-
 
 
 def load_portable_converter(json_path: str):
@@ -538,7 +536,6 @@ def visualize_rollouts(rollouts_path: Path) -> None:
 
 
 if __name__ == "__main__":
-
     mp.set_start_method("spawn", force=True)
     ctx = ray.init(namespace="mars", ignore_reinit_error=True)
     os.environ["MARS_RAY_ADDRESS"] = ctx.address_info["address"]
@@ -552,9 +549,8 @@ if __name__ == "__main__":
             lifetime="detached",
         ).remote()
 
-
     # Set up output directory for simulation results
-    output_dir = Path("market-impact-example") #Path(C.directory.output_root_dir) / "market-impact-example"
+    output_dir = Path("market-impact-example")  # Path(C.directory.output_root_dir) / "market-impact-example"
     output_dir.mkdir(parents=True, exist_ok=True)
     num_rollouts = 4
 
