@@ -17,6 +17,7 @@ from market_simulation.utils.avgtimer import AvgTimer
 
 forward_timer = AvgTimer("model_forward")
 
+
 @serve.deployment(
     num_replicas=1,
     ray_actor_options={"num_gpus": C.model_serving.num_gpus, "num_cpus": C.model_serving.num_cpus},
@@ -39,8 +40,6 @@ class OrderModelServing:
     #         logging.info("Model converted to half precision.")
     #     return order_model
 
-
-
     def _load_model(self):
         model = load_order_model(
             ckpt_path="step=step=3360-val=val_loss=3.7445.ckpt",
@@ -49,8 +48,6 @@ class OrderModelServing:
         if C.model_serving.fp16:
             model.half()
         return model
-
-
 
     @serve.batch(max_batch_size=C.model_serving.max_batch_size)  # type: ignore
     async def batch_inference(self, requests: list[npt.NDArray[np.int32]]) -> list[npt.NDArray[np.int32]]:
@@ -67,13 +64,12 @@ class OrderModelServing:
         with torch.no_grad():
             output_tensor: np.ndarray = self.model.sample(input_tensor, self.temperature).int().cpu().reshape((batch_size, -1)).numpy()
 
-        #forward_timer.add(time.perf_counter() - t0)
+        # forward_timer.add(time.perf_counter() - t0)
 
         dt = time.perf_counter() - t0
 
         with open("model_forward.log", "a") as f:
             f.write(f"{dt:.6f},{batch_size}\n")
-
 
         logging.info(f"output shape: {output_tensor.shape}")
 
@@ -84,8 +80,6 @@ class OrderModelServing:
             results.append(pickle.dumps(arr))  # type: ignore
 
         # postprocess
-
-
 
         return results
 

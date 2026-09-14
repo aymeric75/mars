@@ -14,17 +14,11 @@ from tqdm import tqdm
 from numcodecs import Blosc
 
 
-
 # ---------- constants ----------
 NS_PER_MIN = 60 * 1_000_000_000
 H = W = 32
 C = 3
 V_MAX = 256  # clip count to [0, 255] (uint8)
-
-
-
-
-
 
 
 def decode_order_index_df(df: pd.DataFrame, col: str = "f0", out_dtype=np.int32) -> pd.DataFrame:
@@ -54,10 +48,6 @@ def decode_order_index_df(df: pd.DataFrame, col: str = "f0", out_dtype=np.int32)
     )
 
 
-
-
-
-
 def build_order_image(arr3: np.ndarray) -> np.ndarray:
     """
     arr3: (N, 3) with columns [order_type, price_slot, volume_slot]
@@ -79,7 +69,7 @@ def build_order_image(arr3: np.ndarray) -> np.ndarray:
     m = (t >= 0) & (t < C) & (p >= 0) & (p < W) & (v >= 0) & (v < H)
     t, p, v = t[m], p[m], v[m]
 
-    key = (t * (H * W) + v * W + p)
+    key = t * (H * W) + v * W + p
     uniq, cnt = np.unique(key, return_counts=True)
 
     tt = uniq // (H * W)
@@ -93,7 +83,6 @@ def build_order_image(arr3: np.ndarray) -> np.ndarray:
 
 def parquet_to_memmap(f, time_col="Time", f0_col="f0", batch_size=500_000):
 
-
     f = Path(f)
     out = f.parent / f"{f.stem}_mmaps"
     out.mkdir(exist_ok=True)
@@ -101,34 +90,32 @@ def parquet_to_memmap(f, time_col="Time", f0_col="f0", batch_size=500_000):
     ds = load_dataset("parquet", data_files=str(f), split="train")
     n = len(ds)
 
-    t = np.memmap(out / "t.int64.mmap",  "int64", "w+", shape=(n,))
+    t = np.memmap(out / "t.int64.mmap", "int64", "w+", shape=(n,))
     f0 = np.memmap(out / "f0.int64.mmap", "int64", "w+", shape=(n,))
 
     i = 0
     for b in tqdm(ds.iter(batch_size=batch_size), total=n // batch_size + 1):
         j = i + len(b[time_col])
-        t[i:j]  = b[time_col]
+        t[i:j] = b[time_col]
         f0[i:j] = b[f0_col]
         i = j
 
-    t.flush(); f0.flush()
-
+    t.flush()
+    f0.flush()
 
 
 # (n, 3)
 
 
-
-
 WINDOW_NS = 60_000_000_000  # 60s in ns
 
 
-
 _DTYPES = {
-    "int32":  np.int32,
-    "int64":  np.int64,
-    "uint8":  np.uint8,
+    "int32": np.int32,
+    "int64": np.int64,
+    "uint8": np.uint8,
 }
+
 
 def read_mmap(path, cols=None):
     path = Path(path)
@@ -138,8 +125,6 @@ def read_mmap(path, cols=None):
     if cols:
         return np.memmap(path, dt, "r").reshape(size // cols, cols)
     return np.memmap(path, dt, "r")
-
-
 
 
 def past_index_around_60s_ns(t_ns, seconds=60, none_value=None, return_object=True):
@@ -193,18 +178,16 @@ def past_index_around_60s_ns(t_ns, seconds=60, none_value=None, return_object=Tr
         out[out < 0] = np.int64(none_value)
         return out
 
+
 # Example usage:
 # t = your np.memmap(...)
 # idx_60s = past_index_around_60s_ns(t, seconds=60)          # dtype=object with None
 # idx_60s_int = past_index_around_60s_ns(t, seconds=60, none_value=-1, return_object=False)  # int64 with -1
 
 
-
-
-
 def build_image_mmap_from_lookback(
     idx_60s_int: np.ndarray,
-    decoded: np.ndarray,              # can be np.memmap
+    decoded: np.ndarray,  # can be np.memmap
     out_path: str,
     image_shape=(32, 32, 3),
     out_dtype=np.uint8,
@@ -237,15 +220,13 @@ def build_image_mmap_from_lookback(
         if back < 0 or back >= i:
             continue
 
-        window = decoded[back:i]   # present index excluded
+        window = decoded[back:i]  # present index excluded
 
         img = build_order_image(window)
 
         img = np.asarray(img)
         if img.shape != (C, H, W):
-            raise ValueError(
-                f"build_order_image returned shape {img.shape}, expected {(C, H, W)}"
-            )
+            raise ValueError(f"build_order_image returned shape {img.shape}, expected {(C, H, W)}")
 
         if img.dtype != out_dtype:
             img = img.astype(out_dtype, copy=False)
@@ -256,12 +237,10 @@ def build_image_mmap_from_lookback(
     return image_array
 
 
-
-
 def build_image_zarr_chunked_from_lookback(
     idx_60s_int: np.ndarray,
     decoded: np.ndarray,
-    image_array,                 # a zarr array already created
+    image_array,  # a zarr array already created
     image_shape=(3, 32, 32),
     out_dtype=np.uint8,
 ):
@@ -277,42 +256,29 @@ def build_image_zarr_chunked_from_lookback(
     # we'll iterate over chunk blocks [s, e)
     nblocks = (N + chunkN - 1) // chunkN
 
-
-
-    
-    
     # --- Sliding window state (counts tensor) ---
     # decoded columns: [order_type, price_slot, volume_slot]
     # image layout: img[order_type, volume_slot, price_slot]
     t = decoded[:, 0].astype(np.int64, copy=False)
     p = decoded[:, 1].astype(np.int64, copy=False)
     v = decoded[:, 2].astype(np.int64, copy=False)
-    
+
     # Track validity once; invalid events are skipped on add/remove.
     valid_evt = (t >= 0) & (t < C) & (p >= 0) & (p < W) & (v >= 0) & (v < H)
-    
+
     counts = np.zeros((C, H, W), dtype=np.int32)
-    left = 0   # current window start (inclusive) in decoded/event index space
+    left = 0  # current window start (inclusive) in decoded/event index space
     right = 0  # current window end (exclusive)
-    
+
     def _add(k: int):
         """Add event k into counts if valid."""
         if valid_evt[k]:
             counts[t[k], v[k], p[k]] += 1
-    
+
     def _remove(k: int):
         """Remove event k from counts if valid."""
         if valid_evt[k]:
             counts[t[k], v[k], p[k]] -= 1
-
-
-
-
-
-
-
-
-
 
     for b in tqdm(range(nblocks), desc="Building order images (chunked)", miniters=1000, unit="chunk", disable=True):
         s = b * chunkN
@@ -320,16 +286,14 @@ def build_image_zarr_chunked_from_lookback(
 
         # build a full chunk buffer (default fill_value=0 semantics)
         buf = np.zeros((e - s, C, H, W), dtype=out_dtype)
-        
-        
-        
+
         # Process indices in-order so the sliding window stays valid
         for i in range(s, e):
             # 1) advance right edge to i (end-exclusive): add newly included events
             while right < i:
                 _add(right)
                 right += 1
-        
+
             # 2) advance left edge to "back" (if defined) by removing events
             back = int(idx_60s_int[i])
             if back != -1:
@@ -339,23 +303,17 @@ def build_image_zarr_chunked_from_lookback(
                 # idx_60s_int should be non-decreasing once it becomes valid; guard anyway
                 if back < left:
                     # If this happens, start indices went backwards; we can’t "undo" removals safely
-                    raise ValueError(
-                        f"idx_60s_int not monotonic at i={i}: back={back} < left={left}"
-                    )
+                    raise ValueError(f"idx_60s_int not monotonic at i={i}: back={back} < left={left}")
                 while left < back:
                     _remove(left)
                     left += 1
-        
+
                 # 3) emit image for i: clip counts into uint8
                 # (matches build_order_image behavior with V_MAX=256)
                 buf[i - s] = np.clip(counts, 0, V_MAX).astype(out_dtype, copy=False)
 
         # ONE write per block instead of (e-s) writes
         image_array[s:e] = buf
-
-
-
-
 
 
 # def build_image_zipzarr_from_lookback(
@@ -433,17 +391,6 @@ def build_image_zarr_chunked_from_lookback(
 #         return out_path, dataset_name
 
 
-
-
-
-
-
-
-
-
-
-
-
 def from_mmap_to_zarr(
     input_mmap: str,
     mmap_shape: tuple[int, ...],
@@ -452,7 +399,7 @@ def from_mmap_to_zarr(
     *,
     chunk_rows: int = 1024,
     clevel: int = 5,
-    use_zipstore: bool = False,   # True => single .zip file, far fewer files
+    use_zipstore: bool = False,  # True => single .zip file, far fewer files
 ) -> None:
     dtype = np.dtype(mmap_type)
 
@@ -485,14 +432,11 @@ def from_mmap_to_zarr(
     n = mmap_shape[0]
 
     for i in tqdm(range(0, n, step), desc="Converting mmap -> zarr", unit="chunk"):
-        z[i:i + step] = mm[i:i + step]
+        z[i : i + step] = mm[i : i + step]
 
     # Close ZipStore explicitly
     if use_zipstore:
         store.close()
-
-
-
 
 
 def save_images_tail_zip(
@@ -501,7 +445,7 @@ def save_images_tail_zip(
     start_idx,
     dataset_name="images",
 ):
-    """ cut the zarr_zip from src_zip_path from index start_idx and save the results in the zarr  zip dst_zip_path """
+    """cut the zarr_zip from src_zip_path from index start_idx and save the results in the zarr  zip dst_zip_path"""
     # open source
     with ZipStore(src_zip_path, mode="r") as src_store:
         src_root = zarr.open_group(store=src_store, mode="r")
@@ -539,10 +483,8 @@ def save_images_tail_zip(
             dst_store.flush()
 
 
-
-
-
 FEATS = [f"f{i}" for i in range(15)]  # f0..f14
+
 
 def parquet_to_zarr_zip(
     parquet_path: str | Path,
@@ -563,20 +505,21 @@ def parquet_to_zarr_zip(
     compressor = Blosc(cname="zstd", clevel=clevel, shuffle=Blosc.BITSHUFFLE)
 
     with ZipStore(zarr_zip_path, mode="w", compression=zipfile.ZIP_DEFLATED) as store:
-        
         root = zarr.group(store=store, overwrite=True)
 
-        root.attrs.update({
-            "N": int(N),
-            "F": int(F),
-            "source_parquet": str(parquet_path),
-        })
+        root.attrs.update(
+            {
+                "N": int(N),
+                "F": int(F),
+                "source_parquet": str(parquet_path),
+            }
+        )
 
         arr = root.create_dataset(
             dataset_name,
             shape=(N, F),
             chunks=(min(chunk_len, N), F),
-            dtype=np.int32,          # choose what you need
+            dtype=np.int32,  # choose what you need
             compressor=compressor,
             overwrite=True,
         )
