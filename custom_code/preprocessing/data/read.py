@@ -14,24 +14,19 @@ exit()
 print(df[(df["Message_Type"] == 4)])
 print(df[(df["Order"] == 263583)])
 
-#print(df.iloc[105:109])
+# print(df.iloc[105:109])
 #   ss
 
 exit()
 
 
-
-df["Mid_Price"] = (
-    (df["Ask_Price_1"] + df["Bid_Price_1"]) / 2
-).where(
-    df["Ask_Price_1"].notna() & df["Bid_Price_1"].notna()
-)
+df["Mid_Price"] = ((df["Ask_Price_1"] + df["Bid_Price_1"]) / 2).where(df["Ask_Price_1"].notna() & df["Bid_Price_1"].notna())
 
 
 valid_indices = df.index[df["Mid_Price"].notna()].tolist()
 
-#print(valid_indices)
-print(len(valid_indices)) # 1696627
+# print(valid_indices)
+print(len(valid_indices))  # 1696627
 
 
 # Est ce qu'on peut regrouper les Orders ?
@@ -55,11 +50,7 @@ df["Mid_Change"] = df["Mid_Price"].diff().ne(0)
 valid = df["Mid_Price"].notna()
 
 # Count changes per minute
-changes_per_minute = (
-    df[valid & df["Mid_Change"]]
-    .groupby("minute")
-    .size()
-)
+changes_per_minute = df[valid & df["Mid_Change"]].groupby("minute").size()
 
 # --- Plot ---
 plt.figure()
