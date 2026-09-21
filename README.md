@@ -395,7 +395,6 @@ States are shared by agents and zero-copy during their lifetime, even in environ
 - Creating a new state is straightforward. Here is an example of creating one that includes all transactions:
 
 ```python
-
 class TransState(State):
     def __init__(self) -> None:
         super().__init__()

@@ -17,10 +17,9 @@ class BinConverter:
     def init(self, values: list[float], num_bins: int, num_sample_per_bin: int = 100) -> None:
         """Initialize bin converter."""
         random.shuffle(values)
-        #values = values[:1000000]
+        # values = values[:1000000]
         self._create_bins(values, num_bins)
         self._create_sample_probs(values, num_sample_per_bin)
-
 
     """
     def _create_bins(self, values: list[float], num_bins: int) -> None:
@@ -100,7 +99,6 @@ class BinConverter:
         assert len(bins) == self.num_bins + 1
         self.bins = np.array(bins)
 
-
     def _create_bins_one_side(self, values: list[float], num_bins: int) -> list[float]:
         assert num_bins > 0
         values = sorted(values)
@@ -139,8 +137,6 @@ class BinConverter:
         bins.sort()
         assert len(bins) == num_bins + 1
         return bins
-
-    
 
     def _create_sample_probs(self, values: list[float], num_sample_per_bin: int = 100) -> None:
         def normalize(arr: np.ndarray) -> np.ndarray:

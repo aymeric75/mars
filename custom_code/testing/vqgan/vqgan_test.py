@@ -84,11 +84,7 @@ def load_vqgan_checkpoint(
     try:
         missing, unexpected = model.load_state_dict(state_dict, strict=True)
     except RuntimeError:
-        stripped_state_dict = {
-            key.removeprefix("model."): value
-            for key, value in state_dict.items()
-            if key.startswith("model.")
-        }
+        stripped_state_dict = {key.removeprefix("model."): value for key, value in state_dict.items() if key.startswith("model.")}
         missing, unexpected = model.model.load_state_dict(stripped_state_dict, strict=True)
 
     if missing or unexpected:
@@ -122,15 +118,23 @@ def save_order_image_matrices(image: np.ndarray, out_path: Path, scale: int = 16
 
     channels: list[Image.Image] = []
     for idx in range(num_channels):
-        channel = Image.fromarray(image[:, :, idx], mode="L").resize(
-            (matrix_w * scale, matrix_h * scale),
-            resample=Image.Resampling.NEAREST,
-        ).convert("RGB")
+        channel = (
+            Image.fromarray(image[:, :, idx], mode="L")
+            .resize(
+                (matrix_w * scale, matrix_h * scale),
+                resample=Image.Resampling.NEAREST,
+            )
+            .convert("RGB")
+        )
         channel = Image.new("RGB", (channel.width + 2 * border, channel.height + 2 * border), color=(0, 0, 0))
-        inner = Image.fromarray(image[:, :, idx], mode="L").resize(
-            (matrix_w * scale, matrix_h * scale),
-            resample=Image.Resampling.NEAREST,
-        ).convert("RGB")
+        inner = (
+            Image.fromarray(image[:, :, idx], mode="L")
+            .resize(
+                (matrix_w * scale, matrix_h * scale),
+                resample=Image.Resampling.NEAREST,
+            )
+            .convert("RGB")
+        )
         channel.paste(inner, (border, border))
         channels.append(channel)
 
