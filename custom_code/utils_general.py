@@ -16,9 +16,10 @@ NUM_BINS_ORDER_INTERVAL = 16
 NUM_BINS_LOB_VOLUME = 32
 
 
-#------------------------
+# ------------------------
 #   Load Converters
-#------------------------
+# ------------------------
+
 
 @dataclass
 class Converters:
@@ -27,6 +28,7 @@ class Converters:
     pred_order_volume: BinConverter
     order_interval: BinConverter
     lob_volume: BinConverter
+
 
 CONVERTERS_JSON = Path(__file__).resolve().parent / "training" / "converters_portable.json"
 
@@ -47,11 +49,10 @@ for bin_item in obj["state"]["lob_volume"]["bin_values"]:
 converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
 
 
-
 # vol, price, i , timestamp,
 def return_list_past_indices_windows(message_df: pd.DataFrame, index):
-    """ from a given dataframe return a list of index ranges representing 16 past windows
-        first element is the oldest
+    """from a given dataframe return a list of index ranges representing 16 past windows
+    first element is the oldest
     """
     last_16_index = int(message_df["index_pastmin16"][index])
     step_size = (index - last_16_index) // 16
@@ -68,34 +69,27 @@ def return_list_past_indices_windows(message_df: pd.DataFrame, index):
     return indices
 
 
-
-#----------------------------
+# ----------------------------
 #   Adapt messages.parquet
-#----------------------------
+# ----------------------------
 
 
 df = pd.read_parquet("testing/data/AAPL_2025-10-29_messages.parquet")
-minimal_df = df[['Time', 'Message_Type', 'Price', 'Size', 'Direction']].copy()
-minimal_df['price_level'] = minimal_df['Price'].apply(converters.price_level.get_bin_index)
-minimal_df['order_volume'] = minimal_df['Size'].apply(converters.order_volume.get_bin_index)
+minimal_df = df[["Time", "Message_Type", "Price", "Size", "Direction"]].copy()
+minimal_df["price_level"] = minimal_df["Price"].apply(converters.price_level.get_bin_index)
+minimal_df["order_volume"] = minimal_df["Size"].apply(converters.order_volume.get_bin_index)
 conditions = [
-    ((df['Message_Type'] == 1) & (df['Direction'] == 1)) |
-    ((df['Message_Type'] == 4) & (df['Direction'] == -1)),
-
-    ((df['Message_Type'] == 1) & (df['Direction'] == -1)) |
-    ((df['Message_Type'] == 4) & (df['Direction'] == 1)),
-
-    (df['Message_Type'].isin([2, 3]))
+    ((df["Message_Type"] == 1) & (df["Direction"] == 1)) | ((df["Message_Type"] == 4) & (df["Direction"] == -1)),
+    ((df["Message_Type"] == 1) & (df["Direction"] == -1)) | ((df["Message_Type"] == 4) & (df["Direction"] == 1)),
+    (df["Message_Type"].isin([2, 3])),
 ]
 choices = [0, 1, 2]
-minimal_df['matrix_index'] = np.select(conditions, choices)
+minimal_df["matrix_index"] = np.select(conditions, choices)
 
 
-
-
-#-----------------------------------------------------------
+# -----------------------------------------------------------
 #   Create a "seconds" column and a last16min_index columns
-#-----------------------------------------------------------
+# -----------------------------------------------------------
 minimal_df["seconds_since_midnight"] = minimal_df["Time"] // 1_000_000_000
 secs = minimal_df["seconds_since_midnight"].values
 indices_pastmin16 = np.empty(len(secs), dtype=np.int64)
@@ -108,18 +102,15 @@ for i in range(len(secs)):
 minimal_df["index_pastmin16"] = indices_pastmin16
 
 
-#-----------------------------------------------------------
+# -----------------------------------------------------------
 #   Drop unecessary columns (for creating the images)
-#-----------------------------------------------------------
+# -----------------------------------------------------------
 minimal_df.drop(columns=["Time", "Price", "Size", "Direction", "seconds_since_midnight"], inplace=True)
 
 
-
-
-
-#-----------------------------------------------------------
+# -----------------------------------------------------------
 #   create an image from minimal_df and an index
-#-----------------------------------------------------------
+# -----------------------------------------------------------
 
 
 start__ = time.perf_counter()
@@ -128,17 +119,15 @@ list_ranges = return_list_past_indices_windows(minimal_df, 5722753)
 
 # on va créer 16 matrices,
 for start, end in list_ranges:
-
     sub_df = minimal_df[(minimal_df.index >= start) & (minimal_df.index < end)]
 
     for mat_index in range(3):
-
         sub_channel_df = sub_df[sub_df["matrix_index"] == mat_index]
 
-        pl = sub_channel_df['price_level'].to_numpy()
-        ov = sub_channel_df['order_volume'].to_numpy()
+        pl = sub_channel_df["price_level"].to_numpy()
+        ov = sub_channel_df["order_volume"].to_numpy()
 
-        channel_matrix = np.bincount(pl * 32 + ov, minlength=32*32).reshape(32, 32)
+        channel_matrix = np.bincount(pl * 32 + ov, minlength=32 * 32).reshape(32, 32)
 
         # print("channel_matrix")
         # print(channel_matrix)

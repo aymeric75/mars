@@ -88,8 +88,12 @@ class OrderInfo:
         """Convert order info to vector."""
         values: list[int] = [
             self.order_index,
-            int(np.floor(self.volume_ratio * 0.99 * OrderInfo.NUM_RATIO_SLOTS)),  # volume ratio slot, [0, 9] (Aymeric: "How big I am compared to the queue I am joining", in their code used only for RL, i.e. We don't care for now)
-            int(np.floor(self.trans_ratio * 0.99 * OrderInfo.NUM_RATIO_SLOTS)),  # trans ratio slot, [0, 9], (Aymeric: "How much of this order has already been executed", in their code used only for RL)
+            int(
+                np.floor(self.volume_ratio * 0.99 * OrderInfo.NUM_RATIO_SLOTS)
+            ),  # volume ratio slot, [0, 9] (Aymeric: "How big I am compared to the queue I am joining", in their code used only for RL, i.e. We don't care for now)
+            int(
+                np.floor(self.trans_ratio * 0.99 * OrderInfo.NUM_RATIO_SLOTS)
+            ),  # trans ratio slot, [0, 9], (Aymeric: "How much of this order has already been executed", in their code used only for RL)
             self.price_change_to_open,
             self.time_to_open,
             *self.lob_volumes,
@@ -168,10 +172,9 @@ class OrderState(State):
             self.update_order_info(trade_info)
             return
 
-
         # set open price if need
         if self.open_trans_price is None and trade_info.transactions and trade_info.transactions[0].type in ["B", "S"]:
-            #breakpoint()
+            # breakpoint()
             self.open_trans_price = trade_info.transactions[0].price
 
         self.cur_order_lob = self.latest_lob
@@ -183,7 +186,7 @@ class OrderState(State):
     # Aymeric
     def safe_mid_price(self, lob):
         """
-            if lob has no mid price, return the last valid one
+        if lob has no mid price, return the last valid one
         """
         try:
             mid = lob.mid_price
@@ -193,7 +196,6 @@ class OrderState(State):
                 return None
         self._last_mid_price = mid
         return mid
-
 
     def get_seconds_to_open(self, cur_time: pd.Timestamp, open_time: pd.Timestamp) -> int:
         """Get seconds to market open.
@@ -229,11 +231,8 @@ class OrderState(State):
     ) -> int:
         """Get order index from order, interval and lob."""
 
-
-
-
         order_type = PredOrderInfo.get_index_from_type(cur_order.type)  # [0, 1, 2]
-        #price_slot = self.converter.price_level.get_bin_index(cur_order.price - cur_order_lob.mid_price)
+        # price_slot = self.converter.price_level.get_bin_index(cur_order.price - cur_order_lob.mid_price)
 
         mid_price = self.safe_mid_price(cur_order_lob)
         if mid_price is None:
@@ -267,9 +266,7 @@ class OrderState(State):
             + interval_slot
         )
 
-
         return retour
-
 
     def get_pred_order_info(self, order_index: int) -> PredOrderInfo:
         """Reverse function of get_order_index, need a further sampling to get real price/volume/interval."""
@@ -285,7 +282,6 @@ class OrderState(State):
             volume=volume_slot,
             interval=interval_slot,
         )
-
 
     @staticmethod
     def get_pred_order_info_static(
@@ -308,13 +304,12 @@ class OrderState(State):
             interval=interval_slot,
         )
 
-
     def get_lob_volume_slots(self, lob: LobSnapshot, total_len: int = 10) -> list[int]:
         """Get volume slots from lob."""
         assert total_len % 2 == 0
         offset: int = total_len // 2
         volume_slots: list[int] = [0] * total_len
-        #mid_price = lob.mid_price
+        # mid_price = lob.mid_price
 
         # Aymeric
         mid_price = self.safe_mid_price(lob)
@@ -338,19 +333,15 @@ class OrderState(State):
         assert self.prev_order is not None
         assert self.cur_order_lob is not None
         assert self.open_time is not None
-        #mid_price: int = trade_info.lob_snapshot.mid_price
+        # mid_price: int = trade_info.lob_snapshot.mid_price
 
         # Aymeric
         mid_price = self.safe_mid_price(trade_info.lob_snapshot)
         if mid_price is None:
             return  # cannot compute features yet
 
-
-
         price_change = 0 if self.open_trans_price is None else mid_price / self.open_trans_price - 1
         price_change = np.clip(price_change, -0.2, 0.2)
-
-
 
         seconds_to_open = self.get_seconds_to_open(self.cur_order.time, self.open_time)
 
@@ -378,9 +369,6 @@ class OrderState(State):
         # print(trade_info.order.order_id)
         # print(trade_info.transactions)
         # print(trade_info)
-
-
-
 
         if is_same_cancel_order:
             assert self.prev_order_lob is not None
@@ -429,7 +417,6 @@ class OrderState(State):
             self.prev_order = self.cur_order
             self.prev_order_lob = self.cur_order_lob
 
-
         # if trade_info.order.order_id == 9979737:
 
         #     print("order_infoorder_infoorder_info")
@@ -442,11 +429,6 @@ class OrderState(State):
         #     print(trade_info.transactions)
         #     #print(trade_info.transactions[0].type)
         #     breakpoint()
-
-
-
-
-
 
     def to_vector(self) -> npt.NDArray[np.int32]:
         """Convert order state to vector."""
