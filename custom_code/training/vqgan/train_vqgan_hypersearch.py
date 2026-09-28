@@ -20,6 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 class OrderImageDataModule(pl.LightningDataModule):
     """Create the train and validation dataloaders for VQGAN training."""
+
     def __init__(
         self,
         train_dir: str,
@@ -102,6 +103,7 @@ class OrderImageDataModule(pl.LightningDataModule):
 
 class TextProgressCallback(Callback):
     """Print lightweight text progress during training and validation."""
+
     def __init__(self, print_every_n_steps: int = 20):
         super().__init__()
         self.print_every_n_steps = int(print_every_n_steps)

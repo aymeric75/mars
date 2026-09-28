@@ -3,19 +3,17 @@ import re
 import numpy as np
 import pandas as pd
 from tqdm.auto import tqdm  # or: from tqdm import tqdm
+
 ONE_MIN_NS = 60_000_000_000
 
 
-
-
 def past_16min_indices_from_df(df: pd.DataFrame) -> pd.DataFrame:
-
-    """ 
-        Return:
-            out of shape (16, len(df)) s.t. out[0] indicates for each order the past
-            index in the df that corresponds to grossly 1 minute
     """
-    
+    Return:
+        out of shape (16, len(df)) s.t. out[0] indicates for each order the past
+        index in the df that corresponds to grossly 1 minute
+    """
+
     d = df[["Time"]].sort_values("Time").reset_index(drop=True)
     t = d["Time"].to_numpy()
 
@@ -48,19 +46,18 @@ def next_1min_index_from_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def create_min16_plus1_indices_from_feature_parquets(input_dir: str, output_dir: str) -> None:
-
     """
     go over all feature parquets in input_dir (each has index starting at 0)
     for each df, for each row find last 16 indices (<=> 16m distance) and the next 1 minute index
-    returns df for last16 indices, next1 index, and the updated df. 
+    returns df for last16 indices, next1 index, and the updated df.
     All 3 have same Index column (not starting at 0).
     """
-    
+
     in_dir = Path(input_dir)
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    #pat = re.compile(r"features_(?P<stock>[^_]+)_(?P<date>\d{4}-\d{2}-\d{2})_messages_.*\.parquet$")
+    # pat = re.compile(r"features_(?P<stock>[^_]+)_(?P<date>\d{4}-\d{2}-\d{2})_messages_.*\.parquet$")
     pat = re.compile(r"(?P<stock>[^_]+)_(?P<date>\d{4}-\d{2}-\d{2})_features.*\.parquet$")
 
     for p in tqdm(sorted(in_dir.glob("*.parquet")), desc="Processing parquets"):
@@ -73,7 +70,6 @@ def create_min16_plus1_indices_from_feature_parquets(input_dir: str, output_dir:
 
         df = pd.read_parquet(p).reset_index(drop=True)
 
-        
         past = past_16min_indices_from_df(df)
         nxt = next_1min_index_from_df(df)
 
@@ -85,27 +81,22 @@ def create_min16_plus1_indices_from_feature_parquets(input_dir: str, output_dir:
         nxt_cut = nxt.loc[common_idx]
         df_cut = df.loc[common_idx]
 
-
         df_cut.to_parquet(out_dir / f"{stock}_{date}_features-cut.parquet")
         past_cut.to_parquet(out_dir / f"{stock}_{date}_past16-cut.parquet")
         nxt_cut.to_parquet(out_dir / f"{stock}_{date}_next1-cut.parquet")
 
 
+input_dir = Path("/scratch/project_2012747/mars_data/order_model/train/final")  # dir with all "features".parquet files
+output_dir = Path("/scratch/project_2012747/mars_data/order_batch_model/train/intermediate")
 
 
-    
-input_dir = Path("/scratch/project_2012747/mars_data/order_model/train/final") # dir with all "features".parquet files
-output_dir = Path("/scratch/project_2012747/mars_data/order_batch_model/train/intermediate") 
+# pd_ = pd.read_parquet("../../data/features/features_AMZN_2025-12-11_messages_10.parquet")
+# print(pd_)
 
+# result = past_16min_indices("../../data/features/features_AAPL_2025-12-17_messages_10.parquet")
+# print(result)
 
-
-#pd_ = pd.read_parquet("../../data/features/features_AMZN_2025-12-11_messages_10.parquet")
-#print(pd_)
-
-#result = past_16min_indices("../../data/features/features_AAPL_2025-12-17_messages_10.parquet")
-#print(result)
-
-#next_mins = next_1min_index_from_df(pd_)
-#print(next_mins)
+# next_mins = next_1min_index_from_df(pd_)
+# print(next_mins)
 
 create_min16_plus1_indices_from_feature_parquets(input_dir, output_dir)
