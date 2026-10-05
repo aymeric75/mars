@@ -23,9 +23,7 @@ from market_simulation.states.order_state import OrderState, PredOrderInfo
 from market_simulation.utils.bin_converter import BinConverter
 
 
-
-
-SEQ_LEN = 1 # 1024
+SEQ_LEN = 1  # 1024
 TOKEN_DIM = 15
 NUM_BINS_PRICE_LEVEL = 32
 NUM_BINS_ORDER_VOLUME = 32
@@ -40,7 +38,6 @@ class Converters:
     pred_order_volume: BinConverter
     order_interval: BinConverter
     lob_volume: BinConverter
-
 
 
 def build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols):
@@ -66,8 +63,6 @@ def build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols):
 CONVERTERS_JSON = Path(__file__).resolve().parents[2] / "training" / "converters_portable.json"
 
 
-
-
 def make_exchange_and_orderstate(
     symbol: str,
     date_str: str,
@@ -86,14 +81,9 @@ def make_exchange_and_orderstate(
     return ex, state, base_time
 
 
-
 def unit_scale_to_seconds(time_unit: str) -> float:
     # messages_df["Time"] is assumed to be an integer offset; pick the right unit
     return {"ns": 1e-9, "us": 1e-6, "ms": 1e-3, "s": 1.0}[time_unit]
-
-
-
-
 
 
 def sample_parquets(input_dir, output_file, n=200):
@@ -104,13 +94,12 @@ def sample_parquets(input_dir, output_file, n=200):
     pd.concat(dfs, ignore_index=True).to_parquet(output_file, index=False)
 
 
-
 def row_to_order(
     r,
     *,
     symbol: str,
     time_unit: str,
-    ex: Optional[Exchange] = None,   # <-- NEW: allow price lookup from current book
+    ex: Optional[Exchange] = None,  # <-- NEW: allow price lookup from current book
 ) -> Optional[LimitOrder]:
     """
     Message_Type mapping given by user:
@@ -130,14 +119,12 @@ def row_to_order(
     # print(time_unit)
     # breakpoint()
 
-
     t = pd.to_timedelta(int(r.Time), unit=time_unit)
 
     # Your convention: -1 = Bid, +1 = Ask
     direction = int(r.Direction) if not pd.isna(r.Direction) else 0
     side = "B" if direction == -1 else "S"
-    reversed_side =  "S" if direction == -1 else "B"
-
+    reversed_side = "S" if direction == -1 else "B"
 
     order_id = int(r.Order) if not pd.isna(r.Order) else -1
     price = int(r.Price) if not pd.isna(r.Price) else 0
@@ -155,7 +142,7 @@ def row_to_order(
     if msg == 1:
         return LimitOrder(
             time=t,
-            type=side,          # "B" or "S"
+            type=side,  # "B" or "S"
             price=price,
             volume=size,
             symbol=symbol,
@@ -183,17 +170,13 @@ def row_to_order(
             symbol=symbol,
             agent_id=-1,
             order_id=-1,
-            cancel_type=side,      # cancel a buy if side=="B", else cancel a sell
+            cancel_type=side,  # cancel a buy if side=="B", else cancel a sell
             cancel_id=order_id,
             tag="replay",
         )
 
-
-
-
     # Visible execution / cross trade: reduce resting visible order volume
     if msg in (4,):
-
         # We treat it as a cancel-on-id of 'size' shares.
         # If price missing/0, infer from current orderbook.
         if (price is None or price == 0) and ex is not None and order_id >= 0:
@@ -203,7 +186,7 @@ def row_to_order(
                 # If the order is already gone (fully executed earlier), skip quietly.
                 return None
 
-        #price = r.Price
+        # price = r.Price
 
         return LimitOrder(
             time=t,
@@ -218,11 +201,7 @@ def row_to_order(
             tag="type_4",
         )
 
-
-
-
     #  tu prends le side, le prix (from the index) et tu compare avec le mid price du snapshot
-
 
     # # Visible execution / cross trade: reduce resting visible order volume
     # if msg in (4,):
@@ -249,15 +228,8 @@ def row_to_order(
     #         tag="replay_exec",
     #     )
 
-
-
-
-
-
     # Unknown / unsupported
     return None
-
-
 
 
 def return_values_for_bins(
@@ -266,8 +238,8 @@ def return_values_for_bins(
     time_unit: str,
     max_events: Optional[int],
     *,
-    sample_every_k: int = 10,          # <-- take 1 sample every K fed events
-    max_samples: Optional[int] = None, # <-- stop collecting after this many samples
+    sample_every_k: int = 10,  # <-- take 1 sample every K fed events
+    max_samples: Optional[int] = None,  # <-- stop collecting after this many samples
 ):
     """
     Pass 1: feed all events to Exchange for correct book evolution,
@@ -289,18 +261,12 @@ def return_values_for_bins(
 
     n = len(messages_df) if max_events is None else min(len(messages_df), max_events)
 
-    fed = 0       # number of events successfully fed to exchange
-    sampled = 0   # number of samples actually collected
+    fed = 0  # number of events successfully fed to exchange
+    sampled = 0  # number of samples actually collected
     dt_sec = 0
 
     # for i, r in enumerate(messages_df.itertuples(index=False)):
-    for i, r in enumerate(tqdm(messages_df.itertuples(index=False),
-                              total=n,
-                              desc="pass1: bins",
-                              unit="msg")):
-
-
-
+    for i, r in enumerate(tqdm(messages_df.itertuples(index=False), total=n, desc="pass1: bins", unit="msg")):
         # interval samples (based on *sampled* events)
         cur_time = int(r.Time)
         if prev_sample_time is not None:
@@ -308,11 +274,10 @@ def return_values_for_bins(
 
         prev_sample_time = cur_time
 
-
         if i >= n:
             break
 
-        #order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit)
+        # order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit)
         order = row_to_order(r, symbol=symbol, time_unit=time_unit, ex=ex)
 
         if order is None:
@@ -320,13 +285,11 @@ def return_values_for_bins(
 
         # Always feed to keep book consistent
         try:
-
             ex.submit_continuous_auction_order(order)
         except AssertionError:
             raise
 
         fed += 1
-
 
         # Decide whether to record this event into bin-sample arrays
         if sample_every_k > 1 and (fed % sample_every_k) != 0:
@@ -344,7 +307,6 @@ def return_values_for_bins(
 
         if dt_sec > 0:
             intervals.append(float(dt_sec))
-
 
         # snapshot from exchange-built orderbook
         snap = ex.get_lob(symbol).snapshot(level=10)
@@ -375,10 +337,6 @@ def return_values_for_bins(
     return price_minus_mid, sizes, intervals, lob_vols
 
 
-
-
-
-
 def pass2_write_features(
     messages_df: pd.DataFrame,
     meta_df: pd.DataFrame,
@@ -390,10 +348,8 @@ def pass2_write_features(
     max_events: Optional[int] = None,
 ) -> Tuple[str, int]:
 
-
     import pyarrow as pa
     import pyarrow.parquet as pq
-
 
     day = pd.to_datetime(messages_df["Time"].iloc[0], unit="ns").strftime("%Y-%m-%d")
     ex, order_state, base_time = make_exchange_and_orderstate(symbol, day, conv)
@@ -406,9 +362,7 @@ def pass2_write_features(
     if os.path.exists(out_path):
         os.remove(out_path)
 
-
     n = len(messages_df) if max_events is None else min(len(messages_df), max_events)
-
 
     # We use the meta info to obtain when we are in MarketHours (between code 22 and 23)
     meta = meta_df.sort_values("Time", kind="mergesort")
@@ -420,24 +374,19 @@ def pass2_write_features(
     left = j - 1
     right = j
     nearest = np.where((msg_t - mt[left]) <= (mt[right] - msg_t), left, right)
-    msg_sys_code = mc[nearest]   # aligned with messages_df rows
+    msg_sys_code = mc[nearest]  # aligned with messages_df rows
     del meta, mt, mc, msg_t, j, left, right, nearest
 
     markethours = False
 
-    for i, r in enumerate(tqdm(messages_df.itertuples(index=False),
-                              total=n,
-                              desc="pass2: features",
-                              disable=True,
-                              unit="msg")):
-
+    for i, r in enumerate(tqdm(messages_df.itertuples(index=False), total=n, desc="pass2: features", disable=True, unit="msg")):
         if i >= n:
             break
 
         if i == 0:
             order_state.open_time = r.Time
 
-        #order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit)
+        # order = row_to_order(r, symbol=symbol, base_time=base_time, time_unit=time_unit)
         order = row_to_order(r, symbol=symbol, time_unit=time_unit, ex=ex)
 
         if order is None:
@@ -472,8 +421,6 @@ def pass2_write_features(
 
         feat = order_state.recent_orders[-1].to_vector()
 
-
-
         # if r.Message_Type == 4:
         #     print(r)
         #     print("on")
@@ -484,19 +431,14 @@ def pass2_write_features(
 
         feat = np.asarray(feat, dtype=np.int32).reshape(-1)
 
-
-
         # index: encodes, type of the order, distance in ticks to mid price, volume, direction
 
         #     # index  vol_ratio_slot  trans_ratio_slot   price_change_to_open    time_to_open     lob_volumes
         #     # f0     f1              f2                 f3                       f4             f5  f6  f7  f8  f9  f10  f11  f12  f13  f14
         #     # 10624   9              0                  0                         2147          0   0   0   0   0    0    0    0    0    0
 
-
-
         if feat.shape[0] != TOKEN_DIM:
             continue
-
 
         buffer.append(
             {
@@ -518,7 +460,6 @@ def pass2_write_features(
             written += len(buffer)
             buffer.clear()
 
-
     if buffer:
         chunk_df = pd.DataFrame(buffer)
         table = pa.Table.from_pandas(chunk_df)
@@ -535,9 +476,6 @@ def pass2_write_features(
     return out_path, written
 
 
-
-
-
 def make_exchange(symbol: str, date_str: str = "2025-10-10") -> Tuple[Exchange, pd.Timestamp]:
     market_open = pd.Timestamp(f"{date_str} 09:30:00")
     market_close = pd.Timestamp(f"{date_str} 15:00:00")
@@ -549,68 +487,60 @@ def make_exchange(symbol: str, date_str: str = "2025-10-10") -> Tuple[Exchange, 
     return Exchange(cfg), market_open
 
 
-
 def process_one_file(args):
 
-        msg_path, converters, data_folder = args
+    msg_path, converters, data_folder = args
 
-        # Build corresponding meta filename
-        meta_path = msg_path.with_name(
-            msg_path.name.replace("_messages.parquet", "_meta.parquet")
+    # Build corresponding meta filename
+    meta_path = msg_path.with_name(msg_path.name.replace("_messages.parquet", "_meta.parquet"))
+
+    if meta_path.exists():
+        print("Processing pair:")
+        print("  Messages:", msg_path.name)
+        print("  Meta:    ", meta_path.name)
+
+        messages_df = pd.read_parquet(msg_path)
+        meta_df = pd.read_parquet(meta_path)
+
+        output_file_name = msg_path.name.replace("_messages", "_features")
+
+        symbol = msg_path.name.split("_")[0]
+
+        time_unit = "ns"
+
+        # 57600003755960
+        # print(pd.to_timedelta(int(57600003755960), unit=time_unit))
+
+        out_path, n_written = pass2_write_features(
+            messages_df,
+            meta_df,
+            symbol=symbol,
+            time_unit=time_unit,
+            conv=converters,
+            out_path=data_folder + "final/" + output_file_name,
+            max_events=None,
         )
+        print(f"Wrote {n_written} feature rows -> {out_path}")
 
-        if meta_path.exists():
-            print("Processing pair:")
-            print("  Messages:", msg_path.name)
-            print("  Meta:    ", meta_path.name)
-
-            messages_df = pd.read_parquet(msg_path)
-            meta_df = pd.read_parquet(meta_path)
-
-            output_file_name = msg_path.name.replace("_messages", "_features")
-
-            symbol = msg_path.name.split("_")[0]
-
-            time_unit = "ns"
-
-
-            # 57600003755960
-            #print(pd.to_timedelta(int(57600003755960), unit=time_unit))
-
-
-            out_path, n_written = pass2_write_features(
-                messages_df,
-                meta_df,
-                symbol=symbol,
-                time_unit=time_unit,
-                conv=converters,
-                out_path=data_folder+"final/"+output_file_name,
-                max_events=None,
-            )
-            print(f"Wrote {n_written} feature rows -> {out_path}")
-
-
-        else:
-            print(f"⚠ No meta file found for {msg_path.name}")
-
+    else:
+        print(f"⚠ No meta file found for {msg_path.name}")
 
 
 def main():
-
 
     data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
     output_folder = "/scratch/project_2012747/mars_data/order_model/train/val"
 
     # train dates
-    #start = datetime.strptime("2025-11-03", "%Y-%m-%d").date()
-    #end   = datetime.strptime("2025-11-06", "%Y-%m-%d").date()
+    # start = datetime.strptime("2025-11-03", "%Y-%m-%d").date()
+    # end   = datetime.strptime("2025-11-06", "%Y-%m-%d").date()
 
     # val dates
     start = datetime.strptime("2025-11-27", "%Y-%m-%d").date()
-    end   = datetime.strptime("2025-11-29", "%Y-%m-%d").date()
+    end = datetime.strptime("2025-11-29", "%Y-%m-%d").date()
 
-    #data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
-    #output_folder = "/scratch/project_2012747/mars_data/order_model/val/final"
+    # data_folder = "/scratch/project_2012747/mars_data/order_model/val/"
+    # output_folder = "/scratch/project_2012747/mars_data/order_model/val/final"
 
     """
     # I. CREATING BINs VALUES
@@ -700,41 +630,34 @@ def main():
     # breakpoint()
     """
 
-
     import json
-
-
 
     with CONVERTERS_JSON.open("r", encoding="utf-8") as f:
         obj = json.load(f)
 
-    #price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
+    # price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
 
     price_minus_mid = []
     for bin_item in obj["state"]["price_level"]["bin_values"]:
         price_minus_mid.extend(bin_item["data"])
 
-    #sizes = blob["state"]["order_volume"]["bin_values"]["data"]
+    # sizes = blob["state"]["order_volume"]["bin_values"]["data"]
     sizes = []
     for bin_item in obj["state"]["order_volume"]["bin_values"]:
         sizes.extend(bin_item["data"])
 
-    #intervals = blob["state"]["order_interval"]["bin_values"]["data"]
+    # intervals = blob["state"]["order_interval"]["bin_values"]["data"]
     intervals = []
     for bin_item in obj["state"]["order_interval"]["bin_values"]:
         intervals.extend(bin_item["data"])
 
-
-
-    #lob_vols = blob["state"]["lob_volume"]["bin_values"]["data"]
+    # lob_vols = blob["state"]["lob_volume"]["bin_values"]["data"]
     lob_vols = []
     for bin_item in obj["state"]["lob_volume"]["bin_values"]:
         lob_vols.extend(bin_item["data"])
 
-
     converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
-    #converters = Converters(**{k: bc_from_dict(v) for k, v in blob.items()})
-
+    # converters = Converters(**{k: bc_from_dict(v) for k, v in blob.items()})
 
     print("converters.price_level.bins")
     print(converters.price_level.bins)
@@ -747,51 +670,24 @@ def main():
     print("converters.lob_volume.bins")
     print(converters.lob_volume.bins)
 
-
     # III. CREATING FEATURES FILES
 
     # Get all message files
-    message_files = sorted(Path(data_folder+"raw").glob("*_messages.parquet"))
+    message_files = sorted(Path(data_folder + "raw").glob("*_messages.parquet"))
 
-
-    feature_files = sorted(
-        p.name
-        for p in Path(output_folder)
-            .glob("*_features.parquet")
-    )
-
+    feature_files = sorted(p.name for p in Path(output_folder).glob("*_features.parquet"))
 
     # Convert feature filenames to the corresponding "messages" filenames
-    feature_as_messages = {
-        f.replace("_features.parquet", "_messages.parquet")
-        for f in feature_files
-    }
-
+    feature_as_messages = {f.replace("_features.parquet", "_messages.parquet") for f in feature_files}
 
     some_list = ["AMD", "AMZN"]
 
-
     # Filter paths
-    filtered_paths = [
-        p for p in message_files
-        if p.name not in feature_as_messages
-    ]
+    filtered_paths = [p for p in message_files if p.name not in feature_as_messages]
 
+    filtered_paths = [f for f in filtered_paths if start <= datetime.strptime(f.stem.split("_")[1], "%Y-%m-%d").date() <= end]
 
-
-
-    filtered_paths = [
-        f for f in filtered_paths
-        if start <= datetime.strptime(f.stem.split('_')[1], "%Y-%m-%d").date() <= end
-    ]
-
-
-
-    filtered_paths = [
-        p for p in filtered_paths
-        if any(keyword in p.name for keyword in some_list)
-    ]
-
+    filtered_paths = [p for p in filtered_paths if any(keyword in p.name for keyword in some_list)]
 
     """
     filtered_paths = [
@@ -807,11 +703,8 @@ def main():
     args = [(msg_path, converters, data_folder) for msg_path in message_files]
 
     with Pool(processes=n_workers) as pool:
-
         for _ in pool.imap_unordered(process_one_file, args):
             pass
-
-
 
 
 if __name__ == "__main__":
