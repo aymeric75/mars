@@ -398,9 +398,7 @@ class HeadsLightningModule(pl.LightningModule):
                 profit_target,
                 weight=self.probability_class_weights,
             )
-            probability_acc = torch.mean(
-                (torch.argmax(outputs["profit_logits"], dim=-1) == profit_target).to(dtype=torch.float32)
-            )
+            probability_acc = torch.mean((torch.argmax(outputs["profit_logits"], dim=-1) == profit_target).to(dtype=torch.float32))
             total_loss = total_loss + float(self.hparams.probability_loss_weight) * probability_loss
             self.log(f"{stage}_probability_loss", probability_loss, on_step=on_step, on_epoch=True, sync_dist=True)
             self.log(f"{stage}_probability_acc", probability_acc, on_step=on_step, on_epoch=True, sync_dist=True)
@@ -441,10 +439,7 @@ def print_probability_class_balance(
 
     rates = counts.to(dtype=torch.float32) / max(seen, 1)
     lines = [f"{split} probability-class balance over {seen} samples"]
-    lines.extend(
-        f"{split} {label}={int(counts[idx])} ({float(rates[idx]):.6f})"
-        for idx, label in enumerate(CLASS_LABELS)
-    )
+    lines.extend(f"{split} {label}={int(counts[idx])} ({float(rates[idx]):.6f})" for idx, label in enumerate(CLASS_LABELS))
     print()
     print(f"{ANSI_BLUE}{'=' * 56}")
     for line in lines:
@@ -519,18 +514,14 @@ def main():
     if args.train_samples_per_epoch is not None and args.train_samples_per_epoch <= 0:
         raise ValueError("--train_samples_per_epoch must be positive when provided")
 
-    train_samples_per_epoch = (
-        args.batch_size * 1000 if args.train_samples_per_epoch is None else int(args.train_samples_per_epoch)
-    )
+    train_samples_per_epoch = args.batch_size * 1000 if args.train_samples_per_epoch is None else int(args.train_samples_per_epoch)
     train_batches_per_epoch = max(1, train_samples_per_epoch // args.batch_size)
     train_num_samples = train_batches_per_epoch * args.batch_size
     val_check_interval = train_batches_per_epoch
 
     run_root = args.run_root or str(REPO_ROOT / "mars_runs" / "heads")
     os.makedirs(run_root, exist_ok=True)
-    run_name = args.run_name or (
-        f"head={args.head_type}_scenario={args.scenario}_side={args.trade_side}_bs={args.batch_size}_lr={args.lr:g}"
-    )
+    run_name = args.run_name or (f"head={args.head_type}_scenario={args.scenario}_side={args.trade_side}_bs={args.batch_size}_lr={args.lr:g}")
     run_dir = os.path.join(run_root, "tensorboard", run_name)
     os.makedirs(run_dir, exist_ok=True)
 
@@ -609,10 +600,7 @@ def main():
         class_weights = train_counts_f.sum() / (len(CLASS_LABELS) * train_counts_f.clamp_min(1.0))
         class_weights = class_weights / class_weights.mean()
         model.probability_class_weights.copy_(class_weights)
-        print(
-            "probability class weights="
-            + ", ".join(f"{label}={float(weight):.6f}" for label, weight in zip(CLASS_LABELS, class_weights.tolist()))
-        )
+        print("probability class weights=" + ", ".join(f"{label}={float(weight):.6f}" for label, weight in zip(CLASS_LABELS, class_weights.tolist())))
 
     trainer = pl.Trainer(
         default_root_dir=run_dir,

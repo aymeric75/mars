@@ -47,9 +47,9 @@ class EnsembleModel(nn.Module):
         *,
         batch_vocab_size: int = 8192,
         batch_tokens_len: int = 64,
-        d_model: int = 128, #128, #256,192
-        num_layers: int = 2, #2, #4,3
-        num_heads: int = 4, #4, #6,
+        d_model: int = 128,  # 128, #256,192
+        num_layers: int = 2,  # 2, #4,3
+        num_heads: int = 4,  # 4, #6,
         dropout: float = 0.1,
     ) -> None:
         super().__init__()
@@ -78,11 +78,11 @@ class EnsembleModel(nn.Module):
         if batch_tokens.dtype != torch.long:
             raise TypeError("batch_tokens must be torch.long")
 
-        q = self.order_logits_proj(base_logits).unsqueeze(1)          # (B, 1, D)
-        mem = self.batch_tok_emb(batch_tokens) + self.batch_pos_emb   # (B, 64, D)
+        q = self.order_logits_proj(base_logits).unsqueeze(1)  # (B, 1, D)
+        mem = self.batch_tok_emb(batch_tokens) + self.batch_pos_emb  # (B, 64, D)
 
         for blk in self.blocks:
             q = blk(q, mem)
 
-        delta = self.delta_logits(self.out_norm(q)).squeeze(1)        # (B, V)
+        delta = self.delta_logits(self.out_norm(q)).squeeze(1)  # (B, V)
         return base_logits + delta

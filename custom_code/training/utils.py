@@ -52,8 +52,6 @@ class TextProgressCallback(pl.Callback):
             return
 
         print(
-            f"[val] epoch={trainer.current_epoch} "
-            f"optimizer_step={trainer.global_step} "
-            f"val_loss={self._metric_to_str(val_loss)}",
+            f"[val] epoch={trainer.current_epoch} optimizer_step={trainer.global_step} val_loss={self._metric_to_str(val_loss)}",
             flush=True,
         )
