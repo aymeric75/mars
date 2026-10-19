@@ -7,9 +7,9 @@ import numpy as np
 x_np = np.random.randint(0, 101, size=(3, 32, 32), dtype=np.uint8)
 
 # Normalize to [-1, 1]
-x = torch.from_numpy(x_np).float() / 100.0          # [0,1]
-x = x * 2.0 - 1.0                                   # [-1,1]
-x = x.unsqueeze(0).to(device)                       # [B=1, C=3, H=32, W=32]
+x = torch.from_numpy(x_np).float() / 100.0  # [0,1]
+x = x * 2.0 - 1.0  # [-1,1]
+x = x.unsqueeze(0).to(device)  # [B=1, C=3, H=32, W=32]
 
 with torch.no_grad():
     # VQModel.encode returns: quant, emb_loss, info
@@ -24,7 +24,7 @@ with torch.no_grad():
     x_rec = model.decode(quant)
 
 print("Input shape:", x.shape)
-print("Quant shape:", quant.shape)     # expected [1, 3, 8, 8] for f=4 and d=3
+print("Quant shape:", quant.shape)  # expected [1, 3, 8, 8] for f=4 and d=3
 print("Token indices shape:", indices.shape)
 print("Reconstruction shape:", x_rec.shape)
 
@@ -43,7 +43,6 @@ else:
 print("Tokens (8x8) min/max:", int(tokens_8x8.min()), int(tokens_8x8.max()))
 
 
-
 ###################   READING THE ZARR.ZIP FILES  (version 2 of zarr should be used) ###################
 
 import zarr
@@ -52,5 +51,5 @@ from zarr.storage import ZipStore
 with ZipStore("order_images.zarr.zip", mode="r") as store:
     arr = zarr.open(store=store, path="images", mode="r")
 
-img = arr[123]        # single image
-batch = arr[100:132] # batch
+img = arr[123]  # single image
+batch = arr[100:132]  # batch

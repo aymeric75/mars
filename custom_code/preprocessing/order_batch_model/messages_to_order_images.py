@@ -21,7 +21,8 @@ ONE_MINUTE_NS = 60 * ONE_SECOND_NS
 
 # Market hours (nanoseconds since midnight)
 MARKET_OPEN_NS = 9 * 60 * 60 * 1_000_000_000 + 30 * 60 * 1_000_000_000  # 09:30
-MARKET_CLOSE_NS = 16 * 60 * 60 * 1_000_000_000                          # 16:00
+MARKET_CLOSE_NS = 16 * 60 * 60 * 1_000_000_000  # 16:00
+
 
 @dataclass
 class Converters:
@@ -30,6 +31,7 @@ class Converters:
     pred_order_volume: BinConverter
     order_interval: BinConverter
     lob_volume: BinConverter
+
 
 CONVERTERS_JSON = Path(__file__).resolve().parents[2] / "training" / "converters_portable.json"
 
@@ -53,10 +55,6 @@ for bin_item in obj["state"]["lob_volume"]["bin_values"]:
     lob_vols.extend(bin_item["data"])
 
 converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
-
-
-
-
 
 
 def create_mars_order_type_column(messages: pd.DataFrame) -> None:
@@ -101,9 +99,7 @@ def from_messages_and_snapshots_to_features(
     create_slots_columns(features)
     features = features.drop(columns=["Price", "Size", "mid_price"])
     features = features.fillna(0)
-    features[["Mars_type", "bin_price", "bin_vol"]] = features[
-        ["Mars_type", "bin_price", "bin_vol"]
-    ].astype("int32")
+    features[["Mars_type", "bin_price", "bin_vol"]] = features[["Mars_type", "bin_price", "bin_vol"]].astype("int32")
     features["Time"] = features["Time"].astype("int64")
     return features.reset_index(drop=True)
 
@@ -127,7 +123,7 @@ def retrieve_chunk_last_16min_from_df(features: pd.DataFrame, index: int) -> lis
         times[index] - np.arange(16, -1, -1, dtype=np.int64) * ONE_MINUTE_NS,
         side="left",
     )
-    return [features.iloc[cut_points[k]:cut_points[k + 1]] for k in range(16)]
+    return [features.iloc[cut_points[k] : cut_points[k + 1]] for k in range(16)]
 
 
 def compute_valid_anchor_indices(times: np.ndarray) -> np.ndarray:
@@ -144,6 +140,7 @@ def compute_valid_anchor_indices(times: np.ndarray) -> np.ndarray:
     # Need the earliest boundary to be strictly inside the file history.
     # If earliest_cut_points[i] == 0, retrieval would rely on data before the file start.
     return np.flatnonzero(earliest_cut_points > 0).astype(np.int64, copy=False)
+
 
 def retrieve_chunk_last_16min(message_file: str | Path, index: int) -> list[pd.DataFrame]:
     msg_cols = ["Time", "Message_Type", "Direction", "Price", "Size"]

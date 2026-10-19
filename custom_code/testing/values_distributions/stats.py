@@ -1,5 +1,5 @@
-""" Go through a day/stock, iterate usign the Market Engine and gather for each index
-    ground truth and predicted order index
+"""Go through a day/stock, iterate usign the Market Engine and gather for each index
+ground truth and predicted order index
 """
 
 import torch
@@ -25,14 +25,17 @@ from custom_code.preprocessing.order_model.messages_to_features_no_engine import
 )
 from custom_code.testing.values_distributions.messages_to_features import (
     make_exchange_and_orderstate,
-    make_exchange, row_to_order,
-    pass2_write_features
+    make_exchange,
+    row_to_order,
+    pass2_write_features,
 )
+
 # from custom_code.preprocessing.order_batch_model.convert_order_images_to_64_vec import (
 #     find_best_checkpoint,
 #     load_model,
 # )
 from custom_code.testing.utils import load_order_model, load_ensemble_model, load_order_batch_model
+
 CKPT_DIR = Path("checkpoint_downsample_100")
 
 # best_ckpt = find_best_checkpoint(CKPT_DIR)
@@ -41,7 +44,7 @@ CKPT_DIR = Path("checkpoint_downsample_100")
 
 
 device = "cpu"
-SEQ_LEN = 1 # 1024
+SEQ_LEN = 1  # 1024
 TOKEN_DIM = 15
 NUM_BINS_PRICE_LEVEL = 32
 NUM_BINS_ORDER_VOLUME = 32
@@ -58,31 +61,29 @@ class Converters:
     lob_volume: BinConverter
 
 
-
 CONVERTERS_JSON = Path(__file__).resolve().parents[2] / "training" / "converters_portable.json"
 
 with CONVERTERS_JSON.open("r", encoding="utf-8") as f:
     obj = json.load(f)
 
-#price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
+# price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
 
 price_minus_mid = []
 for bin_item in obj["state"]["price_level"]["bin_values"]:
     price_minus_mid.extend(bin_item["data"])
 
-#sizes = blob["state"]["order_volume"]["bin_values"]["data"]
+# sizes = blob["state"]["order_volume"]["bin_values"]["data"]
 sizes = []
 for bin_item in obj["state"]["order_volume"]["bin_values"]:
     sizes.extend(bin_item["data"])
 
-#intervals = blob["state"]["order_interval"]["bin_values"]["data"]
+# intervals = blob["state"]["order_interval"]["bin_values"]["data"]
 intervals = []
 for bin_item in obj["state"]["order_interval"]["bin_values"]:
     intervals.extend(bin_item["data"])
 
 
-
-#lob_vols = blob["state"]["lob_volume"]["bin_values"]["data"]
+# lob_vols = blob["state"]["lob_volume"]["bin_values"]["data"]
 lob_vols = []
 for bin_item in obj["state"]["lob_volume"]["bin_values"]:
     lob_vols.extend(bin_item["data"])
@@ -91,18 +92,17 @@ for bin_item in obj["state"]["lob_volume"]["bin_values"]:
 converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
 
 
-
-#data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
+# data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
 data_dir = Path("../data")
 
-#for message_file in data_dir.glob("*_messages.parquet"):
+# for message_file in data_dir.glob("*_messages.parquet"):
 
 
 def process_file(message_file):
 
-    #-----------------------------------------
+    # -----------------------------------------
     # Loop over the 3 files, at the same time
-    #-----------------------------------------
+    # -----------------------------------------
     # device="cpu"
     # # Load the Order Model
     # order_model = load_order_model(
@@ -113,8 +113,6 @@ def process_file(message_file):
 
     # for the Ensemble mode:
     # requires to load also the Order Batch Model and the VQGAN
-
-
 
     stock = message_file.stem.split("_")[0]
     day = message_file.stem.split("_")[1]
@@ -127,29 +125,25 @@ def process_file(message_file):
     meta_file = Path(data_dir / message_file.name.replace("_messages", "_meta"))
     snapshots_file = Path(data_dir / message_file.name.replace("_messages", "_snapshots"))
 
-
     messages = pd.read_parquet(message_file)
     meta_df = pd.read_parquet(meta_file)
     snapshots = pd.read_parquet(snapshots_file)
 
-
     ex, order_state, base_time = make_exchange_and_orderstate(stock, day, converters)
     n = len(messages)
 
-    #-----------------------------------------
+    # -----------------------------------------
     # Loop over the 3 files, at the same time
-    #-----------------------------------------
+    # -----------------------------------------
 
     tmp_last_10204_feats = np.empty((0, 15))
 
     batch_list = []
     batch_i_s = []
 
-
     gt_indices = {}
     gt_type4 = {}
     predicted_indices = {}
-
 
     # We use the meta info to obtain when we are in MarketHours (between code 22 and 23)
     meta = meta_df.sort_values("Time", kind="mergesort")
@@ -161,23 +155,16 @@ def process_file(message_file):
     left = j - 1
     right = j
     nearest = np.where((msg_t - mt[left]) <= (mt[right] - msg_t), left, right)
-    msg_sys_code = mc[nearest]   # aligned with messages_df rows
+    msg_sys_code = mc[nearest]  # aligned with messages_df rows
     del meta, mt, mc, msg_t, j, left, right, nearest
 
     markethours = False
     # i AND THEN :   order_index,
 
-    for i, r in enumerate(tqdm(messages.itertuples(index=False),
-                                total=n,
-                                desc="pass",
-                                unit="msg",
-                                miniters=10000)):
-
-
+    for i, r in enumerate(tqdm(messages.itertuples(index=False), total=n, desc="pass", unit="msg", miniters=10000)):
         msg = messages.iloc[i]
         mta = meta_df.iloc[i]
         snap = snapshots.iloc[i]
-
 
         t = msg["Time"]  # same as mta["Time"] and snap["Time"]
 
@@ -185,7 +172,6 @@ def process_file(message_file):
 
         if order is None:
             continue
-
 
         try:
             trade_infos = ex.submit_continuous_auction_order(order)
@@ -204,11 +190,8 @@ def process_file(message_file):
         if not markethours:
             continue
 
-
-
         # the feature vector
         feat = order_state.recent_orders[-1].to_vector()
-
 
         gt_indices[i] = feat[0]
 
@@ -219,33 +202,27 @@ def process_file(message_file):
         if tmp_last_10204_feats.shape[0] > 1024:
             tmp_last_10204_feats = tmp_last_10204_feats[-1024:]
 
-
         if tmp_last_10204_feats.shape == (1024, 15):
-
             if i % 300 == 0 and i > 1024:
-
                 batch_list.append(tmp_last_10204_feats)
-                batch_i_s.append(i+1)
+                batch_i_s.append(i + 1)
 
-
-        if len(batch_list) ==  15:
-
+        if len(batch_list) == 15:
             batch_array = np.stack(batch_list, axis=0)
             X = torch.from_numpy(batch_array).to(device=device, dtype=torch.long)
             print("X.shape")
             print(X.shape)
             exit()
             base_logits = order_model(X)
-            logits_next = base_logits[:, -1, :]          # (49152,)
-            probs_next  = torch.softmax(logits_next, 1) # (49152,)
-            pred_id = torch.argmax(probs_next, dim=1) #.item()
+            logits_next = base_logits[:, -1, :]  # (49152,)
+            probs_next = torch.softmax(logits_next, 1)  # (49152,)
+            pred_id = torch.argmax(probs_next, dim=1)  # .item()
 
             for k, j in enumerate(batch_i_s):
                 predicted_indices[j] = pred_id[k]
 
             batch_list = []
             batch_i_s = []
-
 
         # if i > 1696659:
         #     print(snap)$
@@ -255,9 +232,7 @@ def process_file(message_file):
     json.dump(predicted_indices, open(f"jsons/{stock}_{day}_order-indices-pred.json", "w"), default=lambda x: x.item())
 
 
-
 if __name__ == "__main__":
-
     files = list(data_dir.glob("*_messages.parquet"))
 
     # '/scratch/project_2012747/mars_data/order_model/test/raw/AMZN_2025-12-09_messages.parquet
@@ -274,7 +249,6 @@ if __name__ == "__main__":
 
         if ticker in tickers and start <= date <= end:
             filtered.append(f)
-
 
     print("filtered")
     print(filtered)

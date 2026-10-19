@@ -1,16 +1,16 @@
-""" from one *messages.parquet and corresponding *meta.parquet and *lobsnapshot, call the Market Engine in order to check the LOB snapshot validity
+"""from one *messages.parquet and corresponding *meta.parquet and *lobsnapshot, call the Market Engine in order to check the LOB snapshot validity
 
-    (optionnaly aims to answer the questions:
-        what percentage of transactions are done (vs percentage of orders)
-        how "orders" are matched with each others (or more generally what are the different scenarios that update the LOB, and how)
-    )
+(optionnaly aims to answer the questions:
+    what percentage of transactions are done (vs percentage of orders)
+    how "orders" are matched with each others (or more generally what are the different scenarios that update the LOB, and how)
+)
 
 """
 
 
-#---------------------------
+# ---------------------------
 # call the different files
-#---------------------------
+# ---------------------------
 
 import pandas as pd
 from pathlib import Path
@@ -30,21 +30,18 @@ with open("messages.txt", "w") as f:
 print()
 print("SNAPSHOTS")
 
-df_short = snapshots.rename(columns=lambda c: (
-    c.replace("Ask_Price_", "AP")
-     .replace("Ask_Size_", "AS")
-     .replace("Bid_Price_", "BP")
-     .replace("Bid_Size_", "BS")
-))
+df_short = snapshots.rename(
+    columns=lambda c: c.replace("Ask_Price_", "AP").replace("Ask_Size_", "AS").replace("Bid_Price_", "BP").replace("Bid_Size_", "BS")
+)
 
 sna = snapshots.iloc[1693260:1693265]
 with open("snapshots.txt", "w") as f:
     f.write(sna.to_string())
 exit()
 
-#-----------------------------------------
+# -----------------------------------------
 # Create an "Order State" and an exchange
-#-----------------------------------------
+# -----------------------------------------
 import pickle
 from tqdm import tqdm
 
@@ -59,7 +56,7 @@ from market_simulation.utils.bin_converter import BinConverter
 
 from messages_to_features import make_exchange_and_orderstate, make_exchange, row_to_order, build_converters_from_samples, pass2_write_features
 
-SEQ_LEN = 1 # 1024
+SEQ_LEN = 1  # 1024
 TOKEN_DIM = 15
 NUM_BINS_PRICE_LEVEL = 32
 NUM_BINS_ORDER_VOLUME = 32
@@ -75,13 +72,12 @@ class Converters:
     order_interval: BinConverter
     lob_volume: BinConverter
 
+
 # with open("converters.pkl", "rb") as f:
 #     converters = pickle.load(f)
 
 
-
 import json
-
 
 
 CONVERTERS_JSON = Path(__file__).resolve().parents[1] / "training" / "converters_portable.json"
@@ -89,25 +85,24 @@ CONVERTERS_JSON = Path(__file__).resolve().parents[1] / "training" / "converters
 with CONVERTERS_JSON.open("r", encoding="utf-8") as f:
     obj = json.load(f)
 
-#price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
+# price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
 
 price_minus_mid = []
 for bin_item in obj["state"]["price_level"]["bin_values"]:
     price_minus_mid.extend(bin_item["data"])
 
-#sizes = blob["state"]["order_volume"]["bin_values"]["data"]
+# sizes = blob["state"]["order_volume"]["bin_values"]["data"]
 sizes = []
 for bin_item in obj["state"]["order_volume"]["bin_values"]:
     sizes.extend(bin_item["data"])
 
-#intervals = blob["state"]["order_interval"]["bin_values"]["data"]
+# intervals = blob["state"]["order_interval"]["bin_values"]["data"]
 intervals = []
 for bin_item in obj["state"]["order_interval"]["bin_values"]:
     intervals.extend(bin_item["data"])
 
 
-
-#lob_vols = blob["state"]["lob_volume"]["bin_values"]["data"]
+# lob_vols = blob["state"]["lob_volume"]["bin_values"]["data"]
 lob_vols = []
 for bin_item in obj["state"]["lob_volume"]["bin_values"]:
     lob_vols.extend(bin_item["data"])
@@ -122,17 +117,15 @@ ex, order_state, base_time = make_exchange_and_orderstate(symbol, "2025-10-01", 
 n = len(messages)
 
 
-#-----------------------------------------
+# -----------------------------------------
 # Loop over the 3 files, at the same time
-#-----------------------------------------
+# -----------------------------------------
 
 count_buys = 0
 count_sells = 0
 count_cancels = 0
 count_visible_exec = 0
 total_transactions = 0
-
-
 
 
 # pass2_write_features(
@@ -147,19 +140,10 @@ total_transactions = 0
 # exit()
 
 
-
-
-
-for i, r in enumerate(tqdm(messages.itertuples(index=False),
-                            total=n,
-                            desc="pass",
-                            unit="msg")):
-
-
+for i, r in enumerate(tqdm(messages.itertuples(index=False), total=n, desc="pass", unit="msg")):
     msg = messages.iloc[i]
     mta = meta.iloc[i]
     snap = snapshots.iloc[i]
-
 
     t = msg["Time"]  # same as mta["Time"] and snap["Time"]
 
@@ -171,27 +155,19 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
     # if i > 12:
     #     break
 
-
-
-    #if r.Messate_type
+    # if r.Messate_type
 
     try:
         trade_infos = ex.submit_continuous_auction_order(order)
     except AssertionError:
         raise
 
-
     ########### replay_exec_
 
     if trade_infos:
-
         for trade_info in trade_infos:
-
             if trade_info.transactions:
-
                 for trans in trade_info.transactions:
-
-
                     if r.Message_Type == 4:
                         print("on y esst")
                         print(r)
@@ -201,10 +177,7 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
                         snapshot = ex.get_lob(symbol).snapshot(level=10)
                         print(snapshot)
 
-
                         exit()
-
-
 
                     # if float(trans.price) > 0:
                     #     print(">>>>>>>> 0")
@@ -213,11 +186,11 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
                     #     breakpoint()
 
                     if trans.type == "B":
-                        count_buys+=1
+                        count_buys += 1
                     if trans.type == "S":
-                        count_sells+=1
+                        count_sells += 1
                     if trans.type == "C":
-                        count_cancels+=1
+                        count_cancels += 1
                         # if order.tag == "replay_exec":
                         #     # print("IN REPLAYX ")
                         #     # print(trans.price)
@@ -229,17 +202,16 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
                         #     #breakpoint()
                     total_transactions += 1
 
-                    #break
+                    # break
 
     if i > 1696659:
         print(snap)
-
 
         # quand c'est type 4, alors trans.type doit correspondre au type donné DANS LE MESSAGE (r.Message_Type)
 
         #
 
-        #print("CONCLUSION: NEAR END SNAPS SHOULD CORRESPOND TO GROUND TRUTH!!")
+        # print("CONCLUSION: NEAR END SNAPS SHOULD CORRESPOND TO GROUND TRUTH!!")
 
 
 # # 64065
@@ -257,7 +229,7 @@ for i, r in enumerate(tqdm(messages.itertuples(index=False),
 # print("perc_sells ", perc_sells)
 # print("perc_cancels ", perc_cancels)
 
-#-----------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------
 # Next, COUNT THE NUMBER OF TRADES, AND ALSO, SEE whatever "trade" is being made, or in a large sense,
 # what are all the scenarios in which the Order Book is updated
-#-----------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------
