@@ -84,11 +84,7 @@ def load_vq_model(ckpt_path: Path, config_path: Path, device: str):
     ckpt = torch.load(str(ckpt_path), map_location="cpu", weights_only=False)
     state_dict = ckpt.get("state_dict", ckpt)
     if any(key.startswith("model.") for key in state_dict):
-        state_dict = {
-            key.removeprefix("model."): value
-            for key, value in state_dict.items()
-            if key.startswith("model.")
-        }
+        state_dict = {key.removeprefix("model."): value for key, value in state_dict.items() if key.startswith("model.")}
     missing, unexpected = model.load_state_dict(state_dict, strict=False)
     unexpected = [key for key in unexpected if not key.startswith("loss.")]
     if missing or unexpected:
@@ -277,7 +273,7 @@ def encode_images_to_tokens(vq_model, images_chw_uint8: np.ndarray, device: str)
         flat_tokens = tokens.reshape(tokens.shape[0], -1)
     elif tokens.ndim == 2:
         per_image = int(tokens.shape[1])
-        side = int(round(per_image ** 0.5))
+        side = int(round(per_image**0.5))
         if side * side != per_image:
             raise ValueError(f"Cannot infer square token grid from {per_image} tokens")
         grid_hw = (side, side)
@@ -289,7 +285,7 @@ def encode_images_to_tokens(vq_model, images_chw_uint8: np.ndarray, device: str)
                 f"Flat token vector of length {tokens.numel()} is not divisible by batch size {batch_size}",
             )
         per_image = int(tokens.numel() // batch_size)
-        side = int(round(per_image ** 0.5))
+        side = int(round(per_image**0.5))
         if side * side != per_image:
             raise ValueError(f"Cannot infer square token grid from {per_image} flat tokens per image")
         grid_hw = (side, side)

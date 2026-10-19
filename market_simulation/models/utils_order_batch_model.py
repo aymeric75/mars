@@ -27,6 +27,7 @@ from custom_code.preprocessing.order_batch_model.messages_to_order_images import
 from market_simulation.models.utils import read_parquet_row_slice
 from market_simulation.models.utils_vqgan import instantiate_vq_model
 
+
 @dataclass
 class VQRuntimeConfig:
     ckpt_dir: str
@@ -240,7 +241,6 @@ class OnlineMessageTokenDataset(Dataset):
                 return chunk["tokens"][row]
 
         return self._encode_anchor_batch(file_idx, [local_idx])[0]
-
 
 
 def lm_loss_next_token(logits: torch.Tensor, input_ids: torch.Tensor) -> torch.Tensor:

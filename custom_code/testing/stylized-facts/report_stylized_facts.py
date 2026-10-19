@@ -128,8 +128,7 @@ def calculate_log_return(minutes: list[MinuteInfo], start_minute: int, end_minut
         p0 = minutes[start_minute].price_mean
         p1 = minutes[end_minute].price_mean
     else:
-        #print("SHOULD BE HERE")
-
+        # print("SHOULD BE HERE")
 
         p0 = minutes[start_minute].price_last
         p1 = minutes[end_minute].price_last
@@ -197,15 +196,13 @@ def get_minute_info(trade_infos: list[TradeInfo], start_lob: LobSnapshot) -> lis
     infos = []
     last_price = start_lob.last_price
 
-
     # print("start_lob")
 
     # print(start_lob)
     # print(start_lob.time)
     start_lob = start_lob._replace(time=start_lob.time.normalize())
 
-
-    counteerrrr  = 0
+    counteerrrr = 0
 
     for trade_info in trade_infos:
         trans_volume = 0
@@ -216,20 +213,18 @@ def get_minute_info(trade_infos: list[TradeInfo], start_lob: LobSnapshot) -> lis
             trade_info.order.time = start_lob.time + trade_info.order.time
 
         if trade_info.transactions and trade_info.transactions[0].type != "C":
-
             last_price = trade_info.transactions[0].price
 
-            #print(last_price)
+            # print(last_price)
             trans_volume = sum([x.volume for x in trade_info.transactions])
-            #print(trans_volume)
-            #breakpoint()
+            # print(trans_volume)
+            # breakpoint()
 
         if isinstance(trade_info.order.time.round("60s"), pd.Timedelta):
             print("BIG ISSUE ")
             exit()
 
-
-        #print(type(trade_info.order.time.round("60s")))
+        # print(type(trade_info.order.time.round("60s")))
         infos.append(
             {
                 "time": trade_info.order.time.round("60s"),
@@ -238,7 +233,7 @@ def get_minute_info(trade_infos: list[TradeInfo], start_lob: LobSnapshot) -> lis
                 "mid_price": trade_info.lob_snapshot.float_mid_price,
             }
         )
-        counteerrrr+=1
+        counteerrrr += 1
     data = pd.DataFrame(infos)
     minutes_data = (
         data.groupby("time")
@@ -262,7 +257,6 @@ def get_minute_info(trade_infos: list[TradeInfo], start_lob: LobSnapshot) -> lis
 
     # # Volume: keep 0 (means "no executions"). If you later need log-volume, handle there.
     # minutes_data["volume"] = minutes_data["volume"].fillna(0).astype(int)
-
 
     minutes: list[MinuteInfo] = []
     row: MinuteInfo
@@ -293,8 +287,6 @@ def get_rollout_info(path: Path) -> RolloutInfo | None:
     assert rollouts[0] is not None
     replay_trade_infos, _ = rollouts[0]  # real replay
     rollouts = [x for x in rollouts if x is not None]
-
-
 
     if len(rollouts) != 2:
         logging.warning(f"Got {len(rollouts)} rollouts")
@@ -348,7 +340,6 @@ def get_return_info(
         num_minutes = len(replay_minutes)
         # print("num_minutesnum_minutes")
         # print(num_minutes)
-
 
         for source, minutes in [("Replay", replay_minutes), ("Simulation", simulation_minutes)]:
             for delta_t in delta_ts:
@@ -410,7 +401,6 @@ def plot_return_autocorrelation(rollout_infos: list[RolloutInfo], output_dir: Pa
     """
     max_tau = 10
     data = get_return_info(rollout_infos, delta_ts=[1], taus=list(range(1, max_tau + 1)), price_type=price_type)
-
 
     groups = data.groupby(["source", "lag", "symbol"])
 
@@ -584,21 +574,19 @@ def plot_volatility_clustering(rollout_infos: list[RolloutInfo], output_dir: Pat
     print(data["r2"])
     data["r1_abs"] = np.abs(data["r1"])
     data["r2_abs"] = np.abs(data["r2"])
-    #groups = data.groupby(["source", "lag", "symbol"])
+    # groups = data.groupby(["source", "lag", "symbol"])
 
     def r_corr(x, col1, col2) -> float:  # noqa: ANN001
         return np.corrcoef(x[col1], x[col2])[0, 1]
 
-    #corr = groups.apply(lambda x: r_corr(x, "r1_abs", "r2_abs")).reset_index().rename(columns={0: "corr"})
-
+    # corr = groups.apply(lambda x: r_corr(x, "r1_abs", "r2_abs")).reset_index().rename(columns={0: "corr"})
 
     corr = (
         data.groupby(["source", "lag", "symbol"])[["r1_abs", "r2_abs"]]
-            .apply(lambda x: r_corr(x, "r1_abs", "r2_abs"))
-            .reset_index()
-            .rename(columns={0: "corr"})
+        .apply(lambda x: r_corr(x, "r1_abs", "r2_abs"))
+        .reset_index()
+        .rename(columns={0: "corr"})
     )
-
 
     # group by symbol
     # corr = corr.groupby(["source", "lag"]).agg(corr=("corr", "mean")).reset_index()
@@ -627,9 +615,7 @@ def plot_conditional_heavy_tails(rollout_infos: list[RolloutInfo], output_dir: P
     max_delta_t = 20
     data = get_return_info(rollout_infos, delta_ts=list(range(1, max_delta_t + 1)), taus=[0])
     data = data[(data["r1"] > -0.5) & (data["r1"] < 0.5)]
-    #data["time"] = data["time"].dt.time
-
-
+    # data["time"] = data["time"].dt.time
 
     # if it's datetime, convert to minute-of-day index; if timedelta, minute-of-duration index
     if pd.api.types.is_datetime64_any_dtype(data["time"]):
@@ -637,8 +623,7 @@ def plot_conditional_heavy_tails(rollout_infos: list[RolloutInfo], output_dir: P
     else:
         data["time"] = (data["time"].dt.total_seconds() // 60).astype(int)
 
-
-    data["minute_vol"] = data.groupby(["source", "delta_t", "time"])["r1"].transform(lambda x: (x.std()))
+    data["minute_vol"] = data.groupby(["source", "delta_t", "time"])["r1"].transform(lambda x: x.std())
     data["r1"] = data["r1"] / data["minute_vol"]
     groups = data.groupby(["source", "delta_t", "symbol"])
     kurtosis = groups.apply(lambda x: x["r1"].kurtosis()).reset_index().rename(columns={0: "kurtosis"})
@@ -871,7 +856,6 @@ def generate_stylized_facts(path: Path, output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     logging.info(f"Found {len(rollouts)} rollouts in {path}")
 
-
     # Absence of autocorrelations
     plot_return_autocorrelation(rollouts, output_dir, price_type="last")
     plot_return_autocorrelation(rollouts, output_dir, price_type="mean")
@@ -917,7 +901,7 @@ if __name__ == "__main__":
     use the `get_rollout_info` function in this module. Historical trade info data is not provided due to
     licensing restrictions.
     """
-    #rollout_info_path: Path = Path(C.directory.input_root_dir) / "stylized-facts/rollout_info_25_minutes.zstd"
+    # rollout_info_path: Path = Path(C.directory.input_root_dir) / "stylized-facts/rollout_info_25_minutes.zstd"
     rollout_info_path: Path = Path("rollout_info_25_minutes.zstd")
     output_dir: Path = Path("./stylized-facts")
 

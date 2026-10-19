@@ -74,12 +74,11 @@ class BackgroundAgent(BaseAgent):
             self.planned_action = None
             return action
 
-
         mid_price, state_vector, state = self.get_order_state()
 
-        #t0 = time_.perf_counter()
+        # t0 = time_.perf_counter()
         predictions = self.model_client.get_prediction(state_vector)
-        #pred_timer.add(time_.perf_counter() - t0)
+        # pred_timer.add(time_.perf_counter() - t0)
 
         assert predictions.size == 1
         order_index = predictions[0]

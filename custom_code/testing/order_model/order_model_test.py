@@ -114,52 +114,29 @@ class FileMetrics:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Evaluate the Order Model and, optionally, the Ensemble Model on the exact same "
-            "sampled windows from data/test with bounded RAM usage."
+            "Evaluate the Order Model and, optionally, the Ensemble Model on the exact same sampled windows from data/test with bounded RAM usage."
         ),
     )
     parser.add_argument(
         "--ckpt",
         type=Path,
-        default=REPO_ROOT
-        / "mars_runs"
-        / "order_model"
-        / "tensorboard"
-        / "bs=8_lr=1e-4"
-        / "step=step=13920-val=val_loss=3.2903.ckpt",
+        default=REPO_ROOT / "mars_runs" / "order_model" / "tensorboard" / "bs=8_lr=1e-4" / "step=step=13920-val=val_loss=3.2903.ckpt",
     )
     parser.add_argument(
         "--ensemble_ckpt",
         type=Path,
-        default=REPO_ROOT
-        / "mars_runs"
-        / "ensemble_model"
-        / "tensorboard"
-        / "bs=8_lr=5e-5"
-        / "step=step=1925-val=val_loss=4.6967.ckpt",
+        default=REPO_ROOT / "mars_runs" / "ensemble_model" / "tensorboard" / "bs=8_lr=5e-5" / "step=step=1925-val=val_loss=4.6967.ckpt",
         help="Optional Ensemble Lightning .ckpt checkpoint. If omitted, only the Order Model is evaluated.",
     )
     parser.add_argument(
         "--vq_ckpt",
         type=Path,
-        default=REPO_ROOT
-        / "mars_runs"
-        / "vqgan"
-        / "2500steps"
-        / "tensorboard"
-        / "bs=8_lr=1e-5"
-        / "step=4606-val_rec_loss=0.038047.ckpt",
+        default=REPO_ROOT / "mars_runs" / "vqgan" / "2500steps" / "tensorboard" / "bs=8_lr=1e-5" / "step=4606-val_rec_loss=0.038047.ckpt",
     )
     parser.add_argument(
         "--vq_config",
         type=Path,
-        default=REPO_ROOT
-        / "third_party"
-        / "latent_diffusion"
-        / "models"
-        / "first_stage_models"
-        / "vq-f4"
-        / "config.yaml",
+        default=REPO_ROOT / "third_party" / "latent_diffusion" / "models" / "first_stage_models" / "vq-f4" / "config.yaml",
     )
     parser.add_argument(
         "--data_dir",
@@ -181,12 +158,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--order_batch_ckpt",
         type=Path,
-        default=REPO_ROOT
-        / "mars_runs"
-        / "order_batch_model"
-        / "tensorboard"
-        / "bs=2_lr=1e-4"
-        / "step=step=0-val=val_loss=1.8096.ckpt",
+        default=REPO_ROOT / "mars_runs" / "order_batch_model" / "tensorboard" / "bs=2_lr=1e-4" / "step=step=0-val=val_loss=1.8096.ckpt",
         help="Order-Batch Lightning .ckpt used only when --ensemble_token_source predicted.",
     )
     parser.add_argument("--ensemble_tokens_per_image", type=int, default=64)
@@ -386,9 +358,7 @@ def load_feature_slice(
         cols[idx] = f"f{idx - f0_idx}"
     feature_df.columns = cols
 
-    feature_array = np.ascontiguousarray(
-        feature_df[[f"f{i}" for i in range(15)]].to_numpy(dtype=np.int64, copy=True)
-    )
+    feature_array = np.ascontiguousarray(feature_df[[f"f{i}" for i in range(15)]].to_numpy(dtype=np.int64, copy=True))
     if include_prev:
         feature_array = feature_array[1:]
     return feature_array
@@ -479,9 +449,7 @@ def build_predicted_prefix_tokens(
         device=device,
     )
     if context_tokens.size(1) != tokens_per_image:
-        raise RuntimeError(
-            f"Expected {tokens_per_image} VQ tokens per context image, got {context_tokens.size(1)}."
-        )
+        raise RuntimeError(f"Expected {tokens_per_image} VQ tokens per context image, got {context_tokens.size(1)}.")
 
     batch_size = int(anchor_indices.size)
     return context_tokens.view(batch_size, 16 * tokens_per_image)
@@ -690,9 +658,7 @@ def evaluate_file(
 
             expected_rows = slice_stop - slice_start
             if feature_array.shape[0] != expected_rows:
-                raise RuntimeError(
-                    f"Slice length mismatch for {message_file.name}: expected {expected_rows}, got {feature_array.shape[0]}."
-                )
+                raise RuntimeError(f"Slice length mismatch for {message_file.name}: expected {expected_rows}, got {feature_array.shape[0]}.")
 
             local_starts = group - slice_start
             anchor_indices = group + seq_len
@@ -707,9 +673,7 @@ def evaluate_file(
                         anchor_indices=anchor_indices,
                     )
                     if next_images.shape[0] != len(group):
-                        raise RuntimeError(
-                            f"Next-image batch mismatch for {message_file.name}: expected {len(group)}, got {next_images.shape[0]}."
-                        )
+                        raise RuntimeError(f"Next-image batch mismatch for {message_file.name}: expected {len(group)}, got {next_images.shape[0]}.")
                     ensemble_batch_tokens = encode_images_to_tokens(
                         vq_model=ensemble_runtime.vq_model,
                         images_chw=next_images,

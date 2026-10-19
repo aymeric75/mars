@@ -12,11 +12,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 from custom_code.training.utils import TextProgressCallback
-from market_simulation.models.utils_order_model import (
-    RawMessagesTokenDataset,
-    build_model_from_variant,
-    lm_loss_all_positions
-)
+from market_simulation.models.utils_order_model import RawMessagesTokenDataset, build_model_from_variant, lm_loss_all_positions
 
 
 class ChunkShuffleBatchSampler(BatchSampler):
@@ -95,6 +91,7 @@ class ChunkShuffleBatchSampler(BatchSampler):
             return self.num_samples // self.batch_size
         return (self.num_samples + self.batch_size - 1) // self.batch_size
 
+
 class OrderBatchDataModule(pl.LightningDataModule):
     def __init__(
         self,
@@ -131,8 +128,6 @@ class OrderBatchDataModule(pl.LightningDataModule):
         self._train = None
         self._val = None
 
-
-
     def setup(self, stage: str | None = None):
         self._train = RawMessagesTokenDataset(
             message_files=list(Path(self.train_dir).glob("*messages.parquet")),
@@ -146,19 +141,16 @@ class OrderBatchDataModule(pl.LightningDataModule):
             cache_size=self.cache_size,
             chunk_size=self.train_chunk_size,
         )
-    
+
     def collate_tokens(self, batch):
         batch = [x.contiguous().clone() for x in batch]
         return torch.stack(batch, dim=0)
-
-
 
     @staticmethod
     def seed_worker(worker_id: int):
         worker_seed = torch.initial_seed() % 2**32
         np.random.seed(worker_seed)
         random.seed(worker_seed)
-
 
     def train_dataloader(self):
         batch_sampler = ChunkShuffleBatchSampler(
@@ -180,7 +172,6 @@ class OrderBatchDataModule(pl.LightningDataModule):
             persistent_workers=(self.num_workers > 0),
             prefetch_factor=2 if self.num_workers > 0 else None,
         )
-
 
     def val_dataloader(self):
         batch_sampler = ChunkShuffleBatchSampler(
@@ -204,7 +195,6 @@ class OrderBatchDataModule(pl.LightningDataModule):
         )
 
 
-
 class OrderLightningModule(pl.LightningModule):
     def __init__(self, model_variant: str, K: int, lr: float):
         super().__init__()
@@ -221,21 +211,16 @@ class OrderLightningModule(pl.LightningModule):
 
         if torch.cuda.is_available() and batch_idx == 0:
             torch.cuda.reset_peak_memory_stats()
-        
+
         logits = self(X)
         loss = lm_loss_all_positions(logits, X)
-    
+
         if torch.cuda.is_available() and batch_idx == 0:
             peak = torch.cuda.max_memory_allocated() / 1024**2
             reserved = torch.cuda.max_memory_reserved() / 1024**2
             print(f"\nGPU memory — allocated: {peak:.1f} MB | reserved: {reserved:.1f} MB\n")
-        
-        self.log(
-            "train_loss",
-            loss,
-            on_step=True,
-            sync_dist=True
-        )
+
+        self.log("train_loss", loss, on_step=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -245,9 +230,9 @@ class OrderLightningModule(pl.LightningModule):
         self.log("val_loss", loss, on_step=False, sync_dist=False, prog_bar=False)
         return loss
 
-
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters(), lr=self.lr)
+
 
 def main():
     p = argparse.ArgumentParser()
@@ -303,7 +288,6 @@ def main():
 
     model = OrderLightningModule(model_variant=args.model_variant, K=args.K, lr=args.lr)
 
-
     run_name = args.run_name or f"bs={args.batch_size}_lr={args.lr:g}"
     run_root = args.run_root
     os.makedirs(run_root, exist_ok=True)
@@ -318,13 +302,11 @@ def main():
     logger = TensorBoardLogger(
         save_dir=run_root,
         name="tensorboard",
-        version=run_name,   # <--- makes each run distinct in one TB logdir
+        version=run_name,  # <--- makes each run distinct in one TB logdir
     )
 
-
-
     ckpt_cb = ModelCheckpoint(
-        dirpath=run_dir,                          # <--- checkpoints saved HERE
+        dirpath=run_dir,  # <--- checkpoints saved HERE
         filename="step={step}-val={val_loss:.4f}",
         monitor="val_loss",
         mode="min",
@@ -349,7 +331,6 @@ def main():
         enable_checkpointing=True,
         enable_progress_bar=False,
     )
-
 
     trainer.fit(model, dm)
 
