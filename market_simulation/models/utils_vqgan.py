@@ -77,8 +77,7 @@ def create_mars_order_type_column(messages: pd.DataFrame) -> None:
     messages["Mars_type"] = 0
     messages.loc[messages["Message_Type"].isin([2, 3]), "Mars_type"] = 2
     messages.loc[
-        ((messages["Message_Type"] == 1) & (messages["Direction"] == -1))
-        | ((messages["Message_Type"] == 4) & (messages["Direction"] == 1)),
+        ((messages["Message_Type"] == 1) & (messages["Direction"] == -1)) | ((messages["Message_Type"] == 4) & (messages["Direction"] == 1)),
         "Mars_type",
     ] = 1
 
@@ -107,15 +106,8 @@ def create_subtle_order_type_column(messages: pd.DataFrame) -> None:
 
     invalid_mask = subtle_type < 0
     if np.any(invalid_mask):
-        invalid_rows = (
-            messages.loc[invalid_mask, ["Message_Type", "Direction"]]
-            .drop_duplicates()
-            .to_dict(orient="records")
-        )
-        raise ValueError(
-            "Unsupported Message_Type/Direction combination for Subtle_type: "
-            f"{invalid_rows}"
-        )
+        invalid_rows = messages.loc[invalid_mask, ["Message_Type", "Direction"]].drop_duplicates().to_dict(orient="records")
+        raise ValueError(f"Unsupported Message_Type/Direction combination for Subtle_type: {invalid_rows}")
 
     messages["Subtle_type"] = subtle_type
 
@@ -131,9 +123,7 @@ def from_messages_and_snapshots_to_image_features(
 
     features = messages[["Time", "Mars_type", "Price", "Size"]].copy()
     features["mid_price"] = (snapshots["Ask_Price_1"] + snapshots["Bid_Price_1"]) / 2
-    features = features[
-        (features["Time"] >= MARKET_OPEN_NS) & (features["Time"] <= MARKET_CLOSE_NS)
-    ].reset_index(drop=True)
+    features = features[(features["Time"] >= MARKET_OPEN_NS) & (features["Time"] <= MARKET_CLOSE_NS)].reset_index(drop=True)
 
     price_minus_mid = (features["Price"] - features["mid_price"]).to_numpy(dtype=np.float64, copy=False)
     size_values = features["Size"].to_numpy(dtype=np.float64, copy=False)
@@ -278,9 +268,7 @@ class ManualOptimizationVQWrapper(pl.LightningModule):
         super().__init__()
         self.model = model
         self.automatic_optimization = False
-        self._loss_accepts_predicted_indices = (
-            "predicted_indices" in inspect.signature(self.model.loss.forward).parameters
-        )
+        self._loss_accepts_predicted_indices = "predicted_indices" in inspect.signature(self.model.loss.forward).parameters
 
     def forward(self, *args, **kwargs):
         """Forward to the wrapped VQ model."""
@@ -417,7 +405,9 @@ class ManualOptimizationVQWrapper(pl.LightningModule):
                     split="val_ema",
                     predicted_indices=ind_ema,
                 )
-                self.log("val_ema/rec_loss", log_dict_ae_ema["val_ema/rec_loss"], prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True)
+                self.log(
+                    "val_ema/rec_loss", log_dict_ae_ema["val_ema/rec_loss"], prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True
+                )
                 self.log("val_ema/aeloss", aeloss_ema, prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True)
                 self.log("val_ema/disc_loss", discloss_ema, prog_bar=False, logger=True, on_step=False, on_epoch=True, sync_dist=True)
                 log_dict_ae_ema = dict(log_dict_ae_ema)
@@ -444,11 +434,7 @@ def instantiate_vq_model(config_path: Path | str, init_ckpt: str | None, learnin
         ckpt = torch.load(str(init_ckpt), map_location="cpu", weights_only=False)
         state_dict = ckpt.get("state_dict", ckpt)
         if any(key.startswith("model.") for key in state_dict):
-            state_dict = {
-                key.removeprefix("model."): value
-                for key, value in state_dict.items()
-                if key.startswith("model.")
-            }
+            state_dict = {key.removeprefix("model."): value for key, value in state_dict.items() if key.startswith("model.")}
         missing, unexpected = model.load_state_dict(state_dict, strict=False)
         print(
             f"Restored from {init_ckpt} with {len(missing)} missing and {len(unexpected)} unexpected keys",

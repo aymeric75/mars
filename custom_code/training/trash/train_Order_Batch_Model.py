@@ -12,23 +12,20 @@ H, W, C = 32, 32, 3
 V_MAX = 100
 
 
-
-
 class OrderImageDataset(Dataset):
     def __init__(self, ds, time_col="Time", f0_col="f0", include_current=False):
         self.include_current = include_current
 
-
         ds = ds.with_format("numpy", columns=[time_col, f0_col])
 
-        self.t  = np.asarray(ds[time_col], dtype=np.int64)
-        self.f0 = np.asarray(ds[f0_col],   dtype=np.int64)
+        self.t = np.asarray(ds[time_col], dtype=np.int64)
+        self.f0 = np.asarray(ds[f0_col], dtype=np.int64)
 
         # seg0[i] = start of the (stock/day) segment containing i
         s = np.empty(len(self.t), np.int64)
         s[0] = 0
         for i in range(1, len(self.t)):
-            s[i] = i if self.t[i] <= self.t[i-1] else s[i-1]
+            s[i] = i if self.t[i] <= self.t[i - 1] else s[i - 1]
         self.seg0 = s
 
         # precompute for each i: j0[i] = first index in [seg0[i], i) with t >= t[i]-60s
@@ -37,7 +34,7 @@ class OrderImageDataset(Dataset):
         for i in range(len(self.t)):
             a = int(self.seg0[i])
             if self.t[i] - self.t[a] < NS_PER_MIN:
-                self.j0[i] = a # HARMLESS PLACEHOLDER (this value will never be used)
+                self.j0[i] = a  # HARMLESS PLACEHOLDER (this value will never be used)
                 continue
             self.j0[i] = a + np.searchsorted(self.t[a:i], self.t[i] - NS_PER_MIN, side="left")
             self.valid.append(i)
@@ -52,12 +49,10 @@ class OrderImageDataset(Dataset):
         j1 = i + 1 if self.include_current else i
 
         arr3 = decode_order_index_vec(self.f0[j0:j1])
-        img  = build_order_image(arr3)
-        x    = img.transpose(2, 0, 1).astype(np.float32)
-        x    = (x / 100.0) * 2.0 - 1.0
+        img = build_order_image(arr3)
+        x = img.transpose(2, 0, 1).astype(np.float32)
+        x = (x / 100.0) * 2.0 - 1.0
         return torch.from_numpy(x)
-
-
 
 
 # class OrderImageDataset(Dataset):
@@ -129,10 +124,6 @@ class OrderImageDataset(Dataset):
 #         return torch.from_numpy(x)
 
 
-
-
-
-
 def make_vq_collate(vq_for_orders, device="cuda", return_x=False):
     """
     Returns a collate_fn that:
@@ -162,8 +153,6 @@ def make_vq_collate(vq_for_orders, device="cuda", return_x=False):
     return collate
 
 
-
-
 def load_parquets_hf(folder: str | Path, pattern: str = "*.parquet"):
     folder = Path(folder)
     paths = sorted(folder.glob(pattern))
@@ -177,7 +166,7 @@ def load_parquets_hf(folder: str | Path, pattern: str = "*.parquet"):
         data_files=[str(p) for p in paths],
         split="train",
     )
-    #ds = ds.sort("Time")
+    # ds = ds.sort("Time")
 
     return ds
 
@@ -188,9 +177,7 @@ print(len(f0))
 # from features files to mmap (only filtering what's useful),
 
 
-
 # one_big_ds = load_parquets_hf("../data/features")
-
 
 
 # ds = OrderImageDataset(one_big_ds)  # df must be sorted by Time

@@ -257,7 +257,6 @@ class PrintCkptFilename(pl.Callback):
                 print(" >> checkpoint full path:", full)
 
 
-
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--run_root", default="checkpoints_batch_order_model")
