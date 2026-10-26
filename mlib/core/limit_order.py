@@ -115,7 +115,6 @@ class LimitOrder(BaseOrder):
         """Convert to limit orders with orderbook information."""
         return [self.clone()]
 
-
     def with_time(self, new_time: pd.Timestamp) -> "LimitOrder":
         return LimitOrder(
             time=new_time,
