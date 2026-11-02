@@ -29,7 +29,6 @@ from torchvision.utils import save_image
 #     def __getitem__(self, i): return self.x[i]
 
 
-
 class OrderArray(Dataset):
     def __init__(self, zarr_zip_path, zarr_path="images"):
         self.zarr_zip_path = str(zarr_zip_path)
@@ -66,16 +65,15 @@ class OrderArray(Dataset):
         # normalize to [-1, 1] (adapt if your data is 0..255 / 0..100)
         mx = arr.max()
         if mx > 1.0:
-            arr /= (100.0 if mx <= 100.0 else 255.0)
+            arr /= 100.0 if mx <= 100.0 else 255.0
         arr = arr * 2.0 - 1.0
 
         return torch.from_numpy(arr)
 
 
-
-
 class VQForOrders(pl.LightningModule):
-    """ VQGAN model class, adapted for Orders """
+    """VQGAN model class, adapted for Orders"""
+
     def __init__(self, vqmodel, lr=1e-4):
         super().__init__()
         self.m = vqmodel
@@ -103,15 +101,11 @@ class VQForOrders(pl.LightningModule):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
 
 
-
 # ---------- Train ----------
 def train():
 
-
-    THIS_DIR = Path(__file__).resolve().parent          # custom_code/training
-    REPO = THIS_DIR.parents[1]                     # repo root (MarS-main)
-
-
+    THIS_DIR = Path(__file__).resolve().parent  # custom_code/training
+    REPO = THIS_DIR.parents[1]  # repo root (MarS-main)
 
     # access the VQGAN official code
     sys.path.insert(0, str(REPO / "third_party" / "latent-diffusion"))
@@ -119,12 +113,11 @@ def train():
 
     from ldm.util import instantiate_from_config
 
-
     # Load the order images (here in a npy file)
 
     ####
 
-    #data = np.load(REPO / "data" / "order_images.npy")  # (4142,3,32,32) # 9 days worth data
+    # data = np.load(REPO / "data" / "order_images.npy")  # (4142,3,32,32) # 9 days worth data
 
     # with ZipStore(REPO / "data" / "features" / "features_AAPL_2025-12-17_messages_10_mmaps" / "order_images.zarr.zip", mode="r") as store:
     #     data = zarr.open(store=store, path="images", mode="r")
@@ -133,20 +126,16 @@ def train():
     # print(type(data))
     # <class 'zarr.core.Array'>
 
-
-
     # create the dataloader (for train and val)
     ds = OrderArray(REPO / "data" / "features" / "features_AAPL_2025-12-17_messages_10_mmaps" / "order_images.zarr.zip")
 
     n = len(ds)
     n_train, n_val = int(0.8 * n), int(0.1 * n)
     n_test = n - n_train - n_val
-    train_ds, val_ds, test_ds = random_split(ds, [n_train, n_val, n_test],
-                                            generator=torch.Generator().manual_seed(0))
+    train_ds, val_ds, test_ds = random_split(ds, [n_train, n_val, n_test], generator=torch.Generator().manual_seed(0))
 
     train_dl = DataLoader(train_ds, batch_size=64, shuffle=True, num_workers=4, drop_last=True)
-    val_dl   = DataLoader(val_ds,   batch_size=64, shuffle=False, num_workers=4)
-
+    val_dl = DataLoader(val_ds, batch_size=64, shuffle=False, num_workers=4)
 
     # load VQGan model with config and weights as in MarS paper
     cfg = OmegaConf.load(str(REPO / "third_party/latent-diffusion/models/first_stage_models/vq-f4/config.yaml"))
@@ -172,7 +161,7 @@ def train():
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices=1,
         max_epochs=20,
-        check_val_every_n_epoch=2,   # <-- val every X epochs
+        check_val_every_n_epoch=2,  # <-- val every X epochs
         log_every_n_steps=50,
         callbacks=[ckpt_cb],
     )
@@ -195,5 +184,6 @@ def train():
     save_image(gt, OUT_DIR / "gt.png")
     save_image(pr, OUT_DIR / "pred.png")
     print("Saved:", OUT_DIR / "gt.png", "and", OUT_DIR / "pred.png")
+
 
 train()

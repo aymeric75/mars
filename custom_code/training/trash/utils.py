@@ -1,5 +1,6 @@
 import torch
 
+
 def adamw_lower_bound_bytes(model: torch.nn.Module) -> int:
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     bytes_per_fp32 = 4
@@ -37,8 +38,6 @@ def measure_peak_memory(model, batch, loss_fn, device):
 
     peak = torch.cuda.max_memory_allocated(device)
     return peak
-
-
 
 
 def build_model_from_variant(model_variant: str):

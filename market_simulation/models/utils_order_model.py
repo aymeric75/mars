@@ -34,8 +34,6 @@ def make_train_val_loaders(ds, val_frac=0.01, seed=0, **dl_kwargs):
     return train_dl, val_dl
 
 
-
-
 class RawMessagesTokenDataset(Dataset):
     """
     Dataset that loads raw messages.parquet files and converts them
@@ -51,20 +49,17 @@ class RawMessagesTokenDataset(Dataset):
         cache_size=4,
         chunk_size=2048,
     ):
-        
-                
+
         self.message_files = []
-        
+
         for msg_path in sorted(message_files):
             snap_path = self._snapshot_path(msg_path)
-        
+
             if snap_path.exists():
                 self.message_files.append(msg_path)
             else:
                 print(f"Skipping {msg_path} (no snapshot file)")
-        
-        
-        
+
         self.seq_len = seq_len
         self.cache_size = cache_size
         self.chunk_size = int(chunk_size)
@@ -148,7 +143,7 @@ class RawMessagesTokenDataset(Dataset):
             start_row=raw_start,
             num_rows=raw_rows,
         )
-    
+
         # rename columns to f1 -> f14
         cols = df.columns.tolist()
         start = cols.index("f0")
@@ -196,13 +191,8 @@ class RawMessagesTokenDataset(Dataset):
         seq = feats[offset : offset + self.seq_len]
         return torch.tensor(seq, dtype=torch.long)
 
+
 from market_simulation.models.utils_heads import OnlineReturnHeadDataset  # compatibility import
-
-
-
-
-
-
 
 
 def lm_loss_all_positions(logits: torch.Tensor, X: torch.Tensor) -> torch.Tensor:
@@ -222,11 +212,8 @@ try:
     from market_simulation.models.order_model import OrderModel
 except ModuleNotFoundError as e:
     raise ModuleNotFoundError(
-        "Could not import market_simulation. Make sure the MarS repository is on PYTHONPATH "
-        "or installed in your environment."
+        "Could not import market_simulation. Make sure the MarS repository is on PYTHONPATH or installed in your environment."
     ) from e
-
-
 
 
 def build_model_from_variant(model_variant: str, K: int):

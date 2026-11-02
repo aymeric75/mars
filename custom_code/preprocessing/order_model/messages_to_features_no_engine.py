@@ -12,6 +12,7 @@ NUM_BINS_ORDER_VOLUME = 32
 NUM_BINS_ORDER_INTERVAL = 16
 NUM_BINS_LOB_VOLUME = 32
 
+
 @dataclass
 class Converters:
     price_level: BinConverter
@@ -35,6 +36,7 @@ def build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols):
     lob_volume = BinConverter.create_from_values(lv, NUM_BINS_LOB_VOLUME)
 
     return Converters(price_level, order_volume, order_volume, order_interval, lob_volume)
+
 
 CONVERTERS_JSON = Path(__file__).resolve().parents[2] / "training" / "converters_portable.json"
 
@@ -70,8 +72,6 @@ converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lo
 # 3          19938  34200002958773  34887   9   9  135  19799   0   1   0   1   0    0    0    0    1    0
 
 
-
-
 #  0(S), 1(B), 2(C)
 def create_mars_order_type_column(messages):
     message_type = messages["Message_Type"]
@@ -84,6 +84,8 @@ def create_mars_order_type_column(messages):
         [2, 1],
         default=0,
     )
+
+
 def create_slots_columns(df):
     # cur_order.price - mid_price
     price_minus_mid = (df["Price"] - df["mid_price"]).to_numpy()
@@ -95,7 +97,7 @@ def create_slots_columns(df):
     df["seconds_since_prev"] = df["Time"].diff() / 1e9
     interval_values = df["seconds_since_prev"].to_numpy()
     df["bin_interval"] = converters.order_interval.get_bin_indices(interval_values)
-    #df = df.drop(columns=["seconds_since_prev"])
+    # df = df.drop(columns=["seconds_since_prev"])
 
 
 def bins_lob_volumes(df):
@@ -114,7 +116,7 @@ def create_price_change_to_open(df):
 
 
 def create_seconds_since_open(df):
-    open_time_ns = (9*3600 + 30*60) * 1_000_000_000
+    open_time_ns = (9 * 3600 + 30 * 60) * 1_000_000_000
     df["seconds_since_open"] = (df["Time"] - open_time_ns) / 1e9
 
 
@@ -122,21 +124,30 @@ def add_lob_volumes(df, snapshots):
     cols = [f"Ask_Size_{i}" for i in range(1, 6)] + [f"Bid_Size_{i}" for i in range(1, 6)]
     df[cols] = snapshots[cols]
 
-def from_messages_to_features(message_file, snapshot_file, start_row=None, num_rows=None):
 
+def from_messages_to_features(message_file, snapshot_file, start_row=None, num_rows=None):
 
     msg_cols = ["Time", "Message_Type", "Direction", "Price", "Size"]
     snap_cols = [
-        "Ask_Price_1", "Bid_Price_1",
-        "Ask_Size_1", "Ask_Size_2", "Ask_Size_3", "Ask_Size_4", "Ask_Size_5",
-        "Bid_Size_1", "Bid_Size_2", "Bid_Size_3", "Bid_Size_4", "Bid_Size_5",
+        "Ask_Price_1",
+        "Bid_Price_1",
+        "Ask_Size_1",
+        "Ask_Size_2",
+        "Ask_Size_3",
+        "Ask_Size_4",
+        "Ask_Size_5",
+        "Bid_Size_1",
+        "Bid_Size_2",
+        "Bid_Size_3",
+        "Bid_Size_4",
+        "Bid_Size_5",
     ]
 
     messages = read_parquet_row_slice(message_file, columns=msg_cols, start_row=start_row, num_rows=num_rows)
     snapshots = read_parquet_row_slice(snapshot_file, columns=snap_cols, start_row=start_row, num_rows=num_rows)
 
-    start = (9*60*60 + 30*60) * 1_000_000_000   # 9:30 in ns
-    end = (16*60*60) * 1_000_000_000            # 16:00 in ns
+    start = (9 * 60 * 60 + 30 * 60) * 1_000_000_000  # 9:30 in ns
+    end = (16 * 60 * 60) * 1_000_000_000  # 16:00 in ns
     time_mask = (messages["Time"] >= start) & (messages["Time"] <= end)
 
     messages = messages.loc[time_mask].copy()
@@ -152,8 +163,8 @@ def from_messages_to_features(message_file, snapshot_file, start_row=None, num_r
         features["Mars_type"] * NUM_BINS_PRICE_LEVEL * NUM_BINS_ORDER_VOLUME * NUM_BINS_ORDER_INTERVAL
         + features["bin_price"] * NUM_BINS_ORDER_VOLUME * NUM_BINS_ORDER_INTERVAL
         + features["bin_vol"] * NUM_BINS_ORDER_INTERVAL
-        + features["bin_interval"])
-
+        + features["bin_interval"]
+    )
 
     features = features.drop(columns=["bin_price", "bin_vol", "seconds_since_prev", "bin_interval"])
     features["vol_ratio_slot"] = 0
@@ -170,13 +181,12 @@ def from_messages_to_features(message_file, snapshot_file, start_row=None, num_r
 
     features = features.fillna(0)
 
-    #print(features)
+    # print(features)
 
     return features
 
+
 # from_messages_to_features("../data/LOBSTER_AAPL_2025-10-29_messages_10.parquet", "../data/LOBSTER_AAPL_2025-10-29_snapshots_10.parquet")
-
-
 
 
 # NUM_BINS_PRICE_LEVEL = 32
