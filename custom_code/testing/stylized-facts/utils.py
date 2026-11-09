@@ -26,7 +26,7 @@ from market_simulation.models.order_batch_model import OrderBatchModel
 from market_simulation.models.order_model import OrderModel
 
 
-SEQ_LEN = 1 # 1024
+SEQ_LEN = 1  # 1024
 TOKEN_DIM = 15
 NUM_BINS_PRICE_LEVEL = 32
 NUM_BINS_ORDER_VOLUME = 32
@@ -43,9 +43,6 @@ class Converters:
     lob_volume: BinConverter
 
 
-
-
-
 def make_exchange(symbol: str, date_str: str = "2025-10-10") -> Tuple[Exchange, pd.Timestamp]:
     market_open = pd.Timestamp(f"{date_str} 09:30:00")
     market_close = pd.Timestamp(f"{date_str} 15:00:00")
@@ -55,8 +52,6 @@ def make_exchange(symbol: str, date_str: str = "2025-10-10") -> Tuple[Exchange, 
         symbols=[symbol],
     )
     return Exchange(cfg), market_open
-
-
 
 
 def make_exchange_and_orderstate(
@@ -77,15 +72,12 @@ def make_exchange_and_orderstate(
     return ex, state, base_time
 
 
-
-
-
 def row_to_order(
     r,
     *,
     symbol: str,
     time_unit: str,
-    ex: Optional[Exchange] = None,   # <-- NEW: allow price lookup from current book
+    ex: Optional[Exchange] = None,  # <-- NEW: allow price lookup from current book
 ) -> Optional[LimitOrder]:
     """
     Message_Type mapping given by user:
@@ -104,7 +96,6 @@ def row_to_order(
     # print("time_unit")
     # print(time_unit)
     # breakpoint()
-
 
     t = pd.to_timedelta(int(r.Time), unit=time_unit)
 
@@ -128,7 +119,7 @@ def row_to_order(
     if msg == 1:
         return LimitOrder(
             time=t,
-            type=side,          # "B" or "S"
+            type=side,  # "B" or "S"
             price=price,
             volume=size,
             symbol=symbol,
@@ -156,7 +147,7 @@ def row_to_order(
             symbol=symbol,
             agent_id=-1,
             order_id=-1,
-            cancel_type=side,      # cancel a buy if side=="B", else cancel a sell
+            cancel_type=side,  # cancel a buy if side=="B", else cancel a sell
             cancel_id=order_id,
             tag="replay",
         )
@@ -185,16 +176,8 @@ def row_to_order(
             tag="replay_exec",
         )
 
-
     # Unknown / unsupported
     return None
-
-
-
-
-
-
-
 
 
 # Load the Order Model
@@ -210,7 +193,6 @@ def load_order_model(ckpt_path: str, device: str = "cpu", K: int = 1024):
     model.load_state_dict(state_dict, strict=True)
     model.to(device).eval()
     return model
-
 
 
 # Load the Order Batch Model
@@ -237,10 +219,10 @@ def load_order_batch_model(ckpt_path: str, device: str = "cpu"):
     return model
 
 
- # Load the Ensemble Model (PT file)
+# Load the Ensemble Model (PT file)
 def load_ensemble_model(ckpt_path: str, device: str = "cpu", order_vocab_size: int = 49152):
     ckpt = torch.load(ckpt_path, map_location="cpu")  # this is the dict saved by save_checkpoint()
-    state_dict = ckpt["model_state_dict"]             # <-- critical: NOT "state_dict"
+    state_dict = ckpt["model_state_dict"]  # <-- critical: NOT "state_dict"
 
     model = EnsembleModel(order_vocab_size=int(order_vocab_size))
     model.load_state_dict(state_dict, strict=True)

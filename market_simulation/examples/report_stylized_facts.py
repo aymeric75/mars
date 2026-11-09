@@ -554,7 +554,7 @@ def plot_conditional_heavy_tails(rollout_infos: list[RolloutInfo], output_dir: P
     data = get_return_info(rollout_infos, delta_ts=list(range(1, max_delta_t + 1)), taus=[0])
     data = data[(data["r1"] > -0.5) & (data["r1"] < 0.5)]
     data["time"] = data["time"].dt.time
-    data["minute_vol"] = data.groupby(["source", "delta_t", "time"])["r1"].transform(lambda x: (x.std()))
+    data["minute_vol"] = data.groupby(["source", "delta_t", "time"])["r1"].transform(lambda x: x.std())
     data["r1"] = data["r1"] / data["minute_vol"]
     groups = data.groupby(["source", "delta_t", "symbol"])
     kurtosis = groups.apply(lambda x: x["r1"].kurtosis()).reset_index().rename(columns={0: "kurtosis"})
