@@ -8,6 +8,7 @@ import ray
 from market_simulation.conf import C
 from custom_code.testing.utils import load_order_model
 
+
 @ray.remote(num_gpus=1)
 class OrderModelActor:
     def __init__(self):
@@ -26,7 +27,7 @@ class OrderModelActor:
 
         with torch.no_grad():
             out = self.model.sample(x, self.temperature).int().cpu().numpy().reshape(-1)
-            #out = self.model.sample(x, self.temperature).int().cpu().reshape((1, -1)).numpy()
+            # out = self.model.sample(x, self.temperature).int().cpu().reshape((1, -1)).numpy()
 
-        #return out[0]
+        # return out[0]
         return out.astype(np.int32)

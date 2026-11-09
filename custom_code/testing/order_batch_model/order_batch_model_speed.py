@@ -110,12 +110,16 @@ def feature_from_last_raw_row(message_row: pd.DataFrame, snapshot_row: pd.DataFr
     features["Mars_type"] = messages["Mars_type"].to_numpy(copy=False)
     create_mid_price_column(features, snapshot_row)
     create_slots_columns(features)
-    return features[["Time", "Mars_type", "bin_price", "bin_vol"]].fillna(0).astype(
-        {"Time": "int64", "Mars_type": "int32", "bin_price": "int32", "bin_vol": "int32"}
+    return (
+        features[["Time", "Mars_type", "bin_price", "bin_vol"]]
+        .fillna(0)
+        .astype({"Time": "int64", "Mars_type": "int32", "bin_price": "int32", "bin_vol": "int32"})
     )
 
 
-def preprocess(history_features: pd.DataFrame, last_message: pd.DataFrame, last_snapshot: pd.DataFrame, vq_model: torch.nn.Module, device: str) -> tuple[torch.Tensor, int]:
+def preprocess(
+    history_features: pd.DataFrame, last_message: pd.DataFrame, last_snapshot: pd.DataFrame, vq_model: torch.nn.Module, device: str
+) -> tuple[torch.Tensor, int]:
     last_feature = feature_from_last_raw_row(last_message, last_snapshot)
     features = pd.concat([history_features, last_feature], ignore_index=True)
     features = features.loc[features["Time"] >= int(features["Time"].iat[-1] - 16 * ONE_MINUTE_NS)].reset_index(drop=True)

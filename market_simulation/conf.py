@@ -15,7 +15,7 @@ class ModelServing(BaseModel):
 
     num_gpus: float = 0.3  # 30% of GPU
     num_cpus: float = 0.2  # 20% of CPU
-    max_batch_size: int = 16 #
+    max_batch_size: int = 16  #
     fp16: bool = True
 
     class Config:
@@ -42,7 +42,7 @@ class OrderModel(BaseModel):
 class DebugConfig(BaseModel):
     """Config for debug."""
 
-    enable: bool = False #
+    enable: bool = False  #
 
 
 class Conf(BaseSettings):

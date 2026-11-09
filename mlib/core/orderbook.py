@@ -204,7 +204,6 @@ class Orderbook:
                 break
         return index
 
-
     def _clear_levels(self, level_indexes: list[int], levels: list[Level]) -> None:
         for index in reversed(level_indexes):
             levels.pop(index)
@@ -221,9 +220,7 @@ class Orderbook:
         levels.append(Level(order.price, order.volume, [order]))
 
     def _update_with_normal_order(self, order: LimitOrder) -> list[Transaction]:  # noqa: PLR0915
-
         """Update orderbook with normal order."""
-
 
         assert order.volume > 0
         assert order.price >= 0
@@ -258,7 +255,6 @@ class Orderbook:
                 self.asks.pop(index)
             return transactions
 
-
         #  Sell Limit Agressive Order, we consume the bid side at the price given in the order message
         if order.is_sell and order.tag == "type_4":
             index = self._find_matched_index(order.price, self.bids)
@@ -270,15 +266,12 @@ class Orderbook:
                 self.bids.pop(index)
             return transactions
 
-
         #
         if order.is_buy:
-
             levels = self.asks
             empty_levels: list[int] = []
 
             for index_level, level in enumerate(levels):
-
                 if level.price <= order.price:
                     if level.volume > 0:
                         (
@@ -315,7 +308,6 @@ class Orderbook:
             empty_levels = []
             for index_level, level in enumerate(levels):
                 if level.price >= order.price:
-
                     if level.volume > 0:
                         (
                             order,

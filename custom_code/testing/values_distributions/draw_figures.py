@@ -1,4 +1,4 @@
-""" Draw the figures, assumes that the same list of stocks is given for any given day """
+"""Draw the figures, assumes that the same list of stocks is given for any given day"""
 
 import json
 import pandas as pd
@@ -25,6 +25,7 @@ NUM_BINS_ORDER_INTERVAL = 16
 NUM_BINS_LOB_VOLUME = 32
 CHUNK_SIZE = 50_000
 
+
 @dataclass
 class Converters:
     price_level: BinConverter
@@ -32,6 +33,7 @@ class Converters:
     pred_order_volume: BinConverter
     order_interval: BinConverter
     lob_volume: BinConverter
+
 
 CONVERTERS_JSON = Path(__file__).resolve().parents[2] / "training" / "converters_portable.json"
 
@@ -62,16 +64,15 @@ converters = build_converters_from_samples(price_minus_mid, sizes, intervals, lo
 # exit()
 
 
-
 def serie_of_mars_type(message_file):
-    """ returns a pandas serie holding the order type
-        i.e.
-        0: passive sell
-        1: passive buy
-        2: cancel/delete
-        3: agressive sell
-        4: aggressive buy
-     """
+    """returns a pandas serie holding the order type
+    i.e.
+    0: passive sell
+    1: passive buy
+    2: cancel/delete
+    3: agressive sell
+    4: aggressive buy
+    """
 
     messages = pd.read_parquet(message_file)
     # start_time = 34200000226319
@@ -82,20 +83,11 @@ def serie_of_mars_type(message_file):
     # TYPE 2: cancel / delete
     messages.loc[messages["Message_Type"].isin([2, 3]), "Mars_type"] = 2
     # TYPE 1 : buy passive limit order
-    messages.loc[
-        ((messages["Message_Type"] == 1) & (messages["Direction"] == -1)),
-        "Mars_type"
-    ] = 1
+    messages.loc[((messages["Message_Type"] == 1) & (messages["Direction"] == -1)), "Mars_type"] = 1
     # TYPE 3 : sell agressive order
-    messages.loc[
-        ((messages["Message_Type"] == 4) & (messages["Direction"] == -1)),
-        "Mars_type"
-    ] = 3
+    messages.loc[((messages["Message_Type"] == 4) & (messages["Direction"] == -1)), "Mars_type"] = 3
     # TYPE 4 buy aggressive
-    messages.loc[
-        ((messages["Message_Type"] == 4) & (messages["Direction"] == 1)),
-        "Mars_type"
-    ] = 4
+    messages.loc[((messages["Message_Type"] == 4) & (messages["Direction"] == 1)), "Mars_type"] = 4
 
     return messages["Mars_type"]
 
@@ -104,7 +96,7 @@ data_folder = Path("jsons")
 
 
 def rearrange_order_type(type_, price, index_, mars_type):
-    """ look at the comments """
+    """look at the comments"""
     # if cancel / delete
     if type_ == 2:
         return type_
@@ -118,15 +110,15 @@ def rearrange_order_type(type_, price, index_, mars_type):
     # if sell order
     if type_ == 0:
         if price > 16:
-            return 0 # passive limit order
+            return 0  # passive limit order
         else:
-            return 3 # agressive
+            return 3  # agressive
     # if buy order
     if type_ == 1:
         if price < 16:
-            return 1 # passive limit order
+            return 1  # passive limit order
         else:
-            return 4 # agressive
+            return 4  # agressive
     return
 
 
@@ -160,7 +152,6 @@ def update_counter_from_array(counter, values, minlength):
             counter[idx] += int(count)
 
 
-
 def plot_feature_distribution(values_dico, feature_name, ax, gt_color="orange", xtick_pos=None, xtick_labels=None):
     gt_counts = Counter()
     pred_counts = Counter()
@@ -181,13 +172,11 @@ def plot_feature_distribution(values_dico, feature_name, ax, gt_color="orange", 
     ax.bar(x - width / 2, gt, width, label="GT", color=gt_color)
     ax.bar(x + width / 2, pred, width, label="Pred", color="blue")
 
-
     corres_names = {
-
         "price": "price / mid price distance (in ticks)",
         "type": "Order Type",
         "interval": "time interval between two orders (in seconds)",
-        "volume": "order volume (in shares)"
+        "volume": "order volume (in shares)",
     }
 
     ax.set_title(corres_names[feature_name])
@@ -197,9 +186,6 @@ def plot_feature_distribution(values_dico, feature_name, ax, gt_color="orange", 
     else:
         ax.set_xticks(x)
         ax.set_xticklabels(classes)
-
-
-
 
 
 days = []
@@ -212,7 +198,6 @@ data_path = Path("../../../data/test")
 
 # iterate over all stock/date present in jsons, and gather data into the "values" dict
 for file_gt in data_folder.glob("*order-indices-gt.json"):
-
     # retrieve data stock name and date and store them
     stock = file_gt.stem.split("_")[0]
     day = file_gt.stem.split("_")[1]
@@ -228,11 +213,8 @@ for file_gt in data_folder.glob("*order-indices-gt.json"):
     if day not in days:
         days.append(day)
 
-
     # retrieve corresponding prediction file
     file_pred = Path(data_folder / file_gt.name.replace("-gt", "-pred"))
-
-
 
     # load ground truth indices
     with open(file_gt, "r") as f:
@@ -254,8 +236,6 @@ for file_gt in data_folder.glob("*order-indices-gt.json"):
             "volume": {"ground_truth": Counter(), "predicted": Counter()},
             "interval": {"ground_truth": Counter(), "predicted": Counter()},
         }
-
-
 
     # order_type * (self.num_bins_price_level * self.num_bins_pred_order_volume * self.num_bins_order_interval)
     # + price_slot * (self.num_bins_pred_order_volume * self.num_bins_order_interval)
@@ -316,9 +296,7 @@ fig, axes = plt.subplots(2, 2, figsize=(12, 8))
 # for MarS
 fig.suptitle("Value distributions of price, volume, time difference, type", fontsize=14)
 
-caption = "data gathered over: " + "; ".join(
-    f"{stock} ({', '.join(days)})" for stock, days in stock_days.items()
-)
+caption = "data gathered over: " + "; ".join(f"{stock} ({', '.join(days)})" for stock, days in stock_days.items())
 
 fig.text(0.5, -0.01, caption, ha="center", fontsize=10)
 
@@ -352,7 +330,7 @@ for ax, feature in zip(axes.flat, features):
     else:
         plot_feature_distribution(values_dico, feature, ax)
 
-axes[0,0].legend()
+axes[0, 0].legend()
 
 plt.tight_layout()
 plt.savefig("all_distributions.png", bbox_inches="tight")

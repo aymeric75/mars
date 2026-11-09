@@ -66,7 +66,6 @@ class Level:
         matched_volume = 0
         matched_details: list[tuple[int, int]] = []
 
-
         for order in self._orders.values():
             assert order.type != clear_order.type
             vol = min(order.volume, clear_order.volume)
