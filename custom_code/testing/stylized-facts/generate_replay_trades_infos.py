@@ -22,25 +22,21 @@ from custom_code.preprocessing.order_model.messages_to_features_no_engine import
 )
 from custom_code.testing.values_distributions.messages_to_features import (
     make_exchange_and_orderstate,
-    make_exchange, row_to_order,
+    make_exchange,
+    row_to_order,
     pass2_write_features,
 )
-
-
 
 
 from report_stylized_facts import get_minute_info
 
 
-SEQ_LEN = 1 # 1024
+SEQ_LEN = 1  # 1024
 TOKEN_DIM = 15
 NUM_BINS_PRICE_LEVEL = 32
 NUM_BINS_ORDER_VOLUME = 32
 NUM_BINS_ORDER_INTERVAL = 16
 NUM_BINS_LOB_VOLUME = 32
-
-
-
 
 
 def build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols):
@@ -61,8 +57,6 @@ def build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols):
     lob_volume = BinConverter.create_from_values(lv, NUM_BINS_LOB_VOLUME)
 
     return Converters(price_level, order_volume, order_volume, order_interval, lob_volume)
-
-
 
 
 def build_replay_trade_infos(
@@ -86,19 +80,11 @@ def build_replay_trade_infos(
     ex, order_state, _base_time = make_exchange_and_orderstate(symbol, day, conv)
 
     # [42020, 42021]
-    #42022
+    # 42022
 
-    dico_order_id_occurrences_type_4 = (
-        messages_df[messages_df["Message_Type"] == 4]["Order"]
-        .value_counts()
-        .to_dict()
-    )
+    dico_order_id_occurrences_type_4 = messages_df[messages_df["Message_Type"] == 4]["Order"].value_counts().to_dict()
 
     dico_order_id_trade_infos = {}
-
-
-
-
 
     # Align meta System_Event_Code to each message row (same as pass2_write_features)
     meta = meta_df.sort_values("Time", kind="mergesort")
@@ -123,15 +109,12 @@ def build_replay_trade_infos(
     count_visible_exec = 0
     total_transactions = 0
 
-
-
     markethours = False
     start_lob: Optional[LobSnapshot] = None
     replay_trade_infos: List[TradeInfo] = []
 
     time_zero_seq = None
     time_zero_min = None
-
 
     list_of_lists = []
     tmp_trade_infos = []
@@ -140,12 +123,7 @@ def build_replay_trade_infos(
 
     dico_trade_infos = {}
 
-    for i, r in enumerate(
-        tqdm(messages_df.itertuples(index=False), total=n, desc="replay", unit="msg", miniters=10000)
-    ):
-
-
-
+    for i, r in enumerate(tqdm(messages_df.itertuples(index=False), total=n, desc="replay", unit="msg", miniters=10000)):
         if i == 0:
             order_state.open_time = r.Time
 
@@ -172,8 +150,6 @@ def build_replay_trade_infos(
         if not markethours:
             continue
 
-
-
         # quand tu détecte un "B" (ou un "S")
 
         # 6e+10
@@ -183,32 +159,22 @@ def build_replay_trade_infos(
         # 1560000000000
 
         if trade_infos:
-
             for trade_info in trade_infos:
-
                 dico_trade_infos[i] = trade_info
 
                 if trade_info.transactions:
-
                     for trans in trade_info.transactions:
-
-
-
                         if trans.type == "B":
-                            count_buys+=1
-
-
+                            count_buys += 1
 
                         if trans.type == "S":
-                            count_sells+=1
+                            count_sells += 1
                         if trans.type == "C":
-                            count_cancels+=1
+                            count_cancels += 1
 
                         total_transactions += 1
 
                     if order.tag == "type_4":
-
-
                         to_add = False
 
                         if r.Order not in dico_order_id_trade_infos:
@@ -223,16 +189,14 @@ def build_replay_trade_infos(
                             for ijijijij, trd_inf in enumerate(dico_order_id_trade_infos[r.Order]):
                                 if ijijijij == len_dic - 1:
                                     break
-                                #print(k, v)
+                                # print(k, v)
                                 total_volume += trd_inf.order.volume
                                 transactions.extend(trd_inf.transactions)
                             trade_info.transactions = transactions
-                            #trade_info.order.volume = total_volume
-
+                            # trade_info.order.volume = total_volume
 
                         if not to_add:
                             continue
-
 
                         #
                         if not tmp_trade_infos:
@@ -240,24 +204,23 @@ def build_replay_trade_infos(
                             time_zero_seq = order.time
                             time_last_added_order = order.time
                         else:
-
                             dist_from_last_order = (order.time - time_last_added_order).value
                             dist_from_begin_seq = (order.time - time_zero_seq).value
 
                             # si on est encore dans les 26 minutes
                             if dist_from_begin_seq < 1560000000000:
-                                #print("HHHEREEEEEEE")
+                                # print("HHHEREEEEEEE")
                                 # 60000000000
                                 # si le dernier ordre ajouté était il y a moins de 60 seconde
                                 if dist_from_last_order < 60000000000:
-                                    #print("ET DONC ")
+                                    # print("ET DONC ")
                                     tmp_trade_infos.append(trade_info)
                                     time_last_added_order = order.time
                                 else:
                                     # print("BEFORE WE DELETE ")
                                     # print(tmp_trade_infos)
                                     # breakpoint()
-                                    tmp_trade_infos = [] # sinon on reset la liste (car on aura une liste avec des ordres distants de + d'une minute)
+                                    tmp_trade_infos = []  # sinon on reset la liste (car on aura une liste avec des ordres distants de + d'une minute)
 
                             # si on a dépassé les 26 minutes
                             else:
@@ -269,19 +232,15 @@ def build_replay_trade_infos(
                                     list_of_lists.append(tmp_trade_infos)
                                     tmp_trade_infos = []
 
-
         if len(list_of_lists) > 10:
             break
-
-
 
         if counter > n:
             break
 
-        counter+=1
+        counter += 1
 
     return list_of_lists, start_lob
-
 
 
 CONVERTERS = None
@@ -293,38 +252,31 @@ def _init_worker(converters_json_path: str):
 
     global CONVERTERS
 
-
-
-
     with open(converters_json_path, "r", encoding="utf-8") as f:
         obj = json.load(f)
 
-    #price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
+    # price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
 
     price_minus_mid = []
     for bin_item in obj["state"]["price_level"]["bin_values"]:
         price_minus_mid.extend(bin_item["data"])
 
-    #sizes = blob["state"]["order_volume"]["bin_values"]["data"]
+    # sizes = blob["state"]["order_volume"]["bin_values"]["data"]
     sizes = []
     for bin_item in obj["state"]["order_volume"]["bin_values"]:
         sizes.extend(bin_item["data"])
 
-    #intervals = blob["state"]["order_interval"]["bin_values"]["data"]
+    # intervals = blob["state"]["order_interval"]["bin_values"]["data"]
     intervals = []
     for bin_item in obj["state"]["order_interval"]["bin_values"]:
         intervals.extend(bin_item["data"])
 
-
-
-    #lob_vols = blob["state"]["lob_volume"]["bin_values"]["data"]
+    # lob_vols = blob["state"]["lob_volume"]["bin_values"]["data"]
     lob_vols = []
     for bin_item in obj["state"]["lob_volume"]["bin_values"]:
         lob_vols.extend(bin_item["data"])
 
-
     CONVERTERS = build_converters_from_samples(price_minus_mid, sizes, intervals, lob_vols)
-
 
 
 def _process_pair(args):
@@ -357,7 +309,7 @@ def _process_pair(args):
 def main():
     converters_json = str(Path(__file__).resolve().parents[2] / "training" / "converters_portable.json")
     data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
-    #data_dir = Path("some_data")
+    # data_dir = Path("some_data")
     out_dir = Path("trade_infos")
 
     # pat = re.compile(
@@ -375,7 +327,6 @@ def main():
         r"(?P<type>messages|meta).parquet"
     )
 
-
     pairs = defaultdict(dict)
     for p in data_dir.glob("*.parquet"):
         m = pat.match(p.name)
@@ -384,14 +335,12 @@ def main():
         key = (m["stock"], m["date"])
         pairs[key][m["type"]] = p
 
-
-
     tasks = [
         (stock, date_, files["messages"], files["meta"], str(out_dir))
         for (stock, date_), files in pairs.items()
         if "messages" in files and "meta" in files
     ]
-    # 
+    #
     with Pool(processes=cpu_count(), initializer=_init_worker, initargs=(converters_json,)) as pool:
         for stock, date_, n_lists in pool.imap_unordered(_process_pair, tasks, chunksize=1):
             print(f"{stock} {date_}: wrote {n_lists} outputs")

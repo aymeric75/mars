@@ -8,9 +8,9 @@ from datetime import datetime, date
 source_dir = "META"
 
 # Destination folders
-train_dir = "train" #os.path.join(source_dir, "train")
-val_dir = "val" #os.path.join(source_dir, "val")
-test_dir = "test" #os.path.join(source_dir, "test")
+train_dir = "train"  # os.path.join(source_dir, "train")
+val_dir = "val"  # os.path.join(source_dir, "val")
+test_dir = "test"  # os.path.join(source_dir, "test")
 
 # Create destination folders if they don't exist
 os.makedirs(train_dir, exist_ok=True)
@@ -22,13 +22,13 @@ pattern = re.compile(r"^[A-Z]+_(\d{4}-\d{2}-\d{2})_(messages|snapshots|meta)\.pa
 
 # Date ranges
 train_start = date(2025, 11, 1)
-train_end   = date(2025, 11, 10)
+train_end = date(2025, 11, 10)
 
 val_start = date(2025, 11, 11)
-val_end   = date(2025, 11, 15)
+val_end = date(2025, 11, 15)
 
 test_start = date(2025, 11, 16)
-test_end   = date(2025, 11, 19)
+test_end = date(2025, 11, 19)
 
 for filename in os.listdir(source_dir):
     match = pattern.match(filename)
@@ -51,7 +51,6 @@ for filename in os.listdir(source_dir):
         split = "test"
     else:
         continue
-
 
     # Avoid overwriting existing files
     if not os.path.exists(dst_path):
