@@ -37,13 +37,6 @@ if TYPE_CHECKING:
 import numpy as np
 
 
-
-
-
-
-
-
-
 class LocalModelClient:
     def __init__(self, model, device="cuda", temperature=1.0):
         self.model = model.to(device)
@@ -57,7 +50,7 @@ class LocalModelClient:
         x = torch.from_numpy(state).to(self.device)
 
         # add batch dim if needed
-        #if x.ndim == 2:
+        # if x.ndim == 2:
         x = x.unsqueeze(0)
         x = x.half()
         with torch.no_grad():
@@ -71,7 +64,6 @@ class LocalModelClient:
                 pred = torch.argmax(logits, dim=-1)
 
         return pred.detach().cpu().numpy().reshape(-1)
-
 
 
 def create_initialization_agent(
@@ -143,7 +135,6 @@ def execute_single_simulation(task: RolloutTask, converter, model_client) -> lis
         list[TradeInfo]: Collection of trade information generated during simulation
     """
 
-
     exchange_config = create_exchange_config_without_call_auction(
         market_open=task.start_time,
         market_close=task.end_time,
@@ -213,12 +204,10 @@ def execute_single_simulation(task: RolloutTask, converter, model_client) -> lis
 
     has_taken_action = False
 
-
     counter = 0
-    t=time.perf_counter()
+    t = time.perf_counter()
 
     for observation in env.env():
-
         # if isinstance(observation.agent, NoiseAgent):
         #     action = observation.agent.get_action(observation)
         # if isinstance(observation.agent, BackgroundAgent):
@@ -243,7 +232,7 @@ def execute_single_simulation(task: RolloutTask, converter, model_client) -> lis
         env.step(action)
 
     print("time after loop")
-    print(time.perf_counter()-t)
+    print(time.perf_counter() - t)
 
     # Extract and return trade information
     trade_infos: list[TradeInfo] = extract_trade_information(exchange, task.symbol, task.start_time, task.end_time)
@@ -587,25 +576,22 @@ if __name__ == "__main__":
     from custom_code.testing.utils import load_order_model
     from custom_code.preprocessing.order_model.messages_to_features_no_engine import build_converters_from_samples
 
-
-
-
     converters_json = Path(__file__).resolve().parents[2] / "custom_code" / "training" / "converters_portable.json"
     with converters_json.open("r", encoding="utf-8") as f:
         obj = json.load(f)
-    #price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
+    # price_minus_mid = blob["state"]["price_level"]["bin_values"]["data"]
     price_minus_mid = []
     for bin_item in obj["state"]["price_level"]["bin_values"]:
         price_minus_mid.extend(bin_item["data"])
-    #sizes = blob["state"]["order_volume"]["bin_values"]["data"]
+    # sizes = blob["state"]["order_volume"]["bin_values"]["data"]
     sizes = []
     for bin_item in obj["state"]["order_volume"]["bin_values"]:
         sizes.extend(bin_item["data"])
-    #intervals = blob["state"]["order_interval"]["bin_values"]["data"]
+    # intervals = blob["state"]["order_interval"]["bin_values"]["data"]
     intervals = []
     for bin_item in obj["state"]["order_interval"]["bin_values"]:
         intervals.extend(bin_item["data"])
-    #lob_vols = blob["state"]["lob_volume"]["bin_values"]["data"]
+    # lob_vols = blob["state"]["lob_volume"]["bin_values"]["data"]
     lob_vols = []
     for bin_item in obj["state"]["lob_volume"]["bin_values"]:
         lob_vols.extend(bin_item["data"])
@@ -617,19 +603,14 @@ if __name__ == "__main__":
 
     ########
 
-    raw_model = load_order_model(
-        ckpt_path="step=step=3360-val=val_loss=3.7445.ckpt",
-        device="cuda"
-    )
+    raw_model = load_order_model(ckpt_path="step=step=3360-val=val_loss=3.7445.ckpt", device="cuda")
     model_client = LocalModelClient(raw_model, device="cuda")
 
-
     # Set up output directory for simulation results
-    #output_dir = Path(C.directory.output_root_dir) / "market-impact-example"
+    # output_dir = Path(C.directory.output_root_dir) / "market-impact-example"
     output_dir = Path("market-impact-example")
     output_dir.mkdir(parents=True, exist_ok=True)
-    num_rollouts = 1 #16
-
+    num_rollouts = 1  # 16
 
     # Run multiple simulations with different seeds and volume ratios
     for seed in range(10):
@@ -639,12 +620,12 @@ if __name__ == "__main__":
                 symbol="000000",
                 start_time=Timestamp("2024-01-01 09:30:00"),
                 init_end_time=Timestamp("2024-01-01 10:00:00"),
-                end_time=Timestamp("2024-01-01 10:00:04"), # ("2024-01-01 10:05:00"),
+                end_time=Timestamp("2024-01-01 10:00:04"),  # ("2024-01-01 10:05:00"),
                 num_rollouts=num_rollouts,
                 rollouts_path=rollouts_path,
                 seed_for_init_state=seed,
                 volume_ratio=volume_ratio,
                 converter=converter,
-                model_client=model_client
+                model_client=model_client,
             )
             visualize_rollouts(rollouts_path)

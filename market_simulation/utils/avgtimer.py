@@ -1,5 +1,6 @@
 import time
 
+
 class AvgTimer:
     def __init__(self, name, every=200):
         self.name = name
