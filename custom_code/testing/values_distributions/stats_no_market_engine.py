@@ -14,10 +14,7 @@ from custom_code.preprocessing.order_model.messages_to_features_no_engine import
 DEVICE = "cuda"
 SEQ_LEN = 1024
 BATCH_SIZE = 15
-ORDER_MODEL_CKPT = (
-    "../../../mars_runs/order_model/tensorboard/bs=8_lr=1e-4/"
-    "step=step=13920-val=val_loss=3.2903.ckpt"
-)
+ORDER_MODEL_CKPT = "../../../mars_runs/order_model/tensorboard/bs=8_lr=1e-4/step=step=13920-val=val_loss=3.2903.ckpt"
 
 
 @lru_cache(maxsize=1)
@@ -29,6 +26,7 @@ def get_order_model():
 # , put f0 in a list
 # , call the Order Model, on the feature vector (in BATCHES)
 #    take the output (do the argmax and so forth see the stats.py file)
+
 
 def compute_value(tuple_of_paths):
     message_file, snapshot_file = tuple_of_paths
@@ -48,7 +46,6 @@ def compute_value(tuple_of_paths):
 
     # CAST col from f4 to f14 as integer
     feature_df[[f"f{i}" for i in range(4, 15)]] = feature_df[[f"f{i}" for i in range(4, 15)]].astype(int)
-
 
     # print(feature_df)
     # exit()
@@ -70,18 +67,17 @@ def compute_value(tuple_of_paths):
 
     with torch.inference_mode():
         for start in tqdm(range(0, window_count, BATCH_SIZE)):
-            batch = np.ascontiguousarray(windows[start:start + BATCH_SIZE])
+            batch = np.ascontiguousarray(windows[start : start + BATCH_SIZE])
             x = torch.from_numpy(batch).to(device=DEVICE, dtype=torch.long, non_blocking=True)
             logits_next = order_model(x)[:, -1, :]
             pred_id = torch.argmax(logits_next, dim=1)
             predicted_list.extend(pred_id.cpu().tolist())
 
-
     predicted_dico = {}
     for i, ele in enumerate(predicted_list):
         predicted_dico[i] = ele
 
-    gt_list = feature_df["f0"].tolist()[SEQ_LEN - 1:]
+    gt_list = feature_df["f0"].tolist()[SEQ_LEN - 1 :]
     gt_dico = {}
     for i, ele in enumerate(gt_list):
         gt_dico[i] = ele
@@ -96,17 +92,8 @@ def compute_value(tuple_of_paths):
     return
 
 
-
-
-
-
-
-
-
-
 if __name__ == "__main__":
-
-    #data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
+    # data_dir = Path("/scratch/project_2012747/mars_data/order_model/test/raw")
     data_dir = Path("../../../data/test")
 
     list_of_pairs = []
@@ -116,13 +103,11 @@ if __name__ == "__main__":
         if snap_path.exists():
             list_of_pairs.append((message_file, snap_path))
 
-
     list_of_pairs = [next(t for t in list_of_pairs if "AVGO" in str(t[0]))]
 
-
-    #list_of_pairs = list_of_pairs[:2]
+    # list_of_pairs = list_of_pairs[:2]
 
     with ProcessPoolExecutor(1) as ex:
-       list(ex.map(compute_value, list_of_pairs))
+        list(ex.map(compute_value, list_of_pairs))
 
-    #compute_value(Path("NFLX_2025-12-09_messages.parquet"), Path("NFLX_2025-12-09_snapshots.parquet"))
+    # compute_value(Path("NFLX_2025-12-09_messages.parquet"), Path("NFLX_2025-12-09_snapshots.parquet"))
